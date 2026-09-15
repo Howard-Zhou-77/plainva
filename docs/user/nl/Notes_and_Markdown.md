@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-10
+Laatst bijgewerkt: 2026-09-15
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -187,3 +187,9 @@ Alles blijft standaard Markdown met standaard frontmatter. Obsidian opent de bes
 Als een selectie meerdere regels omvat, worden **vet**, *cursief*, doorhalen, markeren en inline-code afzonderlijk op elke niet-lege regel toegepast. Voorvoegsels voor lijsten, citaten, koppen en taken blijven buiten de markeringen. Links blijven één regel omdat een meerregelig linklabel geen draagbare Markdown is.
 
 Een ATX-kop en een GFM-taak zijn alternatieve bloktypen. Plainva schrijft daarom geen ongeldige combinatie. Inline-opmaak werkt in beide; gebruik `- [ ] **Belangrijke taak**` voor een opvallende taaktitel.
+
+## Secties en blokken insluiten
+
+`![[Notitie#Kop]]` toont de sectie en onderliggende koppen tot de volgende kop van hetzelfde of een hoger niveau. `![[Notitie#^block-id]]` toont de alinea, het lijstitem of het blok vóór een blok-ID op een afzonderlijke regel. Een gewone link `[[Notitie#^block-id]]` springt ook in de leesmodus naar die plek.
+
+Gebruik bij herhaalde koppen een unieke koppenreeks (`#Project#Resultaat`) of een genummerd anker (`#resultaat-1`). Ontbrekende of dubbelzinnige doelen geven een melding; de bron blijft bereikbaar. De nestdiepte is begrensd en codevoorbeelden voeren geen insluitingen uit. Op de telefoon worden secties en blokken niet tot vier regels ingekort zoals de algemene notitievoorvertoning. Bestaande bestanden blijven ongewijzigd.

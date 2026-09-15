@@ -8,7 +8,7 @@
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. Publishing a slice to people outside the vault works on the desktop and on the phone: **Create publication** builds a separate encrypted workspace with its own keys in its own folder, **Invite recipient** lets somebody in, and **Withdraw access** or **Withdraw publication** takes it back — with one boundary: withdrawing does not retrieve what someone already copied, it only stops anything new from reaching them and makes the next key epoch unreadable for them. A sanitized publication additionally removes private frontmatter properties, neutralizes links to excluded notes, and omits excluded embeds; permissions at Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, or S3 are additional protection, never a replacement for the encrypted roles, and Plainva shows the advice for the provider you pick without changing any sharing setting for you. On the phone the same path runs through the slice’s row: **Publish a Vault Slice** creates it, after which it appears under **Publications** with mode, access, the number of objects, and its state — **Up to date**, how many changes are still pending, or **Refresh failed** with the reason. Tapping the row opens **Recipients** with **Invite recipient** and **Withdraw access**; a long press offers **Withdraw publication**. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-09-04
+Last reviewed: 2026-09-15
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -52,7 +52,9 @@ If a slice's definition can no longer be read — a hand-edited entry, a broken 
 
 Comments and suggestions — the column, the anchors, the suggest mode, the overview and the notifications — are described on [Comments & Suggestions](Comments_and_Suggestions.md); they work in every vault. This page keeps only what hangs on the workspace.
 
-When a note is published and its recipients have written something, that appears below your own threads — one section **Sent back from “…”** per publication, with the names from its member list. Those remarks live in the publication's workspace, never in your vault, so you can only read them here. Replying, resolving or applying a suggestion would be a write into the publication and is not possible from this side. If the publication carries a sanitised version, the card says the suggestion cannot be applied here; if someone lost access, that is stated too. If a publication is locked or its key is missing on this device, its section is simply absent — your own comments are unaffected. The phone does not have this column.
+Recipients open the publication as its own workspace. Read access permits no feedback; comment access permits remarks, and suggestion access also permits proposed changes in a copy. The original remains read-only. Desktop and mobile enforce the same rights and retain unsent feedback for retry.
+
+Feedback appears beside the original note on desktop and mobile, grouped by publication with recipient names. Applicable proposals from an exact copy can be applied or declined through the normal verified save workflow. The decision is recorded with the original in your own vault; it does not send a reply to recipients. Sanitized copies and passages that cannot be matched safely offer no automatic application. Feedback created with current clients remains readable by the owner after recipient revocation. Older feedback encrypted only to a removed recipient key is not rewritten retrospectively. A publication whose key is missing on this device continues to be omitted.
 
 **Version history** reads encrypted workspace revisions and restores an older revision as a new signed change or as a copy.
 

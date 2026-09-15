@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-09-07
+Ultimo aggiornamento: 2026-09-15
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -90,3 +90,7 @@ Questi file appartengono ad attività diverse. Le attività ricorrenti con lo st
 Un file è cambiato dopo l’apertura. Il confronto è stato ricaricato. Controlla i contenuti attuali e scegli di nuovo.
 
 Unire riga per riga è uno strumento del computer; qui adotti una versione intera o le conservi entrambe.
+
+## Confrontare la copia selezionata
+
+La versione selezionata mostra le righe aggiunte e rimosse rispetto alla nota corrente, anche con il diff nascosto. **Apri in una nuova finestra** mantiene selezionata esattamente quella copia sul desktop. Se scompare, Plainva lo segnala. Per i file grandi il conteggio potrebbe mancare; i file binari non hanno un confronto testuale. Gli stessi conteggi sono presenti nel confronto completo su mobile.

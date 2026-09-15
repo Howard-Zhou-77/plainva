@@ -8,6 +8,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import { isImageTarget, parseWikiImageTarget } from "../lib/imageTarget";
+import { syntaxTree } from "@codemirror/language";
 
 /**
  * Shell-neutral core of the `![[...]]` note-embed live plugin (M3E package H):
@@ -106,6 +107,12 @@ export function buildNoteEmbedCoreExtension(
               if (isImageTarget(parseWikiImageTarget(target).target)) continue;
               const matchFrom = line.from + match.index;
               const matchTo = matchFrom + match[0].length;
+              if (match.index > 0 && line.text[match.index - 1] === "\\") continue;
+              let literal = false;
+              for (let node = syntaxTree(view.state).resolveInner(matchFrom, 1); node; node = node.parent!) {
+                if (["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "CommentBlock"].includes(node.name)) { literal = true; break; }
+              }
+              if (literal) continue;
               if (hideSyntax && !isLineSelected) {
                 builder.add(
                   matchFrom,

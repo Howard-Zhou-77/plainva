@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-09-07
+Dernière mise à jour : 2026-09-15
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -90,3 +90,7 @@ Ces fichiers correspondent à des tâches différentes. Des tâches récurrentes
 Un fichier a changé depuis l’ouverture. La comparaison a été rechargée. Vérifie les contenus actuels et choisis à nouveau.
 
 La fusion ligne par ligne est un outil de bureau ; ici, vous adoptez une version entière ou conservez les deux.
+
+## Comparer la sauvegarde sélectionnée
+
+La version sélectionnée affiche les lignes ajoutées et supprimées par rapport à la note actuelle, même lorsque le diff est masqué. **Ouvrir dans une nouvelle fenêtre** conserve exactement cette sauvegarde sur ordinateur. Si elle disparaît, Plainva l’indique. Les gros fichiers peuvent ne pas afficher de nombre de lignes ; les fichiers binaires n’ont pas de comparaison textuelle. Les mêmes nombres figurent dans la comparaison mobile complète.

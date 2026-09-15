@@ -15,6 +15,13 @@ const base = {
 };
 
 describe("mail list view", () => {
+  it("keeps paging available when unknown attachment metadata leaves no confirmed matches", () => {
+    const rows: Array<{ id: string; hasAttachments?: boolean }> = [{ id: "unknown" }, { id: "no", hasAttachments: false }];
+    const view = mailListView({ ...base, rows, unifiedRows: [], total: 8, attachmentsOnly: true, hasAttachment: row => row.hasAttachments === true });
+    expect(view.listRows).toEqual([]);
+    expect(view.isEmptyByFilter).toBe(true);
+    expect(view.showsLoadMore).toBe(true);
+  });
   it("shows the merged inboxes when 'all inboxes' is on", () => {
     const view = mailListView({ ...base, unified: true, unifiedRows: ["a", "b"], rows: [] });
     expect(view.listRows).toEqual(["a", "b"]);

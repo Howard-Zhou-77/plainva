@@ -1,16 +1,16 @@
 # Busca
 
-Última revisão: 2026-09-03
+Última revisão: 2026-09-15
 
 O Plainva oferece três formas de buscar: busca de texto completo em todo o vault, o alternador rápido para abrir arquivos, e localizar e substituir dentro de uma nota.
 
 ## Busca de texto completo no vault
 
-O campo de busca no topo da barra lateral busca em todo o vault — títulos *e* conteúdos. Ele é sustentado por um índice de texto completo local (SQLite FTS5) que é construído quando o vault abre e mantido atualizado a cada alteração; a busca, portanto, funciona offline e sem atraso perceptível.
+O campo no topo da barra lateral pesquisa títulos e conteúdo em todo o vault. Um índice local de texto completo (SQLite FTS5) é criado ao abrir o vault e atualizado quando os arquivos mudam. A pesquisa funciona offline.
 
 A busca reage enquanto você digita: prefixos de palavra já encontram resultados ("Proj" encontra "Projeto plano") — sem precisar de Enter. O **X** à direita do campo limpa a busca atual (ou pressione `Esc`); a barra lateral volta então a mostrar a árvore de arquivos normal.
 
-A lista de resultados mostra a contagem de ocorrências no topo e agrupa os resultados: primeiro os resultados de **Nome do arquivo** (o termo aparece no nome da nota), depois os de **Conteúdo**. Cada linha mostra o ícone do documento, o caminho da pasta e — para resultados de conteúdo — um trecho de texto com a correspondência destacada. Clicar em um resultado abre a nota e pula direto para a primeira ocorrência; ela fica selecionada ali. Se nada corresponder, a lista exibe **Nenhum resultado**.
+A pesquisa lista cada ocorrência com um trecho, o caminho dos títulos e o número da linha. Abrir uma linha seleciona exatamente essa ocorrência; várias correspondências na mesma nota aparecem separadas. A contagem inclui apenas os resultados já carregados. Você pode carregar mais ocorrências. As setas mudam a seleção e Enter a abre. Carregamento, resultados vazios e erros são indicados; uma nova consulta descarta respostas antigas. Se uma edição impedir a identificação inequívoca da ocorrência, uma mensagem explica isso. As mesmas ocorrências estão disponíveis no alternador rápido e na pesquisa móvel. Ao voltar à pesquisa no celular, a consulta, os resultados carregados e a posição da lista são restaurados.
 
 O campo de busca também se aplica às outras visualizações da barra lateral: em **Tags** ele filtra a lista de tags, em **Favoritos** filtra os favoritos.
 

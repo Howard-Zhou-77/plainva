@@ -187,7 +187,8 @@
       "logseq": "Logseq",
       "notion_file": "Notion (ZIP)",
       "notion_api": "Notion (API)",
-      "obsidian": "Obsidian"
+      "obsidian": "Obsidian",
+      "joplin": "Joplin (JEX / Markdown)"
     },
     "hints": {
       "generic_markdown": "Choose a folder or files containing Markdown (.md).",
@@ -196,7 +197,8 @@
       "evernote": "Choose the .enex files exported from Evernote (Notebook -> Export as ENEX).",
       "logseq": "Choose your Logseq graph folder (the one containing /journals and /pages).",
       "notion_file": "Choose your Notion ZIP export or the unpacked folder. Pages come across; database contents need the API import.",
-      "notion_api": "Enter a Notion integration token to import shared pages and databases directly, including rows and relations."
+      "notion_api": "Enter a Notion integration token to import shared pages and databases directly, including rows and relations.",
+      "joplin": "Choose a JEX file, RAW folder or Markdown export with frontmatter from Joplin. Notebooks, tags, attachments and original timestamps are preserved."
     },
     "report": {
       "title": "Import report",
@@ -312,7 +314,19 @@
     "targetNewVaultHintMobile": "A new, empty vault is created on this device and the import writes into it.",
     "undoVaultMobile": "To undo this import, remove the vault under “More → Vaults”.",
     "syncUploadHintMobile": "This vault is synchronised: all {{n}} imported notes will be uploaded.",
-    "obsidianConnectMobile": "On the phone, connect the same cloud your Obsidian vault lives in under “More → Vaults” — the notes then arrive through sync."
+    "obsidianConnectMobile": "On the phone, connect the same cloud your Obsidian vault lives in under “More → Vaults” — the notes then arrive through sync.",
+    "archiveInvalid": "The archive is damaged or contains unsupported, unsafe or duplicate entries. Nothing was imported.",
+    "archiveTooLarge": "JEX limits: 20,000 entries, 32 MiB per file, 256 MiB total and 64 MiB of text. Text files: up to 2 MiB per file.",
+    "jexInvalid": "This is not a readable Joplin export. Export the data from Joplin as JEX or RAW.",
+    "jexEncrypted": "The export still contains encrypted data. Export it again from Joplin after decryption completes.",
+    "jexFreshTarget": "Choose a destination folder that does not exist yet.",
+    "jexOriginals": "Original records are retained in an additional file. It is included in the attachment count.",
+    "jexIncomplete": "Some targets or attachments are missing. Unresolved links and original data are retained.",
+    "jexExtraRecords": "Additional Joplin record types are retained in the original data.",
+    "jexNoNotes": "This export contains no notes.",
+    "jexMissingFolders": "Some notebooks were not exported. Their notes will be placed directly in the import folder.",
+    "statFolders": "Notebooks",
+    "statTags": "Tags"
   },
   "settings": {
     "about": "About & diagnostics",
@@ -519,7 +533,7 @@
     "fontSearch": "Search fonts…",
     "fontFieldEmpty": "Choose a font…",
     "customThemeAdoptFrom": "Take from…",
-    "customThemePageDesc": "Your own theme: you choose the mood, background and accent; Plainva derives the text colours so text never vanishes into the ground.",
+    "customThemePageDesc": "Your colours for a light and a dark mood.",
     "customThemeEdit": "Edit",
     "groupColors": "Colours",
     "groupShape": "Shape",
@@ -611,12 +625,23 @@
     "fontContentDesc": "Editor and reading view.",
     "fontCode": "Code",
     "fontCodeDesc": "Code blocks, inline code and the code mode.",
-    "fontsDeviceHint": "Applies to this device — installed fonts differ from device to device."
+    "fontsDeviceHint": "Applies to this device — installed fonts differ from device to device.",
+    "customThemePairHint": "Light and dark moods are saved separately. With both adopted, System follows your device.",
+    "customThemeProposal": "This mood is a proposal. Your saved design stays unchanged until you adopt it.",
+    "customThemeAdoptMood": "Adopt mood",
+    "customThemeSaveFailed": "The design could not be saved. Please try again.",
+    "customThemeSyncTitle": "Personal sync",
+    "customThemeSyncEnabled": "Sync through this vault",
+    "customThemeSyncHint": "Colours and corners sync only for you. Choose one vault as the source on each device. Settings sync must be enabled.",
+    "customThemeSyncSource": "Selected source: {{name}}",
+    "customThemeSyncLocal": "Your design stays on this device. Open an unlocked vault to enable sync.",
+    "customThemeSyncFailed": "Design sync could not be fully saved or loaded. Check the connection, unlock the vault and reopen this page.",
+    "customThemeSyncConflict": "Two devices changed the design at the same time. All variants are kept until you choose one or edit the design.",
+    "customThemeSyncChoose": "Use variant {{number}}"
   },
   "editor": {
     "completionHeadings": "Headings",
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
-    "fileNotFound": "File not found",
     "loading": "Loading...",
     "menu": "Menu",
     "time": "Time",
@@ -908,8 +933,6 @@
     "searchTags": "Filter tags…",
     "searchDatabases": "Filter databases…",
     "noResults": "No results",
-    "resultCount_one": "1 result",
-    "resultCount_other": "{{count}} results",
     "matchesName": "File name",
     "matchesContent": "Content",
     "resize": "Resize sidebar",
@@ -1214,7 +1237,18 @@
     "filterTags": "Tags · whole note",
     "filterLabelsFrom": "Labels · {{property}}",
     "filterPropertyTags": "{{property}} · property",
-    "filterSearchValues": "Search values…"
+    "filterSearchValues": "Search values…",
+    "exportTitle": "Export table",
+    "exportValues": "Values (.csv)",
+    "exportFormulas": "Formulas (.base)",
+    "exportScope": "Result rows: {{count}}. The export includes the columns of this view.",
+    "exportFormulaHint": "The .base file keeps the current rows as a fixed selection. Supported calculations remain formulas. Open it in the same vault with the linked notes.",
+    "exportUnsupported": "These columns cannot yet be exported as equivalent formulas:",
+    "exportIssue_operation": "This calculation has not been confirmed equivalent.",
+    "exportIssue_relation": "Reverse relations or alternative relation keys are not translated.",
+    "exportIssue_property": "This file property is not translated.",
+    "exportValuesHint": "CSV contains the current calculated values and file paths. Values will not update later. Lists are preserved as JSON.",
+    "exportFailed": "The export failed. Your data is unchanged; please try again."
   },
   "fileTree": {
     "unsynced": "Not synchronized",
@@ -1610,7 +1644,11 @@
     "prevYear": "Previous year",
     "nextYear": "Next year",
     "showWeeks": "Show week numbers",
-    "weekShort": "Wk"
+    "weekShort": "Wk",
+    "dailyNoteExists": "Daily note exists",
+    "openDailyNote": "Open daily note",
+    "createDailyNote": "Create daily note",
+    "dailyNotesUnavailable": "Daily-note marks could not be loaded."
   },
   "titlebar": {
     "openTabs": "Open files",
@@ -2297,7 +2335,11 @@
     "differentTasks": "Two different tasks",
     "differentTasksHint": "These files belong to different tasks. Recurring tasks with the same title can be separate instances. Both contents are kept as separate tasks.",
     "keepSeparateTasks": "Keep as separate tasks",
-    "comparisonChanged": "A file changed after you opened it. The comparison has been reloaded. Review the current contents and choose again."
+    "comparisonChanged": "A file changed after you opened it. The comparison has been reloaded. Review the current contents and choose again.",
+    "versionUnavailable": "The selected version is no longer available.",
+    "countsUnavailable": "Line counts are unavailable for this file size.",
+    "windowFailed": "The comparison window could not be opened.",
+    "lineChanges": "+{{added}} / −{{removed}} lines"
   },
   "conflict": {
     "resolveFailed": "Could not resolve the conflict: {{error}}",
@@ -2593,7 +2635,7 @@
     "repeatEvery_monthly": "every {{n}} mo",
     "repeatEvery_yearly": "every {{n}} y",
     "repeatSpawned": "Next due: {{date}}",
-    "repeatFailed": "The next task could not be created.",
+    "repeatFailed": "The task is done. The next task could not be confirmed. Check the task folder before trying again.",
     "repeatRemote": "This task comes from a provider and repeats there.",
     "repeatPreview": "Next due: {{date}}",
     "repeatPreviewFromToday": "Counted from today, because you count from when you check it off.",
@@ -2610,7 +2652,16 @@
     "deletingWithUndo_one": "Task deleted. Removing it at the provider in {{seconds}}s.",
     "deleteCancelled_one": "Deletion undone — the note is back.",
     "deletingWithUndo_other": "{{count}} tasks deleted. Removing them at the provider in {{seconds}}s.",
-    "deleteCancelled_other": "Deletion undone — {{count}} notes are back."
+    "deleteCancelled_other": "Deletion undone — {{count}} notes are back.",
+    "metadata": {
+      "created": "Created",
+      "start": "Start",
+      "scheduled": "Scheduled",
+      "completed": "Completed",
+      "taskId": "ID",
+      "recurrence": "Recurrence",
+      "unsupported": "Rule preserved; no automatic continuation here."
+    }
   },
   "findReplace": {
     "title": "Find & replace in vault",
@@ -2700,7 +2751,7 @@
     "authConfig": "The app registration for this account does not fit. Check the client ID, secret and redirect URI with your provider.",
     "authApiDisabled": "The sign-in is fine, but the Google API being called is not enabled in your own Google Cloud project. Enable it there (calendar: “Google Calendar API”, tasks: “Google Tasks API”) and try again.",
     "authExpired": "This account's sign-in has expired or was revoked. Sign in again to restore it.",
-    "authExpiredGoogle": "This account's sign-in has expired or was revoked. Sign in again. If you use your own Google client and its consent screen is still in “Testing”, Google expires every sign-in after 7 days — publishing the project stops that.",
+    "authExpiredGoogle": "Google rejected this sign-in. Sign in again. With your own app, possible causes include expired test access or revoked consent. Plainva cannot determine the project status from this error.",
     "authNetwork": "This account could not be reached. That looks like a connection problem — try again.",
     "openVaultFirst": "Only available for the open vault.",
     "noAccounts": "No calendar accounts connected yet.",
@@ -2741,7 +2792,7 @@
     "retrying": "Trying…",
     "retrySameError": "The retry ended with the same error.",
     "davPass": "App password",
-    "googleByoHint": "Google requires your own OAuth client ID (like the Drive sync). Scopes: calendar + tasks.",
+    "googleByoHint": "Use the Google client ID for this device. A desktop client also needs its matching client secret value. The guide explains mobile registrations. Permissions: calendars and tasks.",
     "clientFromDevice": "Client ID taken from this device.",
     "googleClientSecret": "Client secret (optional for desktop clients)",
     "googleClientIdRequired": "Google needs your own client ID (BYO).",
@@ -3027,7 +3078,6 @@
     "noSearchResults": "No matches in this folder.",
     "markRead": "Mark as read",
     "markUnread": "Mark as unread",
-    "bulkPartial": "Not every message could be changed ({{n}} failed): {{error}}",
     "moveTo": "Move to…",
     "moved": "Moved to {{folder}}",
     "delete": "Delete",
@@ -3133,7 +3183,24 @@
     "unsubscribeFailed": "The unsubscribe page could not be opened.",
     "sendingWithUndo": "Sending in {{seconds}} s",
     "sendCancelled": "Sending cancelled — the message was not sent.",
-    "emlAdded": "Raw copy added to “{{name}}”."
+    "emlAdded": "Raw copy added to “{{name}}”.",
+    "googleSignInTest": "Sign in with Google · Test",
+    "googleTestHint": "Test access for approved Google test accounts. You allow Plainva to read, manage and send email. Captured email becomes part of your vault and follows its sync settings.",
+    "filterAttachments": "With attachments",
+    "attachmentsLoaded": "Metadata for {{known}} of {{loaded}} loaded messages. More messages may contain attachments.",
+    "bulkWorking": "Bulk action running. Cancel stops after the current batch.",
+    "bulkReport": "{{done}} completed, {{failed}} unconfirmed.",
+    "bulkUncertain": "Outcome uncertain. Reload the folder before trying the action again.",
+    "bulkReason": {
+      "missing": "Message no longer in the original folder.",
+      "changed": "Folder changed or came from the cache. Please reload.",
+      "unsupported": "The server does not support this targeted action (MOVE/UIDPLUS).",
+      "rejected": "The server did not confirm the change.",
+      "connection": "Connection interrupted.",
+      "cancelled": "Not performed: cancelled."
+    },
+    "noAttachmentMatches": "No confirmed attachments in the loaded messages.",
+    "cacheUpdateFailed": "Server change confirmed. The local mail cache could not be updated; reload the folder."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",
@@ -3335,7 +3402,7 @@
     "suggestDiscard": "Discard",
     "suggestDiscardConfirm": "Discard {{n}} changes? The note stays as it was.",
     "suggestSend": "Send suggestions ({{n}})",
-    "suggestSent": "{{n}} suggestions sent.",
+    "suggestSent": "Sent suggestions: {{n}}.",
     "suggestNothing": "No change yet.",
     "suggestParkedTitle": "Unsent suggestions found",
     "suggestParkedResume": "Continue editing",
@@ -3417,7 +3484,9 @@
     "decisionConflict": "Conflicting decisions",
     "decisionConfirmDeclined": "Confirm as declined",
     "decisionConfirmApplied": "Confirm as applied",
-    "decisionReviewHelp": "Compare the proposal with the current text. Your decision confirms this text and replaces only the decisions known here. It does not insert the proposal again."
+    "decisionReviewHelp": "Compare the proposal with the current text. Your decision confirms this text and replaces only the decisions known here. It does not insert the proposal again.",
+    "publicationReviewLocal": "This decision is recorded with the original in your own vault.",
+    "suggestionNotPermitted": "Your access does not allow suggestions here."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Encrypted workspaces are experimental and have not been independently reviewed yet. Keep your recovery file and code somewhere safe — without them, encrypted notes cannot be recovered.",
@@ -3868,7 +3937,7 @@
       "chainGap": {
         "title": "Changes from one device are waiting: the chain is broken",
         "explain": "This device expects change no. {{expected}} from {{device}}; the cloud holds no. {{found}}. Whatever is missing or replaced in between blocks everything after it — the group covers {{count}} changes.",
-        "hint": "Usually a second copy of the same device is behind it — a development instance with its own storage, say — or a device that was reconnected and counts from 1 again. Let {{device}} sync once and check again here. If you ignore the group, these changes are lost."
+        "hint": "On a device that still holds the complete verified history, choose Sync now. Plainva can restore missing signed operations from that copy. Then check again on {{device}}. If no valid copy exists, keep or export the local data; verification is never reset to bypass the gap."
       },
       "chainBlocked": {
         "title": "Waiting behind a gap",
@@ -4072,18 +4141,18 @@
     "title": "What's new in Plainva {{version}}",
     "lead": "Biggest change",
     "experimental": "Experimental",
-    "highlight1Title": "Extend existing accounts",
-    "highlight1": "Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.",
-    "highlight2Title": "Setup with clear steps",
-    "highlight2": "The mobile assistant opens the appropriate connection immediately. After signing in, choose calendars and task lists and see the result.",
-    "highlight3Title": "Transfer files with a preview",
-    "highlight3": "When adding files on mobile, Plainva shows the source, destination and collisions before transfer. Existing contents and services are preserved; an interrupted transfer can be retried.",
-    "highlight4Title": "Keep same-title tasks separate",
-    "highlight4": "Provider tasks are matched by identity. Different recurring instances get their own files. Existing false conflicts can be kept as separate tasks.",
-    "highlight5Title": "Make clear choices when comparing files",
-    "highlight5": "Both filenames and locations are visible. Before replacing, the confirmation names the source and destination. If a file changes meanwhile, the comparison reloads.",
-    "highlight6Title": "More room in mobile navigation",
-    "highlight6": "The selected icon keeps its spacing from the edge in the compact bar. Tap targets stay large enough, and reserved space adapts to the text size.",
+    "highlight1Title": "More reliable connections and sync",
+    "highlight1": "Interrupted operations retry selectively. Sign-in problems and uncertain data states are clearer, while local changes are preserved.",
+    "highlight2Title": "Exact results, embeds and history",
+    "highlight2": "Jump to the matching passage, embed individual sections or blocks, and compare the actual line changes in a version.",
+    "highlight3Title": "JEX import and database export",
+    "highlight3": "Import Joplin archives with attachments into a new folder. Export supported rollups as Obsidian formulas or explicitly as values. Tasks keep their metadata.",
+    "highlight4Title": "Clear results for mail actions",
+    "highlight4": "Bulk actions show successes and failures per message. The attachment filter explains incomplete metadata; adding account services preserves existing sign-ins.",
+    "highlight5Title": "Your design and daily workflows",
+    "highlight5": "Customize light and dark separately and optionally sync your personal design. Daily notes, window handoff and queued shared content are more reliable.",
+    "highlight6Title": "Feedback on publications",
+    "highlight6": "Authorized recipients can comment and suggest changes. Owners can review feedback and retain it after a recipient loses access.",
     "readBlog": "Read the blog post",
     "understand": "Got it"
   },
@@ -4281,7 +4350,12 @@
     "noVaultTitle": "No vault open",
     "noVaultBody": "This window is not showing a vault right now. Pick a recent one or choose a folder.",
     "revealNoTree": "No window with a file tree is showing this vault.",
-    "ownerUnreachable": "The main window is not responding."
+    "ownerUnreachable": "The main window is not responding.",
+    "returnToMain": "Return to main window",
+    "transferFailed": "The transfer did not complete. The source tab and its draft are retained.",
+    "transferUnknown": "The main window has not confirmed yet. Your draft stays here; check the status again.",
+    "transferPending": "Transferring the tab. It stays open here until the main window confirms receipt.",
+    "transferCheck": "Check status again"
   },
   "commentNotify": {
     "actionOpen": "Open",
@@ -4342,5 +4416,72 @@
     "retrySaved": "Complete connection",
     "clientSecret": "Client secret (if provided)",
     "googleClientUnsupported": "The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide."
+  },
+  "connectionFailure": {
+    "TLS_CERTIFICATE_EXPIRED": "The server certificate has expired. Renew it on the server.",
+    "TLS_CERTIFICATE_NOT_YET_VALID": "The server certificate is not valid yet. Check the device clock and certificate dates.",
+    "TLS_HOSTNAME_MISMATCH": "The certificate does not match the server address. Check the address and certificate.",
+    "TLS_CERTIFICATE_UNTRUSTED": "The certificate authority is not trusted on this device. Check the server certificate chain and installed CAs.",
+    "TLS_HANDSHAKE_FAILED": "The secure connection could not be verified. Check the server certificate and TLS configuration.",
+    "HTTP_ORIGIN_BLOCKED": "The connection or redirect was blocked because its origin was not allowed. Check the configured server address.",
+    "HTTP_TIMEOUT": "The server did not respond in time. Plainva will retry.",
+    "HTTP_NETWORK_ERROR": "The network connection failed. Plainva will retry when the connection is available.",
+    "HTTP_REQUEST_FAILED": "The request could not be completed. Check the connection settings and diagnostic export."
+  },
+  "workspaceSync": {
+    "transient": "The connection is temporarily unavailable. Plainva will try again automatically; pending changes stay on this device.",
+    "authentication": "Sign in to the sync account again. Pending changes stay on this device until access is restored.",
+    "integrity": "Plainva cannot verify the encrypted workspace. Synchronization is paused; local data and pending changes are preserved. Open Security & Sharing, restore a verified copy if available, then check again.",
+    "fatal": "Synchronization is paused until the connection problem is resolved. Local data and pending changes are preserved. Check the connection, then try again.",
+    "foreignLegacy": "Unencrypted remark files from other devices remain on the server. Only their originating device can finish the conversion. Plainva does not delete another device's files."
+  },
+  "noteEmbed": {
+    "openSource": "Open source",
+    "depth": "The maximum embed depth has been reached.",
+    "unreadable": "“{{target}}” could not be read.",
+    "missing": "“{{target}}” was not found.",
+    "ambiguous": "“{{target}}” matches more than one note. Use a vault-relative path."
+  },
+  "searchResults": {
+    "loading": "Searching…",
+    "loaded": "Occurrences shown: {{count}}",
+    "more": "Load more occurrences",
+    "line": "Line {{line}}",
+    "failed": "Search failed. Try again",
+    "empty": "No matching occurrences.",
+    "changed": "The occurrence is no longer present in the changed text."
+  },
+  "driveDestination": {
+    "title": "Choose Drive folder",
+    "current": "Current destination",
+    "selected": "Selected destination",
+    "folderId": "Folder ID: {{id}}",
+    "review": "Review preview",
+    "apply": "Use this destination",
+    "more": "Load more entries",
+    "effect": "After confirmation, Plainva reconciles this vault with the selected folder. Check its existing files. Other cloud folders are neither moved nor deleted."
+  },
+  "shareInbox": {
+    "title": "Shared content",
+    "waiting": "Waiting transfers: {{count}}",
+    "review": "Review",
+    "destination": "Destination",
+    "chooseVault": "Choose vault",
+    "chooseFolder": "Choose folder",
+    "locked": "This vault is locked. Your content keeps waiting on this device.",
+    "otherVault": "This transfer belongs to another vault. Open that vault to continue.",
+    "targetChanged": "Different content now exists at the destination. The waiting copy is preserved; nothing was overwritten.",
+    "writeFailed": "The transfer could not finish. Your waiting content is preserved.",
+    "indexIssue": "Saved. The search index could not be updated yet.",
+    "saved": "Shared content saved.",
+    "incomplete": "The transfer is incomplete. Share the original content again; received parts remain until discarded.",
+    "receiving": "Preparing shared content…",
+    "progress": "{{done}} of {{total}} saved",
+    "later": "Import later",
+    "import": "Import",
+    "discard": "Discard waiting entry",
+    "discardHint": "Remove only this waiting entry from the device? Files already written to the vault will remain.",
+    "readFailed": "Waiting content could not be read. It has not been removed.",
+    "retry": "Try again"
   }
 }

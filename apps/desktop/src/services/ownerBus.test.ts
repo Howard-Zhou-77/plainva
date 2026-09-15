@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { PimConflictError, type DeletionConfirmation, type IVaultAdapter } from "@plainva/core";
+import { PimConflictError, VaultFileNotFoundError, type DeletionConfirmation, type IVaultAdapter } from "@plainva/core";
 
 /**
  * What happens to a mutation an auxiliary window hands over (multi-window P0/P1).
@@ -145,7 +145,7 @@ function createFileAdapter(files: Map<string, string>): IVaultAdapter {
     dispose: async () => {},
     readTextFile: async (path: string) => {
       const found = files.get(path);
-      if (found === undefined) throw new Error("not found: " + path);
+      if (found === undefined) throw new VaultFileNotFoundError(path);
       return found;
     },
     writeTextFile: async (path: string, content: string) => {

@@ -27,7 +27,9 @@ describe("encrypted workspace P8-P11 contracts", () => {
   it("maps published read, comment and suggestion modes without source-write authority", () => {
     expect(publishedSliceAccessCapabilities("read")).toEqual(["comment.read", "content.read", "history.read"]);
     expect(publishedSliceAccessCapabilities("comment")).toContain("comment.create");
-    expect(publishedSliceAccessCapabilities("suggest")).toContain("content.create");
+    expect(publishedSliceAccessCapabilities("suggest")).toContain("comment.suggest");
+    expect(publishedSliceAccessCapabilities("suggest")).not.toContain("content.create");
+    expect(publishedSliceAccessCapabilities("comment")).not.toContain("comment.suggest");
     expect(publishedSliceAccessCapabilities("suggest")).not.toContain("content.write");
     expect(publishedSliceAccessCapabilities("suggest")).not.toContain("content.delete");
   });

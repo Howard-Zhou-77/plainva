@@ -2,6 +2,7 @@ import { normalizeVerifiedProviderIdentity, verifiedProviderIdentityKey, type Ve
 import type { CloudAccountRecord, CloudServiceId } from "./cloudAccounts";
 import { sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
 import { AccountGrantMissingPermissionsError } from "./accountLoginGrant";
+import { connectionFailureCode } from "@plainva/core";
 
 /** Non-secret destination carried across screens and native browser returns. */
 export interface ServiceConnectionContext {
@@ -24,6 +25,8 @@ export class ServiceConnectionError extends Error {
 
 /** Actionable UI copy for failed setup, without exposing transport/storage codes. */
 export function serviceConnectionMessage(error: unknown, t: (key: string) => string): string {
+  const connection = connectionFailureCode(error);
+  if (connection) return t(`connectionFailure.${connection}`);
   if (error instanceof AccountGrantMissingPermissionsError) return t("cloudAccounts.loginGrantIncomplete");
   const value = error instanceof Error ? error.message : String(error);
   if (/redirect_uri_mismatch|invalid_client|invalid_request|Custom URI scheme/.test(value)) return t("connection.googleClientUnsupported");

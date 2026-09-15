@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-09-11
+Dernière mise à jour : 2026-09-15
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -28,6 +28,8 @@ C’est une version préliminaire : garde une sauvegarde de ton vault et dis-moi
 
 Les notes s'ouvrent **rendues et en lecture seule** ; le crayon en haut à droite bascule en mode d'édition (avec une barre d'outils au-dessus du clavier : mise en forme, listes, lien wiki, commandes slash, insertion de photo). Les inclusions `![[Note]]` apparaissent sous forme de cartes d'aperçu à toucher.
 
+Maintiens un mot appuyé pour sélectionner du texte. La barre de sélection propose **Copier** et **Tout sélectionner**, y compris pour copier le texte intégral d’une longue note. Les propriétés YAML masquées et les marques de formatage Markdown ne sont pas copiées. **Modifier** passe à l’écriture au passage sélectionné si tu peux modifier la note.
+
 Les dossiers se **cherchent** et se **trient** depuis la barre au-dessus de la liste — par **Titre**, **Dernière modification** ou **Création** ; choisir à nouveau inverse le sens, et le tri est mémorisé sur l’appareil. Au démarrage à froid, l’app rouvre ce que vous aviez ouvert en dernier — note, dossier ou vue de base de données, onglet compris — et chaque note s’ouvre là où vous l’aviez laissée ; les assistants de configuration et un e-mail inachevé ne sont pas restaurés. Les listes avec sous-éléments se replient et se déplient d’un toucher sur leur puce.
 
 Le bouton **Détails de la note** dans l'en-tête (entre le marque-page et le menu ⋮) ouvre la fiche contextuelle de la note : propriétés (directement modifiables), liens entrants, plan, graphe et l'**historique des versions** — chaque modification crée automatiquement des instantanés que vous pouvez consulter, comparer et restaurer. La source Markdown et la recherche dans la note se trouvent dans le menu ⋮.
@@ -48,7 +50,7 @@ La **vue calendrier** propose trois périodes : **mois**, **semaine**, **jour**.
 
 **Plusieurs entrées à la fois** : maintenez une ligne enfoncée et choisissez **Sélectionner plusieurs** — la première entrée de la feuille. Ensuite, une pression sélectionne au lieu d'ouvrir, et une barre en bas indique combien d'entrées sont sélectionnées. Vous pouvez alors **supprimer** la sélection (une seule question, pas douze — avec le même aperçu des liens qu'offre une suppression individuelle) ou utiliser **Définir une valeur…** pour définir une propriété sur toutes à la fois : choisissez d'abord la propriété, puis la valeur. Là où une propriété indique **actuellement mixte**, les entrées sélectionnées portent des valeurs différentes. Une valeur vide supprime la propriété. Pendant l'opération, une progression s'affiche et peut être annulée ; ce qui a déjà été écrit reste. Les tags, les listes, la sélection multiple et les relations ne sont volontairement pas inclus — là, « tout mettre à X » signifierait que chaque valeur existante disparaît.
 
-Une vue **Tableau d'affichage** montre les notes sous forme d'un tableau à deux colonnes de cartes autocollantes : une pression simple ouvre la note, un appui long affiche les actions (épingler, libellés, couleur, supprimer), faire glisser après un appui long réordonne, et les cases à cocher se cochent directement sur la carte. Le champ de saisie en haut capture une nouvelle note. Astuce : pointez la base de données vers votre dossier de boîte de réception (**Paramètres** → **Contenu et structure**) et les notes rapides du ＋ ainsi que les textes partagés depuis d'autres applications atterrissent directement sur le tableau.
+Une vue **Tableau d'affichage** montre les notes sous forme d'un tableau à deux colonnes de cartes autocollantes : une pression simple ouvre la note, un appui long affiche les actions (épingler, libellés, couleur, supprimer), faire glisser après un appui long réordonne, et les cases à cocher se cochent directement sur la carte. Le champ de saisie en haut capture une nouvelle note. Astuce : pointez la base de données vers votre dossier de boîte de réception (**Paramètres** → **Contenu et structure**) et les notes rapides du ＋ ainsi que les textes partagés depuis d'autres applications atterrissent directement sur le tableau. Pour le contenu partagé, sélectionnez d’abord ce dossier et confirmez l’importation.
 
 ## Tâches
 
@@ -205,7 +207,9 @@ Les instantanés (historique des versions), un journal des brouillons (après un
 
 ## Partage et raccourcis
 
-Sur Android et iOS, le texte et les URL partagés deviennent une nouvelle note dans la boîte de réception ; les images et les fichiers partagés sont importés comme pièces jointes (25 Mo maximum par fichier). Sur Android, un appui long sur l'icône de l'application ajoute les raccourcis **Nouvelle note** et **Aujourd'hui**.
+Partagez du texte, des liens, des images ou des fichiers vers Plainva depuis une autre application. Plainva conserve d’abord une copie locale privée. Ouvrez Plainva, examinez le contenu partagé, choisissez un vault et un dossier, puis confirmez l’importation. Reporter l’importation, fermer le panneau, verrouiller le vault ou redémarrer l’application conserve le contenu en attente. Une importation commencée garde sa destination initiale lors d’une nouvelle tentative. Une transmission source incomplète doit être partagée à nouveau ; supprimez son entrée en attente lorsque vous n’en avez plus besoin.
+
+Limites par transfert : 10 fichiers, 25 Mio par fichier, 50 Mio au total et 512 Kio de texte, objet compris. La file accueille au plus 20 transferts en attente et réserve de la place dans un budget de pièces jointes de 200 Mio. La copie temporaire est supprimée seulement après l’écriture et la vérification de la note et des pièces jointes, ou après l’abandon explicite de l’entrée. Abandonner ne supprime pas les fichiers déjà importés dans le vault. Sur Android, maintenez l’icône de l’application pour **Nouvelle note** et **Aujourd’hui**. Sur ordinateur, utilisez les actions existantes de collage et d’importation de fichiers.
 
 ## Dossiers, photos et calendrier
 

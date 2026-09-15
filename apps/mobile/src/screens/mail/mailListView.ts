@@ -29,6 +29,8 @@ export interface MailListInput<T> {
   unreadOnly?: boolean;
   /** Reads the unread state of a row; only needed with `unreadOnly`. */
   isUnread?: (row: T) => boolean;
+  attachmentsOnly?: boolean;
+  hasAttachment?: (row: T) => boolean;
 }
 
 export interface MailListView<T> {
@@ -49,7 +51,8 @@ export function mailListView<T>(input: MailListInput<T>): MailListView<T> {
   // must stay reachable. It runs HERE rather than at the render site for the
   // reason the whole helper exists: the empty state has to know the difference
   // between "this folder has no mail" and "none of it is unread".
-  const listRows = input.unreadOnly && input.isUnread ? all.filter(input.isUnread) : all;
+  const unread = input.unreadOnly && input.isUnread ? all.filter(input.isUnread) : all;
+  const listRows = input.attachmentsOnly && input.hasAttachment ? unread.filter(input.hasAttachment) : unread;
   const isEmpty = !input.error && !input.loading && listRows.length === 0;
   return {
     listRows,

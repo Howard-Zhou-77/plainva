@@ -28,7 +28,7 @@ function fakeVault() {
     async writeTextFile(path: string, content: string) {
       files.set(path, content);
     },
-    async createFolder() {
+    async createDir() {
       /* implicit */
     },
   };
@@ -282,8 +282,6 @@ describe('BS2 — an import into an encrypted workspace goes through the workspa
       },
     };
     const adapter: any = new WorkspaceQueueingVaultAdapter(raw, state);
-    // The adapter calls createFolder on the writer's behalf via createDir.
-    adapter.createFolder = (path: string) => adapter.createDir(path);
 
     await new GoogleKeepImporter().run([{ title: 'Secret', textContent: 'confidential' }], opts(adapter));
 

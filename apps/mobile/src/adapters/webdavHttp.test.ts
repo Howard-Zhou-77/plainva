@@ -16,9 +16,24 @@ vi.mock("@capacitor/core", () => ({
   registerPlugin: () => mocks,
 }));
 
-import { webdavFetch } from "./webdavHttp";
+import { allowHttpOrigin, webdavFetch } from "./webdavHttp";
+import { clearDiagnosticsForTests, getDiagnostics } from "@plainva/ui";
 
 describe("webdavFetch (native bridge)", () => {
+  it("does not hide a failed origin registration or log its private address", async () => {
+    clearDiagnosticsForTests();
+    mocks.allowOrigin.mockRejectedValueOnce(new Error("private.server/path"));
+    await expect(allowHttpOrigin("https://private.server/path")).rejects.toMatchObject({ code: "HTTP_ORIGIN_BLOCKED" });
+    expect(getDiagnostics()).toEqual([{ ts: expect.any(Number), source: "native-http", message: "allow-origin: HTTP_ORIGIN_BLOCKED" }]);
+  });
+  it("exports a stable TLS cause without the server path, credentials or certificate subject", async () => {
+    clearDiagnosticsForTests();
+    mocks.request.mockRejectedValueOnce({ code: "TLS_CERTIFICATE_UNTRUSTED", message: "https://user:secret@private.test/vault/family?token=live; CN=Family" });
+    await expect(webdavFetch("https://user:secret@private.test/vault/family?token=live", {
+      method: "PROPFIND", headers: { Authorization: "Bearer private-token" },
+    })).rejects.toMatchObject({ message: "TLS_CERTIFICATE_UNTRUSTED", code: "TLS_CERTIFICATE_UNTRUSTED" });
+    expect(getDiagnostics()).toEqual([{ ts: expect.any(Number), source: "native-http", message: "PROPFIND: TLS_CERTIFICATE_UNTRUSTED" }]);
+  });
   it("resolves a plain response from the plugin", async () => {
     mocks.request.mockResolvedValueOnce({
       status: 200,
@@ -79,6 +94,7 @@ describe("webdavFetch (native bridge)", () => {
   });
 
   it("removes the listener on abort and discards a later native failure", async () => {
+    clearDiagnosticsForTests();
     const controller = new AbortController();
     const removed = vi.spyOn(controller.signal, "removeEventListener");
     let fail!: (reason: Error) => void;
@@ -86,7 +102,8 @@ describe("webdavFetch (native bridge)", () => {
     const pending = webdavFetch("https://example.com/late", { signal: controller.signal }).catch(e => e);
     controller.abort(); expect(await pending).toMatchObject({ name: "AbortError" });
     expect(removed).toHaveBeenCalledWith("abort", expect.any(Function));
-    fail(new Error("native call eventually failed")); await Promise.resolve();
+    fail(new Error("native call eventually failed")); await Promise.resolve(); await Promise.resolve();
+    expect(getDiagnostics()).toEqual([]);
     removed.mockRestore();
   });
 

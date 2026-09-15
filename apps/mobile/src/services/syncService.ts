@@ -17,15 +17,20 @@ import {
   type ISyncTarget,
   type WorkspaceObjectStore,
   type NameCollision,
+  DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
+import { connectionErrorText, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
+import type { StoredAccountToken } from "@plainva/ui";
+import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
-import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
+import { workspaceSyncFailureText } from "@plainva/ui";
+import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
+import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
@@ -60,7 +65,7 @@ import {
 
 const credKeyFor = syncProviderSlot;
 
-export interface DriveMobileCredentials {
+export interface DriveMobileCredentials extends Pick<StoredAccountToken, "nativeGoogle" | "providerIdentity"> {
   clientId: string;
   /** Only for BYO desktop-type clients; Android OAuth clients have none. */
   clientSecret?: string;
@@ -101,7 +106,7 @@ interface SyncState {
   message: string | null;
   /** Set only on the encrypted-workspace "pair/recover this device" error so the
    *  UI can offer a deep-link into Security & Sharing (package F2). */
-  errorKind?: "pair-required";
+  errorKind?: "pair-required" | "workspace-integrity" | "authentication";
   /** Wall clock of the next attempt, with `retrying` only (round 3, R4). */
   retryAt?: number;
   /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
@@ -146,9 +151,10 @@ export function currentDeletionJournal(): DeletionJournal | null {
 function setState(next: {
   status: MobileSyncStatus;
   message: string | null;
-  errorKind?: "pair-required";
+  errorKind?: "pair-required" | "workspace-integrity" | "authentication";
   retryAt?: number;
 }): void {
+  if (next.message) next = { ...next, message: connectionErrorText(next.message) ?? next.message };
   const finished = state.status === "syncing" && next.status === "idle";
   // A temporary failure is recorded too: the surface stops shouting about it,
   // and that is exactly when the history has to keep the raw provider string —
@@ -157,6 +163,7 @@ function setState(next: {
     (next.status === "error" || next.status === "retrying") && next.message && next.message !== state.message
       ? [{ at: Date.now(), message: next.message }, ...state.errorHistory].slice(0, 5)
       : state.errorHistory;
+  if (errorHistory !== state.errorHistory && next.message) logDiagnostic("sync", next.message);
   state = {
     ...next,
     lastSyncAt: finished ? Date.now() : state.lastSyncAt,
@@ -363,15 +370,15 @@ export async function switchProviderToAccountBroker(vaultId: string, record: Clo
   if (!record.services.files) return;
   if (!existing || existing.provider !== record.services.files.provider
     || (existing.provider !== "drive" && existing.provider !== "onedrive") || existing.creds.clientId !== clientId) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
-  const broker = await fileBrokerTokenProvider(vaultId, { provider: existing.provider, ...existing.creds, accountId: record.id });
-  if (!broker) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
+  await probe.getAccessToken();
   if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
   if (JSON.stringify(await getStoredProvider(vaultId)) !== JSON.stringify(existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
   let merged: MobileSyncProvider;
-  if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "" } };
+  if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "", nativeGoogle: undefined } };
   else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
   else return; // password- or key-based providers have nothing to hand over
-  await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), merged);
+  await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
   await updateVault(vaultId, { paused: false });
   if ((await getActiveVaultEntry()).id === vaultId) {
     stopSync();
@@ -495,21 +502,21 @@ function reportRootFolderCreated(name: string): void {
 }
 
 async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext): Promise<ISyncTarget> {
-  // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
-  // immediately or the stored token goes stale (desktop lesson). AWAITED and
-  // failures PROPAGATE (P3.1b, finding M7): a rotation whose persistence
-  // silently failed would lock the next app start out of sync — better to
-  // surface it as a cycle error now (the in-memory token still works this
-  // session, and the next refresh retries the persistence).
-  const persistRotation = async () => {
-    // A creation check keeps rotations in p; successful creation persists
-    // that same object into its newly allocated vault slot afterwards.
-    if (credKey !== null) await getPlatformServices().credentials.writeSecret(credKey, p);
+  // Confirm rotations before using the new access token. A stale runtime must
+  // never overwrite a newer sign-in or a source already adopted by the broker.
+  const persistRotation = async (refreshToken: string) => {
+    // A creation probe owns its pending object and has no stored source yet.
+    if (credKey === null || (p.provider !== "onedrive" && p.provider !== "dropbox")) return;
+    await rotateLegacyFileGrant(credKey, p.provider, {
+      clientId: p.provider === "dropbox" ? p.creds.appKey : p.creds.clientId,
+      refreshToken: p.creds.refreshToken,
+    }, refreshToken);
   };
   switch (p.provider) {
     case "s3":
       return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
     case "drive": {
+      const destination = credKey === null ? { path: p.creds.rootFolderName, id: undefined } : await readDriveDestination(vaultId ?? "", p);
       const target = new DriveSyncTarget(
         {
           clientId: p.creds.clientId,
@@ -518,7 +525,8 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           // From the settings, not the slot: the slot's copy dies with the
           // account, and the default that took over then created a second
           // folder in the cloud (finding 2026-08-19).
-          rootFolderName: (credKey === null ? p.creds.rootFolderName : await readSyncRootFolder(vaultId ?? "", "drive", p)) || undefined,
+          rootFolderName: destination.path || undefined,
+          rootFolderId: destination.id,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
@@ -528,7 +536,12 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       // Google joined the broker on 2026-07-28: an account connected through
       // the union consent keeps ONE refresh token, and every service asks for
       // an access token instead of holding a copy that can go stale.
-      if (context?.cloudAccountId && !p.creds.refreshToken) {
+      if (p.creds.nativeGoogle) {
+        target.accessTokenProvider = async force => {
+          if (force) forgetNativeGoogleTokens();
+          return (await authorizeNativeGoogle(DRIVE_DEFAULT_SCOPE, false, p.creds)).accessToken;
+        };
+      } else if (context?.cloudAccountId && !p.creds.refreshToken) {
         const probe = await fileGrantProbe(context.vaultId, context.cloudAccountId, "google", p.creds);
         target.accessTokenProvider = force => probe.getAccessToken(force);
       } else if (vaultId) {
@@ -566,8 +579,8 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       target.onRootFolderCreated = (name) => reportRootFolderCreated(name);
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
+        await persistRotation(refreshToken);
         p.creds.refreshToken = refreshToken;
-        await persistRotation();
       };
       return target;
     }
@@ -586,8 +599,8 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       target.onRootFolderCreated = (name) => reportRootFolderCreated(name);
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
+        await persistRotation(refreshToken);
         p.creds.refreshToken = refreshToken;
-        await persistRotation();
       };
       return target;
     }
@@ -698,18 +711,28 @@ function withRemoteFolder(p: MobileSyncProvider, folder: string): MobileSyncProv
   }
 }
 
-export async function changeRemoteFolder(v: MobileVault, folder: string): Promise<void> {
+export async function changeRemoteFolder(v: MobileVault, folder: string, folderId?: string): Promise<void> {
+  if ((await getActiveVaultEntry()).id !== v.vaultId) throw new Error("The active vault changed. Open its current settings.");
   const stored = await getStoredProvider(v.vaultId);
   if (!stored || !canChangeRemoteFolder(stored.provider)) throw new Error("remote folder is not changeable for this provider");
   await stopSyncAndDrain();
   // The three OAuth providers keep the folder in the settings now, so it
   // survives an account being removed; WebDAV and S3 keep theirs in the
   // connection, where a reconnect shows it in the form.
-  await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim());
+  await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim(), folderId);
   if (stored.provider === "s3") {
     await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
   }
   await startSyncIfConfigured(v);
+}
+
+export async function openDriveDestination(vaultId: string) {
+  const stored = await getStoredProvider(vaultId);
+  if (!stored || stored.provider !== "drive") throw new Error("Google Drive is not connected");
+  const target = await buildTarget(stored, credKeyFor(vaultId), vaultId) as DriveSyncTarget;
+  const destination = await readDriveDestination(vaultId, stored);
+  return { currentPath: destination.path || "Plainva", previewCurrent: () => target.previewConfiguredFolder(),
+    loadFolder: (id: string, page?: string) => target.previewFolder(id, page) };
 }
 
 async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void> {
@@ -764,13 +787,13 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
       // neither is an error the publisher could act on from this device.
       openPublicationRuntime: (record) => loadMobilePublicationRuntime(v.vaultId, record.publicationId),
     });
-    // No `retryAt` here: the encrypted-workspace worker has no failure counter
-    // and still reports every throw as `error` (round 3 changed the ordinary
-    // sync worker; giving this one the same treatment is its own step).
     // No name-collision channel here on purpose: an encrypted workspace stores
     // sealed objects under content hashes, so the remote never carries a human
     // file name and two Unicode forms of one cannot exist (finding 2026-08-21).
-    encrypted.onStatusChange = (status, errorMsg) => setState({ status, message: errorMsg ?? null });
+    encrypted.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => setState({
+      status, message: workspaceSyncFailureText(errorMsg, failureKind), retryAt,
+      errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
+    });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     worker = encrypted;

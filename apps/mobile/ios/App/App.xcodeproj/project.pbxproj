@@ -26,6 +26,9 @@
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7E0002000000000000000001 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
+		7E0002000000000000000002 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
+		7E0002000000000000000003 /* ShareCopy.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000002 /* ShareCopy.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +80,8 @@
 		7B1009020000000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		7B1009030000000000000001 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		7B1009040000000000000001 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E0001000000000000000001 /* ShareQueueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ShareQueueStore.swift; sourceTree = SOURCE_ROOT; };
+		7E0001000000000000000002 /* ShareCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ShareCopy.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +109,7 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				7B1007000000000000000001 /* ShareExtension */,
+				7E0001000000000000000001 /* ShareQueueStore.swift */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -146,6 +152,7 @@
 			isa = PBXGroup;
 			children = (
 				7B1009020000000000000001 /* ShareViewController.swift */,
+				7E0001000000000000000002 /* ShareCopy.xcstrings */,
 				7B1009010000000000000001 /* Info.plist */,
 				7B1009030000000000000001 /* ShareExtension.entitlements */,
 			);
@@ -162,10 +169,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				7B1004030000000000000001 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				7B1005000000000000000001 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -253,6 +262,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7E0002000000000000000003 /* ShareCopy.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -270,6 +280,7 @@
 				7A0002000000000000000004 /* AtomicFilePlugin.swift in Sources */,
 				7A0002000000000000000003 /* MainViewController.swift in Sources */,
 				7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */,
+				7E0002000000000000000001 /* ShareQueueStore.swift in Sources */,
 				7C0002000000000000000001 /* VaultFolderPlugin.swift in Sources */,
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 			);
@@ -280,6 +291,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7B1008010000000000000001 /* ShareViewController.swift in Sources */,
+				7E0002000000000000000002 /* ShareQueueStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -464,7 +476,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.plainva.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "Plainva App Store";
+				PLAINVA_APP_PROFILE = "Plainva App Store";
+				PROVISIONING_PROFILE_SPECIFIER = "$(PLAINVA_APP_PROFILE)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -496,7 +509,10 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				PLAINVA_SHARE_PROFILE = "Plainva Share App Store";
+				PROVISIONING_PROFILE_SPECIFIER = "$(PLAINVA_SHARE_PROFILE)";
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M3FGXPBLFZ;
 				GENERATE_INFOPLIST_FILE = NO;

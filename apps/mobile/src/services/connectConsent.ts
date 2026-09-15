@@ -1,7 +1,7 @@
-import { FAMILY_SERVICES, reviewAccountGrant, completeAccountGrant, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
+import { FAMILY_SERVICES, hasStoredAccountGrant, legacyOAuthToken, reviewAccountGrant, requireCompleteAccountGrant, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 
 import { unionScopeFor } from "./accountLogin";
-import { getAccountToken, saveAccountToken } from "./accountBroker";
+import { migrateLegacyAccountGrant } from "./accountGrantMigration";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { getStoredProvider, switchProviderToAccountBroker } from "./syncService";
 
@@ -22,8 +22,9 @@ import { getStoredProvider, switchProviderToAccountBroker } from "./syncService"
  * before its own credentials).
  *
  * The initial mailbox creation still has its own identity/probe step. Once
- * bound, Microsoft mail also uses the account broker on both shells. Gmail
- * uses an app password and never enters an OAuth consent.
+ * bound, Microsoft mail also uses the account broker on both shells. This
+ * wizard's Google mail choice uses an app password; Gmail OAuth has its own
+ * verified entry and can subsequently share the account broker.
  */
 
 /** Families whose services share one account token. */
@@ -36,12 +37,12 @@ export function brokerFamilyOf(family: CloudProviderFamily): BrokerFamily | null
 /**
  * The services of a run that a single OAuth consent can cover.
  *
- * Gmail is excluded for Google because it signs in with an app password;
- * Microsoft mailbox creation uses its own probe before joining an account.
+ * Gmail's app-password connection has no OAuth consent. Microsoft's mailbox
+ * probe uses the same granted token as files and calendars.
  */
 export function consentServicesOf(family: BrokerFamily, services: readonly CloudServiceId[]): CloudServiceId[] {
   const carried = FAMILY_SERVICES[family];
-  return services.filter((s) => carried.includes(s) && s !== "mail");
+  return services.filter((s) => carried.includes(s) && (family !== "google" || s !== "mail"));
 }
 
 /**
@@ -99,19 +100,13 @@ export async function bindRunTokenToAccount(
   const provider = await getStoredProvider(vaultId);
   if (!provider || (provider.provider !== "drive" && provider.provider !== "onedrive")) return null;
   if (provider.provider !== (broker === "google" ? "drive" : "onedrive")) return null;
-  const creds = provider.creds as {
-    clientId?: string;
-    clientSecret?: string;
-    refreshToken?: string;
-    grantedScope?: string;
-  };
-  if (!creds.refreshToken || !creds.clientId) return null;
+  const creds = legacyOAuthToken(provider.creds as unknown as Record<string, unknown>);
+  if (!hasStoredAccountGrant(creds)) return null;
 
   const records = await loadCloudAccounts(vaultId);
   const matches = records.filter((r) => r.family === family && r.services.files?.provider === provider.provider);
   const record = matches.length === 1 ? matches[0] : undefined;
   if (!record) return null;
-  if ((await getAccountToken(vaultId, record.id))?.refreshToken) return null;
 
   // Record what the consent GRANTED, never what the run asked for. Storing the
   // request made a Drive-only token claim the calendar, and Google cannot widen
@@ -120,18 +115,9 @@ export async function bindRunTokenToAccount(
   // carries no grant, and "unknown" must read as "no": `tokenCoversService`
   // treats a Google token without scopes as not covering anything, which sends
   // the service to its own consent instead of a dead shared one.
-  const review = reviewAccountGrant(broker, covered, {
-    clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken,
-  }, unionScopeFor(broker, covered), creds.grantedScope);
-  await completeAccountGrant({
-    record, review,
-    readRecord: () => loadCloudAccounts(vaultId).then((rows) => rows.find((r) => r.id === record.id)),
-    beforeSave: async () => {
-      const current = await getStoredProvider(vaultId);
-      if (JSON.stringify(current) !== JSON.stringify(provider)) throw new Error("The file sign-in changed. Please try again.");
-    },
-    save: (token) => saveAccountToken(vaultId, record.id, token, null),
-    bind: async (service) => { if (service === "files") await switchProviderToAccountBroker(vaultId, record, creds.clientId!); },
-  });
+  const review = reviewAccountGrant(broker, covered, creds, unionScopeFor(broker, covered), creds.scopes);
+  requireCompleteAccountGrant(review);
+  if (await migrateLegacyAccountGrant(vaultId, record, "files", covered) === "absent") return null;
+  await switchProviderToAccountBroker(vaultId, record, creds.clientId);
   return record.id;
 }

@@ -3,6 +3,9 @@ import { readSelectionVerbs } from "@plainva/ui";
 
 /** Build-91 feedback, P5 (E5): the verbs over a read-mode selection. */
 describe("readSelectionVerbs", () => {
+  it("offers explicit copy and full selection without granting edit or comment rights", () => {
+    expect(readSelectionVerbs({ canCopy: true, canComment: false, hasComment: false, hasSuggest: false, canEdit: false })).toEqual(["copy", "selectAll"]);
+  });
   it("a plain vault note gets the bar for the one verb it can offer", () => {
     expect(readSelectionVerbs({ canComment: false, hasComment: true, hasSuggest: true, canEdit: true })).toEqual(["edit"]);
   });

@@ -4,6 +4,7 @@ import {
   upsertFrontmatterKeys,
 } from '../frontmatter-surgical.js';
 import { okfInstant, type OkfSource } from '../okf-trust.js';
+import type { IVaultAdapter } from '../vault/IVaultAdapter.js';
 import {
   ImportLabels,
   ImportOptions,
@@ -93,7 +94,7 @@ export class ImportWriter {
     return this.opts.targetSubfolder ? `${this.opts.targetSubfolder}/` : '';
   }
 
-  private get adapter(): any | undefined {
+  private get adapter(): Pick<IVaultAdapter, 'exists' | 'createDir' | 'writeTextFile' | 'writeBinaryFile' | 'setFileTimes'> | undefined {
     return this.opts.vaultAdapter;
   }
 
@@ -105,13 +106,16 @@ export class ImportWriter {
 
   private async ensureFolder(folder: string): Promise<void> {
     if (!folder || this.ensuredFolders.has(folder)) return;
+    if (this.adapter) await this.adapter.createDir(folder);
     this.ensuredFolders.add(folder);
-    if (!this.adapter) return;
-    try {
-      await this.adapter.createFolder(folder);
-    } catch {
-      // Directory already exists — createFolder is idempotent for our purposes.
-    }
+  }
+
+  /** Preserve an explicitly exported empty notebook as well as its notes. */
+  async writeFolder(relativePath: string): Promise<void> {
+    this.abortIfRequested();
+    const full = `${this.prefix}${relativePath}`;
+    if (this.adapter) await this.adapter.createDir(full);
+    this.ensuredFolders.add(full);
   }
 
   /**

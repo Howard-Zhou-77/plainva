@@ -35,11 +35,12 @@ export function buildDriveTarget(
     clientSecret: string;
     refreshToken: string;
     rootFolderName?: string;
+    rootFolderId?: string;
   },
   accessTokenProvider?: (force: boolean) => Promise<string>
 ): DriveSyncTarget {
   const target = new DriveSyncTarget(
-    { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken, rootFolderName: creds.rootFolderName },
+    { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken, rootFolderName: creds.rootFolderName, rootFolderId: creds.rootFolderId },
     httpFetch
   );
   if (accessTokenProvider) target.accessTokenProvider = accessTokenProvider;
@@ -48,7 +49,7 @@ export function buildDriveTarget(
 
 export function buildOneDriveTarget(
   creds: { clientId: string; refreshToken: string; rootFolderName?: string },
-  onRotate?: (refreshToken: string) => void,
+  onRotate?: (refreshToken: string) => void | Promise<void>,
   accessTokenProvider?: (force: boolean) => Promise<string>
 ): OneDriveSyncTarget {
   const target = new OneDriveSyncTarget(
@@ -60,8 +61,11 @@ export function buildOneDriveTarget(
     // the account; this target must never refresh (or rotate) on its own.
     target.accessTokenProvider = accessTokenProvider;
   } else if (onRotate) {
-    target.onTokensRefreshed = (_accessToken, refreshToken) => {
-      if (refreshToken && refreshToken !== creds.refreshToken) onRotate(refreshToken);
+    target.onTokensRefreshed = async (_accessToken, refreshToken) => {
+      if (refreshToken && refreshToken !== creds.refreshToken) {
+        await onRotate(refreshToken);
+        creds.refreshToken = refreshToken;
+      }
     };
   }
   return target;
@@ -69,15 +73,18 @@ export function buildOneDriveTarget(
 
 export function buildDropboxTarget(
   creds: { appKey: string; refreshToken: string; rootPath?: string },
-  onRotate?: (refreshToken: string) => void
+  onRotate?: (refreshToken: string) => void | Promise<void>
 ): DropboxSyncTarget {
   const target = new DropboxSyncTarget(
     { appKey: creds.appKey, refreshToken: creds.refreshToken, rootPath: creds.rootPath },
     httpFetch
   );
   if (onRotate) {
-    target.onTokensRefreshed = (_accessToken, refreshToken) => {
-      if (refreshToken && refreshToken !== creds.refreshToken) onRotate(refreshToken);
+    target.onTokensRefreshed = async (_accessToken, refreshToken) => {
+      if (refreshToken && refreshToken !== creds.refreshToken) {
+        await onRotate(refreshToken);
+        creds.refreshToken = refreshToken;
+      }
     };
   }
   return target;

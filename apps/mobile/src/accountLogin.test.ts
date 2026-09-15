@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("@plainva/ui/mail", async original => ({ ...await original<typeof import("@plainva/ui/mail")>(), listMailAccounts: vi.fn(async () => []) }));
 
 vi.mock("./services/pim/pimOAuth", () => ({ beginPimOAuth: vi.fn(), setOAuthPurposeHandler: vi.fn() }));
 vi.mock("./services/accountBroker", () => ({
@@ -9,7 +10,23 @@ vi.mock("./services/accountBroker", () => ({
 vi.mock("./services/pim/pimCredentials", () => ({
   getPimCredentials: vi.fn(async () => null),
   savePimCredentials: vi.fn(),
+  pimSecretKey: (vault: string, id: string) => `pim_${vault}_${id}`,
 }));
+vi.mock("./services/accountCredentialStore", () => ({ accountCredentialStore: {
+  read: async (key: string) => {
+    const { getPlatformServices } = await import("@plainva/ui");
+    const value = await getPlatformServices().credentials.readSecret(key);
+    return value === null ? null : JSON.stringify(value);
+  },
+  compareAndSet: async (key: string, expected: string | null, next: string | null) => {
+    const { getPlatformServices } = await import("@plainva/ui");
+    const credentials = getPlatformServices().credentials;
+    const value = await credentials.readSecret(key);
+    if ((value === null ? null : JSON.stringify(value)) !== expected) return false;
+    if (next === null) await credentials.removeSecret(key); else await credentials.writeSecret(key, JSON.parse(next));
+    return true;
+  },
+} }));
 vi.mock("./services/pim/pimService", () => ({ listPimAccounts: vi.fn(async () => []), restartPimAccountAfterLogin: vi.fn() }));
 vi.mock("./services/syncService", () => ({
   getStoredProvider: vi.fn(async () => null),
@@ -17,6 +34,7 @@ vi.mock("./services/syncService", () => ({
 }));
 vi.mock("./services/cloudAccountsStore", () => ({ loadCloudAccounts: vi.fn(async () => []) }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
+vi.mock("./adapters/webdavHttp", () => ({ webdavFetch: async () => new Response(JSON.stringify({ sub: "person", email: "someone@example.com", email_verified: true })) }));
 
 import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount, beginAccountLogin } from "./services/accountLogin";
 import { getAccountToken } from "./services/accountBroker";
@@ -52,9 +70,11 @@ describe("mobile union consent scope", () => {
     expect(scope).toContain("auth/calendar");
   });
 
-  it("leaves Gmail out: it runs over IMAP, so mail scopes would be permission we never use", () => {
+  it("requests Gmail scopes only for an OAuth mailbox, keeping app passwords independent", () => {
     expect(oauthServicesOf(record("google", ["files", "calendar", "mail"]))).toEqual(["files", "calendar"]);
-    expect(unionScopeFor("google", ["files", "calendar"])).not.toContain("gmail");
+    expect(unionScopeFor("google", ["files", "calendar"])).not.toContain("https://mail.google.com/");
+    expect(oauthServicesOf(record("google", ["calendar", "mail"]), "gmail")).toEqual(["calendar", "mail"]);
+    expect(unionScopeFor("google", ["mail"])).toContain("https://mail.google.com/");
   });
 
   it("carries all three services for Microsoft, without repeating shared scopes", () => {
@@ -90,7 +110,7 @@ describe("canUnifyMobileAccount", () => {
   });
 
   it("stops offering it once the account already holds one shared token", async () => {
-    vi.mocked(getAccountToken).mockResolvedValueOnce({ clientId: "c", refreshToken: "r" });
+    vi.mocked(getAccountToken).mockResolvedValueOnce({ clientId: "c", refreshToken: "r" }).mockResolvedValueOnce({ clientId: "c", refreshToken: "r" });
     await expect(canUnifyMobileAccount("v1", record("microsoft", ["files", "calendar"]))).resolves.toBe(false);
   });
 
@@ -211,7 +231,7 @@ describe("mobile Google reconnect preserves the actual mailbox password", () => 
     await beginAccountLogin("v1", card);
     const handlers = vi.mocked(setOAuthPurposeHandler).mock.calls;
     const handler = handlers[handlers.length - 1][1];
-    await handler({ clientId: "client", clientSecret: "test-secret", refreshToken: "new", grantedScope: unionScopeFor("google", ["calendar"]), provider: "google", label: "Person", accountContext: vi.mocked(beginPimOAuth).mock.calls[vi.mocked(beginPimOAuth).mock.calls.length - 1][1].accountContext });
+    await handler({ clientId: "client", clientSecret: "test-secret", refreshToken: "new", accessToken: "verified-access", grantedScope: unionScopeFor("google", ["calendar"]), provider: "google", label: "Person", accountContext: vi.mocked(beginPimOAuth).mock.calls[vi.mocked(beginPimOAuth).mock.calls.length - 1][1].accountContext });
     await expect(getMailPassword("v1", "m1")).resolves.toBe("test-app-password");
     expect(secrets.get(mailSecretKey("v1", "m1"))).toEqual({ pass: "test-app-password" });
   });

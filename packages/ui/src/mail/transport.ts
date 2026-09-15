@@ -1,5 +1,6 @@
 import type { MailboxInfo } from "./types";
 import type { RawImapEnvelope, RawImapEnvelopePage, RawImapMessage } from "./types";
+import type { ImapBulkArgs, ImapBulkResult } from "./bulkActions";
 
 /**
  * The ONE seam between the shared mail client and the platform (mail feinplan
@@ -9,14 +10,14 @@ import type { RawImapEnvelope, RawImapEnvelopePage, RawImapMessage } from "./typ
  *
  *   desktop: `apps/desktop/src/services/mail/tauriMailTransport.ts` — a thin
  *            passthrough to the Rust commands in `mail_imap.rs`/`mail_smtp.rs`
- *   mobile:  a Capacitor plugin (feinplan G2), same operations, same shapes
+ *   mobile: shared IMAP/SMTP over the native socket bridge
  *
  * The interface deliberately mirrors the Rust command surface 1:1, including
  * the numeric IMAP UIDs: the uid ↔ string-id mapping stays in `mailClient` so
  * both platforms inherit it (and its tests) instead of re-implementing it.
  *
- * Credentials are passed per call and never held by the transport — the same
- * contract the Rust side has always had (fresh connection per command).
+ * Credentials are passed per call. Both transports pool authenticated sessions
+ * by account, authentication mechanism and credential fingerprint.
  */
 
 export interface ImapCreds {
@@ -24,6 +25,8 @@ export interface ImapCreds {
   port: number;
   user: string;
   pass: string;
+  /** For XOAUTH2, pass is an ephemeral access token, never a refresh token. */
+  auth?: "password" | "xoauth2";
 }
 
 export interface ImapAttachment {
@@ -37,6 +40,7 @@ export interface SmtpSendArgs {
   port: number;
   user: string;
   pass: string;
+  auth?: "password" | "xoauth2";
   from: string;
   to: string;
   subject: string;
@@ -62,6 +66,7 @@ export interface AppendDraftArgs {
 }
 
 export interface MailTransport {
+  bulkAction?(creds: ImapCreds, args: ImapBulkArgs): Promise<ImapBulkResult[]>;
   checkLogin(creds: ImapCreds): Promise<MailboxInfo[]>;
   listEnvelopes(creds: ImapCreds, args: { mailbox: string; offset: number; limit: number; beforeUid?: number }): Promise<RawImapEnvelopePage>;
   fetchMessage(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<RawImapMessage>;

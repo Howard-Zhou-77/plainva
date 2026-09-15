@@ -22,7 +22,7 @@ function fakeVault() {
     async writeBinaryFile(path: string, content: Uint8Array) {
       binaries.set(path, content);
     },
-    async createFolder() {
+    async createDir() {
       // Folders are implicit in the maps.
     },
   };

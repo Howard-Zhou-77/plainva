@@ -1,8 +1,8 @@
 # Importare da un'altra app
 
-Ultimo aggiornamento: 2026-09-10
+Ultimo aggiornamento: 2026-09-15
 
-Plainva può importare le tue note da altre app di appunti. L'importazione scrive sempre nel vault che hai attualmente aperto, in una sottocartella che tu stesso nomini — quindi non tocca mai il resto del tuo vault, e puoi spostare o eliminare la cartella importata in seguito come qualsiasi altra cartella.
+Plainva importa note da altre app in un nuovo vault o in una sottocartella con un nome nuovo del vault aperto. Il resto rimane invariato; puoi poi spostare o eliminare la cartella importata.
 
 **L'importazione funziona su entrambi i dispositivi, con le stesse sorgenti.** Sul desktop ci si arriva dalla schermata di benvenuto, dalla palette dei comandi e dal menu contestuale di una cartella; sul telefono la trovi in **Impostazioni → Manutenzione → Importa da un'altra app**. Anche le sorgenti che richiedono l'accesso a un servizio — Notion tramite la sua API — sono disponibili lì.
 
@@ -58,7 +58,7 @@ Un'area di lavoro grande può richiedere tempo, perciò un'importazione può ess
 | **Google Keep (Takeout)** | Lo ZIP di Takeout o i file `.json` | Note, liste di controllo, etichette come tag, colore nell’intestazione della nota, note fissate come bacheca |
 | **Simplenote** | Il file `.json` esportato | Le note attive e i loro tag |
 | **Logseq** | La cartella del tuo grafo | I file, copiati invariati |
-| **Joplin** | La cartella o lo ZIP dell’esportazione Markdown | Note con i loro taccuini, frontmatter, tag e risorse |
+| **Joplin** | JEX/TAR, cartella RAW o esportazione Markdown | Note, taccuini, tag, risorse, collegamenti interni e date |
 | **Bear (TextBundle)** | Le cartelle `.textbundle` esportate | Note con le loro immagini |
 | **Notesnook** | L’esportazione Markdown | Note e le loro cartelle-taccuino; una nota in due taccuini viene importata una volta |
 | **Capacities** | La cartella o lo ZIP dell’esportazione | Note con le loro proprietà come frontmatter, più i media |
@@ -171,3 +171,12 @@ I file ZIP vengono elaborati con limiti per file, per la dimensione totale e per
 ## Nomi di file occupati
 
 L’importatore verifica fino a 1000 varianti del nome. Se nessuna è libera, non è possibile verificare la destinazione o un nome riservato è stato occupato, salta quella voce indicando il motivo. Le altre vengono importate. In Notion, una prenotazione non riuscita mantiene i collegamenti alla fonte originale anziché assegnare una destinazione locale. Se anche il rapporto non trova un nome libero, l’importazione mostra un errore; i file già importati restano nella cartella di destinazione.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX e RAW
+
+Seleziona un JEX/TAR decifrato o una cartella RAW. L’anteprima conta note, taccuini, tag e allegati. I taccuini vuoti restano; titoli uguali ricevono nomi distinti e i collegamenti seguono gli ID. Le note esportate senza taccuino vanno nella radice dell’importazione.
+
+I byte delle risorse sono conservati. I record originali, inclusi campi sconosciuti, sono anche in `_Joplin/Export.json`, contato come un allegato. Il rapporto segnala risorse mancanti e collegamenti irrisolti, mantenendo i collegamenti originali. Leggilo prima di eliminare l’esportazione.
+
+JEX richiede una nuova destinazione. Archivi invalidi, percorsi in conflitto, link simbolici/fisici ed estensioni TAR come PAX sono rifiutati interamente. Limiti: 20.000 voci, 32 MiB per file, 2 MiB per testo, 256 MiB totali, 64 MiB di testo e 64 MiB per il file complementare. Desktop usa una copia privata; mobile legge porzioni del file. Annullare l’analisi non scrive nel vault. Durante l’importazione restano file già scritti e rapporto parziale; non viene annullata automaticamente l’intera cartella.

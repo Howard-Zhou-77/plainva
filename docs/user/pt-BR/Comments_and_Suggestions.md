@@ -1,6 +1,6 @@
 # Comentários e sugestões
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha. Se o nome faltar, o Plainva pergunta uma vez no primeiro comentário; sem resposta, o dispositivo assina com o próprio rótulo (por exemplo “Dispositivo Windows 4f3a”). Suas próprias anotações aparecem como **Você**.
 
@@ -71,3 +71,9 @@ Desktop e dispositivos móveis usam o mesmo armazenamento de comentários assina
 Os comentários nos arquivos anteriores são preservados e importados com permissões de gerenciamento e de comentários. **Do histórico anterior** mantém o nome e a data originais. Essas informações não comprovam retroativamente a participação no espaço de trabalho; a nova assinatura confirma a importação. Se faltarem permissões, a nota de destino sincronizada ou um salvamento bem-sucedido, o comentário anterior continua visível. As ações de resposta, exclusão e sugestões ficam indisponíveis até que o destino seja atribuído de forma durável. A importação não reenvia as notificações do histórico anterior.
 
 Se apenas o histórico anterior estiver bloqueado, a ação de desbloqueio abre o fluxo da frase secreta de sincronização; novos comentários continuam disponíveis. Se o próprio espaço de trabalho estiver bloqueado, a ação abre as configurações de segurança. Operações de sugestões iniciadas antes da atualização mantêm o progresso salvo e podem continuar com as permissões atuais. A importação não remove os arquivos originais de comentários.
+
+## Comentários sobre publicações
+
+Os destinatários abrem a publicação como um espaço de trabalho próprio. Acesso de leitura não permite enviar comentários; comentar permite observações, e sugerir também permite propor alterações em uma cópia. O original permanece somente leitura. Desktop e celular aplicam as mesmas permissões e mantêm os envios pendentes para tentar novamente.
+
+Os comentários aparecem junto à nota original no desktop e no celular, agrupados por publicação com os nomes dos destinatários. Propostas aplicáveis de uma cópia exata podem ser aceitas ou recusadas pelo fluxo normal de gravação verificada. A decisão é registrada com o original no seu próprio cofre; nenhuma resposta é enviada aos destinatários. Cópias depuradas e trechos que não possam ser localizados com segurança não permitem aplicação automática. Comentários criados nos clientes atuais continuam legíveis pelo proprietário após revogar um destinatário. Comentários antigos criptografados apenas para uma chave de destinatário removida não são regravados. Uma publicação cuja chave esteja ausente neste dispositivo continua sem aparecer.

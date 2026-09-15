@@ -1,8 +1,10 @@
 # Getting Started
 
-Last updated: 2026-09-07
+Last updated: 2026-09-15
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
+
+**Arch Linux community package:** [plainva in the AUR](https://aur.archlinux.org/packages/plainva) is maintained independently. Review its PKGBUILD before building; Plainva does not verify these community builds. The application’s licence remains AGPL-3.0-only.
 
 ## System requirements
 
@@ -167,7 +169,8 @@ The arrangement belongs to the vault and travels to your other devices through [
 - **Toggle the sidebars** via the two title-bar buttons or `Ctrl+Alt+B` (left) / `Ctrl+Alt+R` (right) — great for focused writing. Plainva remembers the state.
 - **Command palette**: `Ctrl+P` opens **Commands** — type and hit `Enter` to run (new note, daily note, split, sidebars, **Back up now**, and more).
 - **Density**: under **Settings → App → Appearance**, choose between **Comfortable** and **Compact** — compact tightens lists, menus and table rows; note content is unaffected.
-- **Custom theme**: the **My theme** card under **Settings → App → Appearance** selects the theme, and the pencil on it opens its page: mood (light/dark), a background from a bounded lightness range, any accent, corner radius (fonts are chosen on the **Fonts** card on the same page). Plainva derives the text colours so text never vanishes into the ground; an accent too pale is corrected to at least 3:1, and the editor says so. On the phone the same controls live in the **Appearance** screen.
+- **Custom theme**: the **My theme** card under **Settings → App → Appearance** selects the theme, and the pencil on it opens its page: mood (light/dark), a background from a bounded lightness range, any accent, corner radius (fonts are chosen on the **Fonts** card on the same page). Plainva derives the text colours so text never vanishes into the ground; an accent too pale is corrected to at least 3:1, and the editor says so. On the phone the same controls live in the **Appearance** screen. Light and dark moods keep their own colours; corners are shared. An existing saved mood is preserved. The counterpart starts as a proposal and is saved only with **Adopt mood**. With both moods, **System** follows the device.
+- **Personal design sync**: On the **My theme** page, explicitly enable **Sync through this vault**. Choose an unlocked vault on each device; settings sync must be active. Exactly one vault supplies your own design. Other members are not forced to use it. An existing received design is adopted; otherwise your local design is shared. Simultaneous changes retain both variants for you to choose. Turning sync off keeps your local design. Fonts and choosing another theme are not synced by this switch.
 - **Fonts**: under **Settings → App → Appearance**, the **Fonts** card sets the **Interface**, **Content** and **Code** fonts (theme default, serif, sans-serif, monospace or the name of any installed font) and the **Content font size** (12–24 px) — the size scales the editor and reading view only; the interface stays as it is.
 - **Font list**: under **Custom…** a list shows your system's fonts, each row set in its own face; a font that is not installed says so and cannot be picked. The name field below takes any other installed family.
 - **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → App → Appearance** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).
@@ -194,3 +197,7 @@ The right panel cannot go below **200 px** — no section is usable under that. 
 - [Notes & Markdown](Notes_and_Markdown.md) — everything about writing
 - [Keyboard Shortcuts](Keyboard_Shortcuts.md)
 - [FAQ & Troubleshooting](FAQ.md)
+
+## Returning a tab
+
+In a separate or second full window, right-click a tab and choose **Return to main window**. Plainva carries its current text, selection, view, scroll position, history and pin state over. The source tab closes only after receipt is confirmed. If the main window cannot confirm, the tab and its draft stay available. Bookmark changes appear in every window.

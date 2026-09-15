@@ -191,7 +191,8 @@
       "logseq": "Logseq",
       "notion_file": "Notion (ZIP)",
       "notion_api": "Notion (API)",
-      "obsidian": "Obsidian"
+      "obsidian": "Obsidian",
+      "joplin": "Joplin (JEX / Markdown)"
     },
     "hints": {
       "generic_markdown": "Wybierz folder lub pliki zawierające Markdown (.md).",
@@ -200,7 +201,8 @@
       "evernote": "Wybierz pliki .enex wyeksportowane z Evernote (Notatnik → Eksportuj jako ENEX).",
       "logseq": "Wybierz folder grafu Logseq (ten zawierający /journals i /pages).",
       "notion_file": "Wybierz eksport ZIP z Notion lub rozpakowany folder. Strony zostają przeniesione; zawartość baz danych wymaga importu przez API.",
-      "notion_api": "Podaj token integracji Notion, aby zaimportować bezpośrednio udostępnione strony i bazy danych, w tym wiersze i relacje."
+      "notion_api": "Podaj token integracji Notion, aby zaimportować bezpośrednio udostępnione strony i bazy danych, w tym wiersze i relacje.",
+      "joplin": "Wybierz plik JEX, folder RAW lub eksport Markdown z frontmatter z Joplin. Notatniki, tagi, załączniki i oryginalne daty zostają zachowane."
     },
     "report": {
       "title": "Raport importu",
@@ -316,7 +318,19 @@
     "targetNewVaultHintMobile": "Na tym urządzeniu powstaje nowy, pusty vault, do którego zapisuje import.",
     "undoVaultMobile": "Aby cofnąć ten import, usuń vault w „Więcej → Vaulty”.",
     "syncUploadHintMobile": "Ten vault jest synchronizowany: wszystkie {{n}} zaimportowanych notatek zostanie wysłanych.",
-    "obsidianConnectMobile": "W telefonie połącz w „Więcej → Vaulty” tę samą chmurę, w której leży Twój vault Obsidiana — notatki przyjdą wtedy przez synchronizację."
+    "obsidianConnectMobile": "W telefonie połącz w „Więcej → Vaulty” tę samą chmurę, w której leży Twój vault Obsidiana — notatki przyjdą wtedy przez synchronizację.",
+    "archiveInvalid": "Archiwum jest uszkodzone albo zawiera nieobsługiwane, niebezpieczne lub powielone wpisy. Niczego nie zaimportowano.",
+    "archiveTooLarge": "Limity JEX: 20 000 wpisów, 32 MiB na plik, 256 MiB łącznie i 64 MiB tekstu. Pliki tekstowe: do 2 MiB na plik.",
+    "jexInvalid": "To nie jest czytelny eksport Joplin. Wyeksportuj dane z Joplin jako JEX lub RAW.",
+    "jexEncrypted": "Eksport nadal zawiera zaszyfrowane dane. Wyeksportuj je ponownie z Joplin po zakończeniu odszyfrowywania.",
+    "jexFreshTarget": "Wybierz folder docelowy, który jeszcze nie istnieje.",
+    "jexOriginals": "Oryginalne rekordy są zachowywane w dodatkowym pliku, wliczanym do liczby załączników.",
+    "jexIncomplete": "Brakuje niektórych celów lub załączników. Nierozwiązane odnośniki i dane źródłowe zostają zachowane.",
+    "jexExtraRecords": "Pozostałe typy rekordów Joplin zostają zachowane w danych źródłowych.",
+    "jexNoNotes": "Ten eksport nie zawiera notatek.",
+    "jexMissingFolders": "Niektórych notatników nie wyeksportowano. Ich notatki trafią bezpośrednio do folderu importu.",
+    "statFolders": "Notatniki",
+    "statTags": "Tagi"
   },
   "settings": {
     "about": "Informacje i diagnostyka",
@@ -523,7 +537,7 @@
     "fontSearch": "Szukaj czcionki…",
     "fontFieldEmpty": "Wybierz czcionkę…",
     "customThemeAdoptFrom": "Przejmij z…",
-    "customThemePageDesc": "Twój własny motyw: wybierasz nastrój, tło i akcent; kolory tekstu Plainva wyprowadza sama, więc tekst nigdy nie znika w tle.",
+    "customThemePageDesc": "Twoje kolory dla jasnego i ciemnego nastroju.",
     "customThemeEdit": "Edytuj",
     "groupColors": "Kolory",
     "groupShape": "Kształt",
@@ -615,12 +629,23 @@
     "fontContentDesc": "Edytor i widok czytania.",
     "fontCode": "Kod",
     "fontCodeDesc": "Bloki kodu, kod w wierszu i tryb kodu.",
-    "fontsDeviceHint": "Dotyczy tego urządzenia — zainstalowane czcionki różnią się w zależności od urządzenia."
+    "fontsDeviceHint": "Dotyczy tego urządzenia — zainstalowane czcionki różnią się w zależności od urządzenia.",
+    "customThemePairHint": "Jasny i ciemny wariant są zapisywane oddzielnie. Po przyjęciu obu opcja System podąża za urządzeniem.",
+    "customThemeProposal": "Ten wariant jest propozycją. Zapisany wygląd nie zmieni się, dopóki go nie przyjmiesz.",
+    "customThemeAdoptMood": "Przyjmij wariant",
+    "customThemeSaveFailed": "Nie udało się zapisać wyglądu. Spróbuj ponownie.",
+    "customThemeSyncTitle": "Synchronizacja osobista",
+    "customThemeSyncEnabled": "Synchronizuj przez ten sejf",
+    "customThemeSyncHint": "Kolory i narożniki są synchronizowane tylko dla Ciebie. Na każdym urządzeniu wybierz jeden sejf jako źródło. Synchronizacja ustawień musi być włączona.",
+    "customThemeSyncSource": "Wybrane źródło: {{name}}",
+    "customThemeSyncLocal": "Twój wygląd pozostaje na tym urządzeniu. Otwórz odblokowany sejf, aby włączyć synchronizację.",
+    "customThemeSyncFailed": "Nie udało się w pełni zapisać lub wczytać synchronizacji wyglądu. Sprawdź połączenie, odblokuj sejf i ponownie otwórz tę stronę.",
+    "customThemeSyncConflict": "Dwa urządzenia zmieniły wygląd jednocześnie. Wszystkie warianty pozostaną zachowane, dopóki nie wybierzesz jednego lub nie zmienisz wyglądu.",
+    "customThemeSyncChoose": "Użyj wariantu {{number}}"
   },
   "editor": {
     "completionHeadings": "Nagłówki",
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
-    "fileNotFound": "Nie znaleziono pliku",
     "loading": "Ładowanie...",
     "menu": "Menu",
     "time": "Godzina",
@@ -912,10 +937,6 @@
     "searchTags": "Filtruj tagi…",
     "searchDatabases": "Filtruj bazy danych…",
     "noResults": "Brak wyników",
-    "resultCount_one": "1 wynik",
-    "resultCount_few": "{{count}} wyniki",
-    "resultCount_many": "{{count}} wyników",
-    "resultCount_other": "{{count}} wyniku",
     "matchesName": "Nazwa pliku",
     "matchesContent": "Treść",
     "resize": "Zmień szerokość paska bocznego",
@@ -1228,7 +1249,18 @@
     "filterTags": "Tagi · cała notatka",
     "filterLabelsFrom": "Etykiety · {{property}}",
     "filterPropertyTags": "{{property}} · właściwość",
-    "filterSearchValues": "Szukaj wartości…"
+    "filterSearchValues": "Szukaj wartości…",
+    "exportTitle": "Eksportuj tabelę",
+    "exportValues": "Wartości (.csv)",
+    "exportFormulas": "Formuły (.base)",
+    "exportScope": "Wiersze wyniku: {{count}}. Eksport obejmuje kolumny tego widoku.",
+    "exportFormulaHint": "Plik .base zachowuje bieżące wiersze jako stały wybór. Obsługiwane obliczenia pozostają formułami. Otwórz go w tym samym sejfie z powiązanymi notatkami.",
+    "exportUnsupported": "Tych kolumn nie można jeszcze wyeksportować jako równoważnych formuł:",
+    "exportIssue_operation": "Nie potwierdzono równoważności tego obliczenia.",
+    "exportIssue_relation": "Relacje odwrotne ani alternatywne klucze relacji nie są tłumaczone.",
+    "exportIssue_property": "Ta właściwość pliku nie jest tłumaczona.",
+    "exportValuesHint": "CSV zawiera bieżące obliczone wartości i ścieżki plików. Wartości nie będą później aktualizowane. Listy są zachowywane jako JSON.",
+    "exportFailed": "Eksport nie powiódł się. Twoje dane nie uległy zmianie; spróbuj ponownie."
   },
   "fileTree": {
     "unsynced": "Niezsynchronizowane",
@@ -1624,7 +1656,11 @@
     "prevYear": "Poprzedni rok",
     "nextYear": "Następny rok",
     "showWeeks": "Pokaż numery tygodni",
-    "weekShort": "Tydz."
+    "weekShort": "Tydz.",
+    "dailyNoteExists": "Notatka dzienna istnieje",
+    "openDailyNote": "Otwórz notatkę dzienną",
+    "createDailyNote": "Utwórz notatkę dzienną",
+    "dailyNotesUnavailable": "Nie udało się wczytać oznaczeń notatek dziennych."
   },
   "titlebar": {
     "openTabs": "Otwarte pliki",
@@ -2321,7 +2357,11 @@
     "differentTasks": "Dwa różne zadania",
     "differentTasksHint": "Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mogą być osobnymi wystąpieniami. Obie zawartości zostaną zachowane jako oddzielne zadania.",
     "keepSeparateTasks": "Zachowaj jako osobne zadania",
-    "comparisonChanged": "Plik zmienił się po otwarciu. Porównanie zostało wczytane ponownie. Sprawdź aktualną zawartość i wybierz ponownie."
+    "comparisonChanged": "Plik zmienił się po otwarciu. Porównanie zostało wczytane ponownie. Sprawdź aktualną zawartość i wybierz ponownie.",
+    "versionUnavailable": "Wybrana wersja nie jest już dostępna.",
+    "countsUnavailable": "Liczba wierszy nie jest dostępna dla pliku o tym rozmiarze.",
+    "windowFailed": "Nie można otworzyć okna porównania.",
+    "lineChanges": "+{{added}} / −{{removed}} wierszy"
   },
   "conflict": {
     "resolveFailed": "Nie udało się rozwiązać konfliktu: {{error}}",
@@ -2635,7 +2675,7 @@
     "repeatEvery_monthly": "co {{n}} mies.",
     "repeatEvery_yearly": "co {{n}} lat",
     "repeatSpawned": "Następny termin: {{date}}",
-    "repeatFailed": "Nie udało się utworzyć następnego zadania.",
+    "repeatFailed": "Zadanie jest ukończone. Nie udało się potwierdzić następnego zadania. Przed ponowieniem sprawdź folder zadań.",
     "repeatRemote": "To zadanie pochodzi od dostawcy i powtarza się tam.",
     "repeatPreview": "Następny termin: {{date}}",
     "repeatPreviewFromToday": "Liczone od dzisiaj, ponieważ liczenie zaczyna się od wykonania.",
@@ -2656,7 +2696,16 @@
     "deletingWithUndo_many": "Usunięto {{count}} zadań. Za {{seconds}} s zostaną usunięte także u dostawcy.",
     "deleteCancelled_many": "Cofnięto usunięcie — wróciło {{count}} notatek.",
     "deletingWithUndo_other": "Usunięto {{count}} zadania. Za {{seconds}} s zostaną usunięte także u dostawcy.",
-    "deleteCancelled_other": "Cofnięto usunięcie — wróciło {{count}} notatek."
+    "deleteCancelled_other": "Cofnięto usunięcie — wróciło {{count}} notatek.",
+    "metadata": {
+      "created": "Utworzono",
+      "start": "Początek",
+      "scheduled": "Zaplanowano",
+      "completed": "Ukończono",
+      "taskId": "ID",
+      "recurrence": "Powtarzanie",
+      "unsupported": "Reguła zachowana; tutaj bez automatycznej kontynuacji."
+    }
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",
@@ -2752,7 +2801,7 @@
     "authConfig": "Rejestracja aplikacji tego konta nie pasuje. Sprawdź identyfikator klienta, sekret i URI przekierowania u dostawcy.",
     "authApiDisabled": "Logowanie jest w porządku, ale wywoływane API Google nie jest włączone w Twoim własnym projekcie Google Cloud. Włącz je tam (kalendarz: „Google Calendar API”, zadania: „Google Tasks API”) i spróbuj ponownie.",
     "authExpired": "Logowanie tego konta wygasło lub zostało cofnięte. Zaloguj się ponownie, aby je przywrócić.",
-    "authExpiredGoogle": "Logowanie tego konta wygasło lub zostało cofnięte. Zaloguj się ponownie. Jeśli używasz własnego klienta Google, a jego ekran zgody wciąż jest w trybie „Test”, Google unieważnia każde logowanie po 7 dniach — opublikowanie projektu to kończy.",
+    "authExpiredGoogle": "Google odrzucił to logowanie. Zaloguj się ponownie. Własna aplikacja może mieć wygasły dostęp testowy lub cofniętą zgodę. Plainva nie może ustalić stanu projektu na podstawie tego błędu.",
     "authNetwork": "Nie udało się połączyć z tym kontem. Wygląda to na problem z połączeniem — spróbuj ponownie.",
     "openVaultFirst": "Dostępne tylko dla otwartego vaulta.",
     "noAccounts": "Nie połączono jeszcze żadnych kont kalendarza.",
@@ -2793,7 +2842,7 @@
     "retrying": "Ponawianie…",
     "retrySameError": "Ponowna próba zakończyła się tym samym błędem.",
     "davPass": "Hasło aplikacji",
-    "googleByoHint": "Google wymaga własnego identyfikatora klienta OAuth (jak przy synchronizacji Drive). Zakresy: kalendarz + zadania.",
+    "googleByoHint": "Użyj identyfikatora klienta Google odpowiedniego dla urządzenia. Klient komputerowy wymaga także odpowiedniego klucza klienta. Instrukcja opisuje rejestracje mobilne. Uprawnienia: kalendarze i zadania.",
     "clientFromDevice": "Identyfikator klienta pobrany z tego urządzenia.",
     "googleClientSecret": "Sekret klienta (opcjonalny dla klientów desktopowych)",
     "googleClientIdRequired": "Google wymaga własnego identyfikatora klienta (BYO).",
@@ -3081,7 +3130,6 @@
     "noSearchResults": "Brak wyników w tym folderze.",
     "markRead": "Oznacz jako przeczytane",
     "markUnread": "Oznacz jako nieprzeczytane",
-    "bulkPartial": "Nie udało się zmienić wszystkich wiadomości (błędy: {{n}}): {{error}}",
     "moveTo": "Przenieś do…",
     "moved": "Przeniesiono do {{folder}}",
     "delete": "Usuń",
@@ -3193,7 +3241,24 @@
     "unsubscribeFailed": "Nie udało się otworzyć strony wypisu.",
     "sendingWithUndo": "Wysyłanie za {{seconds}} s",
     "sendCancelled": "Wysyłanie anulowane — wiadomość nie została wysłana.",
-    "emlAdded": "Kopia źródłowa dodana do „{{name}}”."
+    "emlAdded": "Kopia źródłowa dodana do „{{name}}”.",
+    "googleSignInTest": "Zaloguj przez Google · Test",
+    "googleTestHint": "Dostęp testowy dla zatwierdzonych kont testowych Google. Zezwalasz Plainva na odczytywanie, zarządzanie i wysyłanie poczty. Zapisane wiadomości stają się częścią skarbca i podlegają jego synchronizacji.",
+    "filterAttachments": "Z załącznikami",
+    "attachmentsLoaded": "Metadane {{known}} z {{loaded}} wczytanych wiadomości. Inne wiadomości też mogą zawierać załączniki.",
+    "bulkWorking": "Trwa operacja zbiorcza. Anulowanie zatrzyma ją po bieżącej partii.",
+    "bulkReport": "Ukończono: {{done}}, niepotwierdzone: {{failed}}.",
+    "bulkUncertain": "Wynik nieznany. Odśwież folder przed ponowną próbą.",
+    "bulkReason": {
+      "missing": "Wiadomości nie ma już w pierwotnym folderze.",
+      "changed": "Folder zmienił się lub pochodzi z pamięci podręcznej. Odśwież go.",
+      "unsupported": "Serwer nie obsługuje tej operacji na wybranych wiadomościach (MOVE/UIDPLUS).",
+      "rejected": "Serwer nie potwierdził zmiany.",
+      "connection": "Połączenie przerwane.",
+      "cancelled": "Nie wykonano: anulowano."
+    },
+    "noAttachmentMatches": "Brak potwierdzonych załączników we wczytanych wiadomościach.",
+    "cacheUpdateFailed": "Serwer potwierdził zmianę. Nie udało się zaktualizować lokalnej pamięci podręcznej; odśwież folder."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",
@@ -3401,7 +3466,7 @@
     "suggestDiscard": "Odrzuć",
     "suggestDiscardConfirm": "Odrzucić {{n}} zmian? Notatka pozostanie bez zmian.",
     "suggestSend": "Wyślij propozycje ({{n}})",
-    "suggestSent": "Wysłano {{n}} propozycji.",
+    "suggestSent": "Wysłane propozycje: {{n}}.",
     "suggestNothing": "Brak zmian.",
     "suggestParkedTitle": "Znaleziono niewysłane propozycje",
     "suggestParkedResume": "Edytuj dalej",
@@ -3489,7 +3554,9 @@
     "decisionConflict": "Sprzeczne decyzje",
     "decisionConfirmDeclined": "Potwierdź jako odrzucone",
     "decisionConfirmApplied": "Potwierdź jako zastosowane",
-    "decisionReviewHelp": "Porównaj propozycję z bieżącym tekstem. Twoja decyzja potwierdza ten tekst i zastępuje wyłącznie znane tutaj decyzje. Propozycja nie zostanie wstawiona ponownie."
+    "decisionReviewHelp": "Porównaj propozycję z bieżącym tekstem. Twoja decyzja potwierdza ten tekst i zastępuje wyłącznie znane tutaj decyzje. Propozycja nie zostanie wstawiona ponownie.",
+    "publicationReviewLocal": "Ta decyzja zostaje zapisana przy oryginale w Twoim własnym sejfie.",
+    "suggestionNotPermitted": "Twoje uprawnienia nie pozwalają tu na propozycje."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Zaszyfrowane przestrzenie robocze są eksperymentalne i nie zostały jeszcze niezależnie zweryfikowane. Przechowuj plik i kod odzyskiwania w bezpiecznym miejscu — bez nich nie da się odzyskać zaszyfrowanych notatek.",
@@ -3944,7 +4011,7 @@
       "chainGap": {
         "title": "Zmiany jednego urządzenia czekają: łańcuch jest przerwany",
         "explain": "To urządzenie oczekuje od {{device}} zmiany nr {{expected}}; w chmurze leży nr {{found}}. To, czego brakuje lub co zastąpiono pomiędzy, blokuje wszystko późniejsze — grupa obejmuje {{count}} zmian.",
-        "hint": "Zwykle stoi za tym druga kopia tego samego urządzenia — na przykład instancja deweloperska z własnym magazynem — albo urządzenie połączone na nowo, które liczy znów od 1. Pozwól {{device}} raz zsynchronizować i sprawdź tu ponownie. Jeśli zignorujesz grupę, te zmiany przepadną."
+        "hint": "Na urządzeniu z pełną weryfikowalną historią wybierz Synchronizuj teraz. Plainva może z tej kopii przywrócić brakujące podpisane operacje. Następnie sprawdź ponownie na {{device}}. Jeśli nie ma prawidłowej kopii, zachowaj lub wyeksportuj dane lokalne; weryfikacja nigdy nie jest resetowana w celu pominięcia luki."
       },
       "chainBlocked": {
         "title": "Czeka za luką",
@@ -4170,18 +4237,18 @@
     "title": "Co nowego w Plainva {{version}}",
     "lead": "Największa nowość",
     "experimental": "Eksperymentalne",
-    "highlight1Title": "Rozszerz istniejące konta",
-    "highlight1": "Dodawaj pliki, kalendarz lub pocztę do właściwego konta. Plainva sprawdza wybrane logowanie i prosi o brakujące uprawnienia.",
-    "highlight2Title": "Konfiguracja w jasnych krokach",
-    "highlight2": "Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybierasz kalendarze i listy zadań oraz widzisz wynik.",
-    "highlight3Title": "Przenoś pliki z podglądem",
-    "highlight3": "Podczas dodawania plików na telefonie Plainva pokazuje źródło, cel i kolizje przed przeniesieniem. Istniejąca zawartość i usługi zostają zachowane; przerwany transfer można ponowić.",
-    "highlight4Title": "Oddzielaj zadania o tym samym tytule",
-    "highlight4": "Zadania dostawcy są dopasowywane według tożsamości. Osobne wystąpienia mają własne pliki. Istniejące błędne konflikty można zachować jako oddzielne zadania.",
-    "highlight5Title": "Jasne decyzje przy porównywaniu plików",
-    "highlight5": "Widoczne są obie nazwy plików i lokalizacje. Potwierdzenie przed zastąpieniem wskazuje źródło i cel. Jeśli plik zmieni się w międzyczasie, porównanie zostanie wczytane ponownie.",
-    "highlight6Title": "Więcej miejsca w nawigacji mobilnej",
-    "highlight6": "Wybrana ikona zachowuje odstęp od krawędzi w kompaktowym pasku. Obszary dotyku pozostają odpowiednio duże, a rezerwa miejsca dostosowuje się do rozmiaru tekstu.",
+    "highlight1Title": "Pewniejsze połączenia i synchronizacja",
+    "highlight1": "Przerwane operacje są ponawiane w odpowiednich przypadkach. Problemy z logowaniem i niepewny stan danych są czytelniej opisane, a lokalne zmiany zostają zachowane.",
+    "highlight2Title": "Dokładne wyniki, osadzanie i historia",
+    "highlight2": "Przejdź do pasującego fragmentu, osadzaj pojedyncze sekcje lub bloki i porównuj rzeczywiste zmiany wierszy między wersjami.",
+    "highlight3Title": "Import JEX i eksport baz danych",
+    "highlight3": "Importuj archiwa Joplin z załącznikami do nowego folderu. Eksportuj obsługiwane agregacje jako formuły Obsidian lub świadomie jako wartości. Zadania zachowują metadane.",
+    "highlight4Title": "Czytelne wyniki operacji pocztowych",
+    "highlight4": "Operacje zbiorcze pokazują sukcesy i błędy dla każdej wiadomości. Filtr załączników wyjaśnia niepełne metadane; dodawanie usług konta zachowuje istniejące logowania.",
+    "highlight5Title": "Twój wygląd i codzienna praca",
+    "highlight5": "Dostosuj osobno tryb jasny i ciemny oraz opcjonalnie synchronizuj własny wygląd. Notatki dzienne, przekazywanie między oknami i oczekujące udostępnione treści działają pewniej.",
+    "highlight6Title": "Opinie o publikacjach",
+    "highlight6": "Uprawnieni odbiorcy mogą komentować i proponować zmiany. Właściciele mogą przeglądać opinie i zachowują je po odebraniu odbiorcy dostępu.",
     "readBlog": "Przeczytaj wpis na blogu",
     "understand": "Zrozumiano"
   },
@@ -4385,7 +4452,12 @@
     "noVaultTitle": "Nie otwarto żadnego sejfu",
     "noVaultBody": "To okno nie pokazuje teraz żadnego sejfu. Wybierz jeden z ostatnich albo wskaż folder.",
     "revealNoTree": "Żadne okno z drzewem plików nie pokazuje tego sejfu.",
-    "ownerUnreachable": "Główne okno nie odpowiada."
+    "ownerUnreachable": "Główne okno nie odpowiada.",
+    "returnToMain": "Wróć do głównego okna",
+    "transferFailed": "Przenoszenie nie zostało ukończone. Karta źródłowa i jej szkic zostały zachowane.",
+    "transferUnknown": "Główne okno jeszcze nie potwierdziło odbioru. Szkic pozostaje tutaj; sprawdź stan ponownie.",
+    "transferPending": "Przenoszenie karty. Pozostanie otwarta tutaj, aż główne okno potwierdzi odbiór.",
+    "transferCheck": "Sprawdź stan ponownie"
   },
   "commentNotify": {
     "actionOpen": "Otwórz",
@@ -4452,5 +4524,72 @@
     "retrySaved": "Dokończ połączenie",
     "clientSecret": "Sekret klienta (jeśli podano)",
     "googleClientUnsupported": "Rejestracja Google nie pasuje do ścieżki powrotu tego urządzenia. Sprawdź typ klienta i konfigurację mobilną w instrukcji Google."
+  },
+  "connectionFailure": {
+    "TLS_CERTIFICATE_EXPIRED": "Certyfikat serwera wygasł. Odnów go na serwerze.",
+    "TLS_CERTIFICATE_NOT_YET_VALID": "Certyfikat serwera nie jest jeszcze ważny. Sprawdź zegar urządzenia i daty certyfikatu.",
+    "TLS_HOSTNAME_MISMATCH": "Certyfikat nie pasuje do adresu serwera. Sprawdź adres i certyfikat.",
+    "TLS_CERTIFICATE_UNTRUSTED": "Urząd certyfikacji nie jest zaufany na tym urządzeniu. Sprawdź łańcuch certyfikatów serwera i zainstalowane urzędy.",
+    "TLS_HANDSHAKE_FAILED": "Nie udało się zweryfikować bezpiecznego połączenia. Sprawdź certyfikat serwera i konfigurację TLS.",
+    "HTTP_ORIGIN_BLOCKED": "Połączenie lub przekierowanie zostało zablokowane, ponieważ jego pochodzenie nie jest dozwolone. Sprawdź skonfigurowany adres serwera.",
+    "HTTP_TIMEOUT": "Serwer nie odpowiedział na czas. Plainva spróbuje ponownie.",
+    "HTTP_NETWORK_ERROR": "Połączenie sieciowe nie powiodło się. Plainva spróbuje ponownie, gdy połączenie będzie dostępne.",
+    "HTTP_REQUEST_FAILED": "Nie udało się zakończyć żądania. Sprawdź ustawienia połączenia i eksport diagnostyczny."
+  },
+  "workspaceSync": {
+    "transient": "Połączenie jest chwilowo niedostępne. Plainva spróbuje ponownie automatycznie; oczekujące zmiany pozostają na tym urządzeniu.",
+    "authentication": "Zaloguj się ponownie do konta synchronizacji. Oczekujące zmiany pozostają na tym urządzeniu do czasu przywrócenia dostępu.",
+    "integrity": "Plainva nie może zweryfikować zaszyfrowanego skarbca. Synchronizacja jest wstrzymana; dane lokalne i oczekujące zmiany są zachowane. Otwórz Bezpieczeństwo i udostępnianie, przywróć weryfikowalną kopię, jeśli jest dostępna, i sprawdź ponownie.",
+    "fatal": "Synchronizacja jest wstrzymana do czasu rozwiązania problemu z połączeniem. Dane lokalne i oczekujące zmiany są zachowane. Sprawdź połączenie i spróbuj ponownie.",
+    "foreignLegacy": "Niezaszyfrowane pliki uwag z innych urządzeń pozostają na serwerze. Tylko urządzenie źródłowe może zakończyć konwersję. Plainva nie usuwa plików innych urządzeń."
+  },
+  "noteEmbed": {
+    "openSource": "Otwórz źródło",
+    "depth": "Osiągnięto maksymalną głębokość osadzania.",
+    "unreadable": "Nie udało się odczytać „{{target}}”.",
+    "missing": "Nie znaleziono „{{target}}”.",
+    "ambiguous": "„{{target}}” pasuje do kilku notatek. Użyj ścieżki względnej wobec vaultu."
+  },
+  "searchResults": {
+    "loading": "Wyszukiwanie…",
+    "loaded": "Wyświetlone wystąpienia: {{count}}",
+    "more": "Wczytaj więcej wystąpień",
+    "line": "Wiersz {{line}}",
+    "failed": "Wyszukiwanie nie powiodło się. Spróbuj ponownie",
+    "empty": "Brak pasujących wystąpień.",
+    "changed": "Wystąpienia nie ma już w zmienionym tekście."
+  },
+  "driveDestination": {
+    "title": "Folder Dysku Google",
+    "current": "Obecny folder",
+    "selected": "Wybrany folder",
+    "folderId": "ID folderu: {{id}}",
+    "review": "Sprawdź podgląd",
+    "apply": "Użyj tego folderu",
+    "more": "Wczytaj więcej elementów",
+    "effect": "Po potwierdzeniu Plainva synchronizuje ten sejf z wybranym folderem. Sprawdź jego pliki. Pozostałe foldery w chmurze nie są przenoszone ani usuwane."
+  },
+  "shareInbox": {
+    "title": "Udostępniona zawartość",
+    "waiting": "Oczekujące transfery: {{count}}",
+    "review": "Przejrzyj",
+    "destination": "Miejsce docelowe",
+    "chooseVault": "Wybierz vault",
+    "chooseFolder": "Wybierz folder",
+    "locked": "Ten vault jest zablokowany. Zawartość nadal czeka na tym urządzeniu.",
+    "otherVault": "Ten transfer należy do innego vaulta. Otwórz go, aby kontynuować.",
+    "targetChanged": "Miejsce docelowe zawiera teraz inne dane. Oczekująca kopia jest zachowana; niczego nie nadpisano.",
+    "writeFailed": "Nie udało się ukończyć transferu. Oczekująca zawartość została zachowana.",
+    "indexIssue": "Zapisano. Indeks wyszukiwania nie został jeszcze zaktualizowany.",
+    "saved": "Udostępniona zawartość została zapisana.",
+    "incomplete": "Transfer jest niekompletny. Udostępnij oryginały ponownie; odebrane części pozostaną do czasu ich odrzucenia.",
+    "receiving": "Przygotowywanie udostępnionej zawartości…",
+    "progress": "Zapisano {{done}} z {{total}}",
+    "later": "Importuj później",
+    "import": "Importuj",
+    "discard": "Odrzuć oczekujący wpis",
+    "discardHint": "Usunąć z urządzenia tylko ten oczekujący wpis? Pliki już zapisane w vaulcie pozostaną.",
+    "readFailed": "Nie udało się odczytać oczekującej zawartości. Nie została usunięta.",
+    "retry": "Spróbuj ponownie"
   }
 }

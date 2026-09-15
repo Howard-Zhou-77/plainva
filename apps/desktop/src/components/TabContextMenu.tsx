@@ -40,6 +40,7 @@ interface Props {
    * content is open once app-wide, so the tab closes here as the window opens.
    */
   onOpenInNewWindow?: () => void;
+  onReturnToMain?: () => void;
 }
 
 // Shortcut hints, in the platform's own notation (⌘ on macOS, Ctrl elsewhere).
@@ -65,7 +66,7 @@ export function TabContextMenu({
   x, y, onSplitVertical, onSplitHorizontal, onCloseTab, onClose, activeDirection, onShowVersionHistory,
   onReload, pinned, onTogglePin, onRevealInTree, onCopyPath, onRename, onToggleBookmark, isBookmarked,
   onReopenClosed, canReopenClosed, onCloseOthers, onCloseLeft, onCloseRight, onCloseAll,
-  canCloseLeft, canCloseRight, onOpenInNewWindow,
+  canCloseLeft, canCloseRight, onOpenInNewWindow, onReturnToMain,
 }: Props) {
   const { t } = useTranslation();
   return (
@@ -98,6 +99,11 @@ export function TabContextMenu({
       {onOpenInNewWindow && (
         <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={onOpenInNewWindow}>
           {t("window.openInNewWindow")}
+        </MenuItem>
+      )}
+      {onReturnToMain && (
+        <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={onReturnToMain}>
+          {t("window.returnToMain")}
         </MenuItem>
       )}
       {(onRevealInTree || onCopyPath || onRename || onToggleBookmark || onShowVersionHistory) && <MenuSeparator />}

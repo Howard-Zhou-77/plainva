@@ -110,7 +110,7 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         guard WebDavHttpPlugin.isAllowed(url) else {
-            call.reject("blocked by origin policy: \(WebDavHttpPlugin.originOf(url) ?? urlString)")
+            call.reject("HTTP_ORIGIN_BLOCKED", "HTTP_ORIGIN_BLOCKED")
             return
         }
         var req = URLRequest(url: url)
@@ -185,11 +185,19 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
         let completion: (Data?, URLResponse?, Error?) -> Void = { data, response, error in
             if let temp = stagedTemp { try? FileManager.default.removeItem(at: temp) }
             if let error = error {
-                call.reject("request failed: \(error.localizedDescription)")
+                let code = WebDavHttpPlugin.failureCode(error)
+                call.reject(code, code)
                 return
             }
             guard let http = response as? HTTPURLResponse else {
                 call.reject("no http response")
+                return
+            }
+            if (300..<400).contains(http.statusCode),
+               let location = http.value(forHTTPHeaderField: "Location"),
+               let redirect = URL(string: location, relativeTo: http.url)?.absoluteURL,
+               !WebDavHttpPlugin.isAllowed(redirect) {
+                call.reject("HTTP_ORIGIN_BLOCKED", "HTTP_ORIGIN_BLOCKED")
                 return
             }
             let payload = data ?? Data()
@@ -213,6 +221,25 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
             session.uploadTask(with: req, fromFile: file, completionHandler: completion).resume()
         } else {
             session.dataTask(with: req, completionHandler: completion).resume()
+        }
+    }
+
+    /** URLSession retains platform trust evaluation; no authentication-challenge override. */
+    static func failureCode(_ error: Error) -> String {
+        let native = error as NSError
+        guard native.domain == NSURLErrorDomain else { return "HTTP_REQUEST_FAILED" }
+        switch native.code {
+        case NSURLErrorServerCertificateHasBadDate: return "TLS_CERTIFICATE_EXPIRED"
+        case NSURLErrorServerCertificateNotYetValid: return "TLS_CERTIFICATE_NOT_YET_VALID"
+        case NSURLErrorServerCertificateHasUnknownRoot: return "TLS_CERTIFICATE_UNTRUSTED"
+        // URLSession's untrusted result also covers name/policy failures. Do not
+        // claim that installing a CA fixes a failure the OS did not distinguish.
+        case NSURLErrorServerCertificateUntrusted, NSURLErrorSecureConnectionFailed: return "TLS_HANDSHAKE_FAILED"
+        case NSURLErrorTimedOut: return "HTTP_TIMEOUT"
+        case NSURLErrorNetworkConnectionLost, NSURLErrorNotConnectedToInternet,
+             NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost,
+             NSURLErrorDNSLookupFailed: return "HTTP_NETWORK_ERROR"
+        default: return "HTTP_REQUEST_FAILED"
         }
     }
 }

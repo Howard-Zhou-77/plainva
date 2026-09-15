@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DriveSyncTarget, OneDriveSyncTarget, DropboxSyncTarget } from "@plainva/core";
-import type { CloudAccountRecord } from "@plainva/ui";
+import { oauthScopeFor, type CloudAccountRecord } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
 import type { MobileSyncProvider } from "./syncSlot";
 
@@ -19,12 +19,13 @@ vi.mock("../platform/secureStore", () => ({ secureCredentialStore: {
 vi.mock("./cloudAccountsStore", () => ({ loadCloudAccounts: async () => state.records }));
 vi.mock("./vaultRegistry", async (original) => ({ ...await original<typeof import("./vaultRegistry")>(), getActiveVaultEntry: async () => ({ id: "other-vault" }), updateVault: state.resumed }));
 vi.mock("./vaultService", () => ({ getMobileVault: vi.fn(), switchVault: vi.fn() }));
-vi.mock("./syncRootFolder", () => ({ readSyncRootFolder: async () => "Vault" }));
+vi.mock("./syncRootFolder", () => ({ readSyncRootFolder: async () => "Vault", readDriveDestination: async () => ({ path: "Vault" }) }));
 vi.mock("@plainva/core", async (original) => ({
   ...await original<typeof import("@plainva/core")>(),
-  refreshDriveAccessToken: async () => ({ accessToken: "google-access", expiresIn: 3600 }),
+  refreshDriveAccessToken: async () => ({ accessToken: "google-access", expiresIn: 3600, scope: `${oauthScopeFor("google", "files")} ${oauthScopeFor("google", "calendar")}` }),
   refreshOneDriveAccessToken: async ({ scope }: { scope: string }) => ({ accessToken: "microsoft-access", scope, expiresIn: 3600 }),
 }));
+vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: async () => new Response(JSON.stringify({ sub: "person", id: "person", email: "person@example.test" })), allowHttpOrigin: vi.fn() }));
 import { switchProviderToAccountBroker, getMobileWorkspaceObjectStore, createProviderVault } from "./syncService";
 import { accountSecretKey, forgetAccountBroker, googleScopeFor, microsoftScopeFor } from "./accountBroker";
 import { bindRunTokenToAccount } from "./connectConsent";
@@ -38,6 +39,23 @@ beforeEach(() => {
 });
 
 describe("the real mobile file service respects its account binding", () => {
+  it.each(["onedrive", "dropbox"] as const)("%s cannot overwrite a newer file login during rotation", async (provider) => {
+    state.records = [];
+    const initial = { provider, creds: { clientId: "client", appKey: "app", refreshToken: "old", rootFolderName: "Existing" } };
+    const newer = { ...initial, creds: { ...initial.creds, refreshToken: "new-login", rootFolderName: "Keep newer folder" } };
+    state.secrets.set("sync_provider_mobile_v", initial);
+    const prototype = provider === "onedrive" ? OneDriveSyncTarget.prototype : DropboxSyncTarget.prototype;
+    const download = vi.spyOn(prototype, "download").mockImplementation(async function (this: OneDriveSyncTarget | DropboxSyncTarget) {
+      state.secrets.set("sync_provider_mobile_v", newer);
+      await this.onTokensRefreshed?.("access", "stale-rotation");
+      return null;
+    });
+    try {
+      await expect((await getMobileWorkspaceObjectStore("v")).get(".pvws/genesis.pvgen")).rejects.toThrow("changed before rotation");
+      expect(state.secrets.get("sync_provider_mobile_v")).toEqual(newer);
+    } finally { download.mockRestore(); }
+  });
+
   it.each(["drive", "onedrive", "dropbox"] as const)("checks the chosen new %s destination before any vault or credential writes", async (provider) => {
     const p = { provider, creds: { clientId: "client", appKey: "app", refreshToken: "before", rootFolderName: "Chosen folder", rootPath: "/Chosen folder" } } as MobileSyncProvider;
     const prototype = provider === "drive" ? DriveSyncTarget.prototype : provider === "onedrive" ? OneDriveSyncTarget.prototype : DropboxSyncTarget.prototype;

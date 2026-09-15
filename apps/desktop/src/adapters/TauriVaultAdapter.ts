@@ -269,8 +269,10 @@ export class TauriVaultAdapter implements IVaultAdapter {
     skipped: VaultWalkSkip[],
     depth: number,
     /** True once the walk is inside an explicitly requested internal folder. */
-    insideInternal: boolean
+    insideInternal: boolean,
+    signal?: AbortSignal
   ): Promise<VaultFileInfo[]> {
+    signal?.throwIfAborted();
     if (visited.has(absPath)) {
       skipped.push({ path, reason: "cycle" });
       return [];
@@ -293,8 +295,9 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // MAX_WALK_DEPTH below remain the fallback.
     let dirStat: Awaited<ReturnType<typeof stat>>;
     try {
-      dirStat = await limit.run(() => stat(absPath));
+      dirStat = await limit.run(() => { signal?.throwIfAborted(); return stat(absPath); });
     } catch {
+      signal?.throwIfAborted();
       skipped.push({ path, reason: "unreadable" });
       return [];
     }
@@ -309,16 +312,18 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
     let entries: CheckedDirEntry[];
     try {
-      const snapshot = await limit.run(async () => checkedReadDirectory(await this.rootId(), path));
+      const snapshot = await limit.run(async () => { signal?.throwIfAborted(); return checkedReadDirectory(await this.rootId(), path); });
       if (snapshot === null) throw new VaultFileNotFoundError(path);
       entries = snapshot;
     } catch {
       // Permission denied, offline network share, torn-down mount: report it
       // instead of returning an empty folder that looks legitimately empty.
+      signal?.throwIfAborted();
       skipped.push({ path, reason: "unreadable" });
       return [];
     }
 
+    signal?.throwIfAborted();
     // Filter valid entries. Symlinks/junctions are FOLLOWED (P1e) — a cloud or
     // network folder mounted into the vault used to be dropped here, so its
     // notes never reached the index and no restart could fix that. Exclusions
@@ -357,8 +362,15 @@ export class TauriVaultAdapter implements IVaultAdapter {
             mtime: Date.now(), ctime: undefined, size: 0,
           });
         }
+        if (!entry.isSymlink && entry.metadata?.mtime != null) {
+          return Promise.resolve<ResolvedEntry>({
+            name: entry.name, path: relativeChildPath, absPath: childAbsPath, isDirectory: false,
+            mtime: entry.metadata.mtime, ctime: entry.metadata.ctime ?? undefined, size: entry.metadata.size,
+          });
+        }
         return limit.run(async () => {
           try {
+            signal?.throwIfAborted();
             const entryStat = await stat(childAbsPath);
             const isDirectory = entryStat.isDirectory;
             const mtime = entryStat.mtime?.getTime() || Date.now();
@@ -366,6 +378,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
             const size = isDirectory ? 0 : entryStat.size;
             return { name: entry.name!, path: relativeChildPath, absPath: childAbsPath, isDirectory, mtime, ctime, size };
           } catch {
+            signal?.throwIfAborted();
             skipped.push({ path: relativeChildPath, reason: "unreadable" });
             return null;
           }
@@ -386,7 +399,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
         resolved
           .filter((e) => e.isDirectory)
           .map((entry) =>
-            this._listDirInternal(entry.path, entry.absPath, true, visited, limit, skipped, depth + 1, insideInternal)
+            this._listDirInternal(entry.path, entry.absPath, true, visited, limit, skipped, depth + 1, insideInternal, signal)
           )
       );
       for (const cl of childLists) results.push(...cl);
@@ -395,11 +408,11 @@ export class TauriVaultAdapter implements IVaultAdapter {
     return results;
   }
 
-  async listDir(path: string = "", recursive: boolean = false): Promise<VaultFileInfo[]> {
-    return (await this.listDirReport(path, recursive)).files;
+  async listDir(path: string = "", recursive: boolean = false, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
+    return (await this.listDirReport(path, recursive, options)).files;
   }
 
-  async listDirReport(path: string = "", recursive: boolean = false): Promise<VaultListing> {
+  async listDirReport(path: string = "", recursive: boolean = false, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     const absPath = await this.getAbsolutePath(path);
     const skipped: VaultWalkSkip[] = [];
     // The internal-path filter hides `.plainva`, `.git`, … from a walk over the
@@ -408,7 +421,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // back empty. Asking for an internal path is an explicit request for it.
     const files = await this._listDirInternal(
       path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0,
-      isInternalPath(path)
+      isInternalPath(path), options?.signal
     );
     return { files, skipped };
   }

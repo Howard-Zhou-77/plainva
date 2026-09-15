@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-09-10
+Última revisão: 2026-09-15
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -183,3 +183,26 @@ Adicione arquivos, calendário ou email à conta adequada. O Plainva verifica o 
 Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
 
 Ao adicionar arquivos no celular, o Plainva mostra origem, destino e colisões antes da transferência. Conteúdos e serviços existentes são preservados; uma transferência interrompida pode ser repetida.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Certificados de servidores próprios
+
+O Android também confia nas autoridades certificadoras instaladas nas configurações do sistema. Isso vale para todas as conexões do Plainva que usam essa configuração, não apenas um servidor WebDAV. No desktop, HTTP usa as autoridades do sistema e as raízes públicas; o iOS usa suas configurações de confiança. A validade e o nome do servidor continuam sendo verificados. Corrija certificados expirados, ainda não válidos ou de outro servidor. O Plainva nunca permite aceitar todos os certificados. Se o sistema não informar a causa exata, o Plainva informa a falha de verificação sem adivinhar. O diagnóstico HTTP móvel inclui método e código de erro, sem credenciais, nomes de certificados ou caminhos privados.
+
+<!-- workspace-retry-2026-09-14 -->
+## Novas tentativas automáticas e histórico de sincronização ausente
+
+A conexão está temporariamente indisponível. O Plainva tentará novamente automaticamente; as alterações pendentes permanecem neste dispositivo.
+
+Entre novamente na conta de sincronização. As alterações pendentes permanecem neste dispositivo até que o acesso seja restabelecido.
+
+O Plainva não consegue verificar o cofre criptografado. A sincronização está pausada; os dados locais e as alterações pendentes são preservados. Abra Segurança e compartilhamento, restaure uma cópia verificável, se houver, e verifique novamente.
+
+Em um dispositivo que ainda tenha o histórico completo verificável, escolha Sincronizar agora. O Plainva pode restaurar as operações assinadas ausentes a partir dessa cópia. Depois, verifique novamente em Plainva. Se não houver uma cópia válida, preserve ou exporte os dados locais; a verificação nunca é redefinida para contornar a lacuna.
+
+Os arquivos de comentários não criptografados de outros dispositivos permanecem no servidor. Somente o dispositivo de origem pode concluir a conversão. O Plainva não exclui arquivos de outros dispositivos.
+
+<!-- account-grants-destination-2026-09-14 -->
+Os logins existentes são adotados após verificar identidade, permissões realmente concedidas e armazenamento seguro. Uma conta pode manter autorizações separadas; adicionar um serviço preserva os logins dos demais. O e-mail Microsoft pode reutilizar um login compatível de arquivos ou calendário. Outro dispositivo precisa de seu próprio login.
+
+Nas configurações de sincronização, o seletor do Google Drive mostra o destino atual e a prévia da pasta escolhida. Abra pastas com o mesmo nome e compare arquivos e datas. “Usar este destino” salva o ID único da pasta. Se ela ficar indisponível, o Plainva informa o erro sem criar uma substituta. Outras pastas não são movidas nem excluídas.

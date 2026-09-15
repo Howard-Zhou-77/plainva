@@ -15,8 +15,9 @@ export function CommentDeliveryState({ comment, own, onRetry, onDiscard }: {
   const pending = comment.pending;
   if (!pending) return null;
   if (pending.lastError === null) return <span className="pv-comment-card__state" data-state="sending"><Send size={ICON.meta} /> {t("comments.commentSending")}</span>;
+  const reason = pending.lastError === "workspace-suggestion-not-permitted" ? t("comments.suggestionNotPermitted") : pending.lastError;
   return <>
-    <span className="pv-comment-card__state" data-state="error"><AlertCircle size={ICON.meta} /> {t("comments.commentSendFailed", { reason: pending.lastError })}</span>
+    <span className="pv-comment-card__state" data-state="error"><AlertCircle size={ICON.meta} /> {t("comments.commentSendFailed", { reason })}</span>
     {own && onRetry && <Button variant="ghost" size="sm" onClick={event => { event.stopPropagation(); onRetry(pending.outboxId); }}>{t("comments.commentSendRetry")}</Button>}
     {own && onDiscard && !comment.legacyOrigin && <Button variant="ghost" size="sm" onClick={event => { event.stopPropagation(); onDiscard(pending.outboxId); }}>{t("comments.commentSendDiscard")}</Button>}
   </>;

@@ -166,6 +166,22 @@ pub(crate) fn extract_archive_sync(
 ) -> Result<ExtractResult, String> {
     let file =
         File::open(archive_path).map_err(|e| format!("open {}: {e}", archive_path.display()))?;
+    // JEX is uncompressed TAR. Snapshot it once into the private staging
+    // directory; the shared strict USTAR reader validates headers and reads
+    // bounded ranges in both shells. No entry path is extracted by native code.
+    if archive_path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("jex") || e.eq_ignore_ascii_case("tar")) {
+        const MAX_TAR_BYTES: u64 = 256 * 1024 * 1024 + 20_000 * 1024 + 10_240;
+        if file.metadata().map_err(|e| e.to_string())?.len() > MAX_TAR_BYTES {
+            return Err("import.archiveTooLarge".into());
+        }
+        fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+        let target = dest.join("source.tar");
+        let size = copy_entry(&mut BufReader::new(file), &target, MAX_TAR_BYTES, MAX_TAR_BYTES)
+            .map_err(|_| "import.archiveInvalid".to_string())?;
+        return Ok(ExtractResult { root: dest.to_string_lossy().to_string(), entries: vec![ExtractedEntry {
+            rel_path: "source.tar".into(), size, modified_ms: None,
+        }], skipped: vec![], total_bytes: size });
+    }
     let mut archive =
         zip::ZipArchive::new(BufReader::new(file)).map_err(|e| format!("read archive: {e}"))?;
 
@@ -375,6 +391,31 @@ pub fn discard_extracted_archive(root: String) -> Result<(), String> {
 #[cfg(test)]
 mod unzip_tests {
     use super::*;
+
+    #[test]
+    fn jex_is_snapshotted_without_extracting_untrusted_entry_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let input = tmp.path().join("source.JEX");
+        let bytes = b"Untrusted TAR bytes are validated by the shared reader";
+        fs::write(&input, bytes).unwrap();
+        let dest = tmp.path().join("stage");
+        let result = extract_archive_sync(&input, &dest, ExtractLimits::default()).unwrap();
+        assert_eq!(result.entries.len(), 1);
+        assert_eq!(result.entries[0].rel_path, "source.tar");
+        assert_eq!(fs::read(dest.join("source.tar")).unwrap(), bytes);
+        fs::write(&input, b"changed original").unwrap();
+        assert_eq!(fs::read(dest.join("source.tar")).unwrap(), bytes);
+    }
+
+    #[test]
+    fn oversized_jex_is_refused_before_staging() {
+        let tmp = tempfile::tempdir().unwrap();
+        let input = tmp.path().join("huge.jex");
+        File::create(&input).unwrap().set_len(300 * 1024 * 1024).unwrap();
+        let dest = tmp.path().join("stage");
+        assert!(extract_archive_sync(&input, &dest, ExtractLimits::default()).unwrap_err().contains("archiveTooLarge"));
+        assert!(!dest.exists());
+    }
 
     fn write_archive(dir: &Path, entries: &[(&str, &[u8], Option<u32>)]) -> PathBuf {
         let path = dir.join("source.zip");

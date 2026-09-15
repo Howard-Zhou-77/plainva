@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Última revisão: 2026-09-07
+Última revisão: 2026-09-15
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -90,3 +90,7 @@ Estes arquivos pertencem a tarefas diferentes. Tarefas recorrentes com o mesmo t
 Um arquivo mudou desde a abertura. A comparação foi recarregada. Revise o conteúdo atual e escolha novamente.
 
 Mesclar linha por linha é uma ferramenta do computador; aqui você adota uma versão inteira ou mantém as duas.
+
+## Comparar a cópia selecionada
+
+A versão selecionada mostra linhas adicionadas e removidas em relação à nota atual, mesmo com o diff oculto. **Abrir em nova janela** mantém essa mesma cópia selecionada no desktop. Se ela desaparecer, o Plainva informa. Arquivos grandes podem não ter contagens; binários não têm comparação de texto. O celular mostra as mesmas contagens na comparação completa.

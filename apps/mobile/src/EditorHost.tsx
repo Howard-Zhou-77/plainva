@@ -28,10 +28,10 @@ import {
   Pencil,
   TextSelect,
 } from "lucide-react";
-import { registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
@@ -57,7 +57,7 @@ import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
-import { readSelectionVerbs, selectAll } from "@plainva/ui";
+import { readSelectionVerbs, selectAll, SelectionToolbarSurface } from "@plainva/ui";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -450,22 +450,18 @@ export function EditorHost({
               let stale = false;
               container.classList.add("m-embed");
               void (async () => {
-                const bare = target.split("#")[0].split("|")[0].trim();
-                let resolved: string | null = null;
-                for (const cand of [bare, `${bare}.md`, `${bare}.base`]) {
-                  if (await vault.files.exists(cand)) {
-                    resolved = cand;
-                    break;
-                  }
-                }
-                if (!resolved) resolved = await vaultOps.resolveWikiTarget(vault, bare, path);
+                const resolvedTarget = await resolveNoteEmbed(target, path, {
+                  exists: (candidate) => vault.files.exists(candidate), db: vault.db,
+                  list: () => vault.files.listDir("", true),
+                });
+                const resolved = resolvedTarget.status === "found" ? resolvedTarget.path : null;
                 if (stale) return;
                 const card = document.createElement("button");
                 card.type = "button";
                 card.className = "pv-card pv-card--embed m-embed-card";
                 if (!resolved) {
                   card.classList.add("is-missing");
-                  card.textContent = `![[${target}]]`;
+                  card.textContent = t("noteEmbed." + resolvedTarget.status, { target });
                   container.appendChild(card);
                   return;
                 }
@@ -480,12 +476,24 @@ export function EditorHost({
                     if (stale) return;
                     const body = document.createElement("span");
                     body.className = "m-embed-body";
-                    body.textContent = markdownToPlainText(
-                      text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""),
-                    ).slice(0, 280);
+                    const fragment = selectNoteFragment(text, resolvedTarget.status === "found" ? resolvedTarget.anchor : null);
+                    if (fragment.status === "found") {
+                      const preview = await noteEmbedPreview(fragment.text, path0, {
+                        exists: (candidate) => vault.files.exists(candidate), db: vault.db,
+                        list: () => vault.files.listDir("", true), read: (candidate) => vaultOps.read(vault, candidate),
+                        message: (kind, nestedTarget) => t("noteEmbed." + kind, { target: nestedTarget }),
+                      });
+                      if (stale) return;
+                      const prose = markdownToPlainText(preview);
+                      body.textContent = fragment.kind === "note" ? prose.slice(0, 280) : prose;
+                      if (fragment.kind !== "note") body.classList.add("m-embed-body--fragment");
+                    } else {
+                      card.classList.add("is-missing");
+                      body.textContent = t("noteEmbed." + fragment.status, { target });
+                    }
                     card.appendChild(body);
                   } catch {
-                    /* preview stays title-only */
+                    card.appendChild(document.createTextNode(t("noteEmbed.unreadable", { target })));
                   }
                 } else {
                   card.classList.add("is-base");
@@ -516,7 +524,10 @@ export function EditorHost({
                     /* an unreadable base stays a plain card */
                   }
                 }
-                card.addEventListener("click", () => onOpenNote(path0));
+                card.addEventListener("click", () => {
+                  onOpenNote(path0);
+                  if (resolvedTarget.status === "found" && resolvedTarget.anchor) requestAnchorJump(path0, resolvedTarget.anchor);
+                });
                 container.appendChild(card);
               })();
               return () => {
@@ -615,15 +626,15 @@ export function EditorHost({
       requestAnimationFrame(() => {
         const view = sessionRef.current?.view;
         if (!view) return;
-        // A backlink names its line (P7); the search names a term.
-        if (jump.line) {
-          const l = view.state.doc.line(Math.min(Math.max(jump.line, 1), view.state.doc.lines));
-          view.dispatch({ selection: { anchor: l.from, head: l.to }, scrollIntoView: true });
-          return;
-        }
-        const m = jump.term ? findFirstMatch(view.state.doc.toString(), jump.term) : null;
+        const m = resolveSearchJump(view.state.doc.toString(), jump);
         if (m) {
+          // The read-only content is focusable without opening the keyboard.
+          // Let CodeMirror own its native selection while the viewport changes;
+          // an unfocused DOM range is discarded by the next layout update.
+          if (!editableRef.current) view.focus();
           view.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true });
+        } else if (jump.from !== undefined) {
+          toast.info(t("searchResults.changed"));
         }
       });
     }
@@ -1372,37 +1383,76 @@ export function EditorHost({
           <code>{conflict.copyPath}</code>
         </Banner>
       )}
-      <div className={`m-editor${showEditToolbar ? " is-docked" : ""}`} ref={containerRef} />
+      <div
+        className={`m-editor${showEditToolbar ? " is-docked" : ""}`}
+        ref={containerRef}
+        onContextMenu={(event) => {
+          if (editable) return;
+          const selection = window.getSelection();
+          // The reader provides its own clipboard actions. A second native
+          // callout covers wrapped authoring actions, while cancelling only
+          // this event preserves the platform's extendable selection handles.
+          if (selection && !selection.isCollapsed && selection.anchorNode && event.currentTarget.contains(selection.anchorNode)) {
+            event.preventDefault();
+          }
+        }}
+      />
       {/* The formatting toolbar over a selection (S18). It was desktop-only,
           so on a phone the six most common formats needed the docked toolbar
           and a second look away from the text. */}
-      {/* Read mode (C26, catalog gap `comment-anchor-create` until 2026-09-04):
-          the note opens read-first, the session is `editable: false`, but its
-          selection still tracks what the finger marked. Over a non-empty
-          selection the two things a reader can do with a passage sit here —
-          the same two verbs the desktop offers from its selection. The bar
-          takes the toolbar's surface and position; formatting stays out, a
-          reader cannot format. preventDefault on pointer/mouse down keeps the
-          selection alive through the tap, exactly as the format toolbar does. */}
-      {/* Three verbs since P5 (Build-91 feedback): "Edit" joins them where the
-          note can be written, and it needs no workspace — a plain vault gets
-          the bar for that one verb. The word the double-tap marked stays the
-          place the cursor lands. */}
+      {/* The native WebView does not always offer a system clipboard callout
+          for CodeMirror's read-only selection. Explicit clipboard actions work
+          for every note; authoring actions still depend on its rights.
+          preventDefault preserves the selected source range through the tap. */}
       {!editable && selectionAt && selectionRange && readSelectionVerbs({
+        canCopy: true,
         canComment: canComment === true,
         hasComment: !!onCommentAnchorRequest,
         hasSuggest: !!onPassageSuggest,
         canEdit: !!onEditAt,
       }).length > 0 && (
-        <div
+        <SelectionToolbarSurface
           role="toolbar"
-          aria-label={t("comments.comments")}
-          className={`pv-popover--fixed pv-seltoolbar${selectionAt.above ? " is-above" : ""}`}
+          aria-label={t("contextMenu.label")}
           data-testid="read-selection-bar"
           onMouseDown={(e) => e.preventDefault()}
           onPointerDown={(e) => e.preventDefault()}
-          style={{ left: selectionAt.x, top: selectionAt.y }}
+          x={selectionAt.x}
+          y={selectionAt.y}
+          above={selectionAt.above}
         >
+          <button
+            type="button"
+            className="pv-iconbtn m-selverb"
+            data-testid="read-selection-copy"
+            onClick={() => {
+              const view = sessionRef.current?.view;
+              if (!view || view.state.selection.main.empty) return;
+              const { from, to } = view.state.selection.main;
+              const selected = view.state.sliceDoc(from, to);
+              const text = resolveOpenAction(path) === "text" ? selected : markdownToPlainText(selected);
+              void navigator.clipboard.writeText(text)
+                .then(() => toast.info(t("editor.copied")))
+                .catch(() => toast.error(t("contextMenu.copyFailed")));
+            }}
+          >
+            <Copy size={ICON.ui} />
+            <span>{t("contextMenu.copy")}</span>
+          </button>
+          <button
+            type="button"
+            className="pv-iconbtn m-selverb"
+            data-testid="read-selection-all"
+            onClick={() => {
+              const view = sessionRef.current?.view;
+              if (!view) return;
+              view.focus();
+              selectAll(view);
+            }}
+          >
+            <TextSelect size={ICON.ui} />
+            <span>{t("shortcuts.selectAll")}</span>
+          </button>
           {canComment && onCommentAnchorRequest && (
             <button
               type="button"
@@ -1447,7 +1497,7 @@ export function EditorHost({
               <span>{t("comments.suggestMode")}</span>
             </button>
           )}
-        </div>
+        </SelectionToolbarSurface>
       )}
       {editable && selectionAt && (
         <SelectionToolbar

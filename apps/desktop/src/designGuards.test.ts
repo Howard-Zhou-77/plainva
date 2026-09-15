@@ -414,6 +414,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-acct": "account rows inside .pv-setcard — the card carries the theme look",
   "pv-svcchip": "service chip on the themed accent-container pair",
   "pv-wizsteps": "wizard step header, layout only",
+  "pv-taskmeta": "wrapping task metadata text, no surface; shared muted/warning tokens already follow every theme",
   "pv-wizstep": "step chips on token colors; active/done discs use the accent pair",
   "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
   "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",

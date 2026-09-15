@@ -221,6 +221,9 @@ export async function publishQueuedWorkspaceComment(input: {
   if (!evaluateWorkspaceAccess(policy, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) {
     throw new Error("workspace-comment-not-permitted");
   }
+  if (entry.suggestion && !evaluateWorkspaceAccess(policy, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.suggest", objectId: object.objectId, sliceIds }).allowed) {
+    throw new Error("workspace-suggestion-not-permitted");
+  }
   const recipients: Pvo1Recipient[] = workspaceRecipientGroupIds(policy, sliceObject).map((groupId) => {
     const group = policy.groups.find((candidate) => candidate.groupId === groupId)!;
     return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "comment recipient key") };

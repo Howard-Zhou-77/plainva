@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Saved on this device. Open Plainva to choose the vault and folder.</string>
+    <string name="share_failed">Not fully saved. Please share the original content again.</string>
+    <string name="share_limit">At most 10 files, 25 MiB per file, 50 MiB in total and 512 KiB of text.</string>
+    <string name="share_full">The queue is full. Import or discard waiting content in Plainva first.</string>
+</resources>

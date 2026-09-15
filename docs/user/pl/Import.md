@@ -1,8 +1,8 @@
 # Import z innej aplikacji
 
-Stan na: 2026-09-10
+Stan na: 2026-09-15
 
-Plainva potrafi przenieść notatki z innych aplikacji do notatek. Import zawsze zapisuje dane w vaulcie, który masz aktualnie otwarty, w podfolderze o nazwie, którą wybierasz — dzięki temu nigdy nie dotyka reszty Twojego vaultu, a zaimportowany folder możesz później przenieść lub usunąć jak każdy inny folder.
+Plainva importuje notatki z innych aplikacji do nowego sejfu lub podfolderu o nowej nazwie w otwartym sejfie. Pozostała zawartość się nie zmienia; folder importu można potem przenieść lub usunąć.
 
 **Import działa na obu urządzeniach — z tymi samymi źródłami.** Na komputerze prowadzą do niego ekran powitalny, paleta poleceń i menu kontekstowe folderu; w telefonie znajdziesz go w **Ustawienia → Konserwacja → Import z innej aplikacji**. Dostępne są tam także źródła wymagające dostępu do usługi — Notion przez API.
 
@@ -58,7 +58,7 @@ Duża przestrzeń robocza może zająć chwilę, dlatego import można zatrzyma�
 | **Google Keep (Takeout)** | Plik ZIP z Google Takeout lub pliki `.json` | Notatki, listy kontrolne, etykiety jako tagi, kolor w nagłówku notatki, przypięte notatki jako tablica |
 | **Simplenote** | Wyeksportowany plik `.json` | Aktywne notatki i ich tagi |
 | **Logseq** | Twój folder grafu | Pliki, skopiowane bez zmian |
-| **Joplin** | Folder lub ZIP eksportu Markdown | Notatki z notatnikami, frontmatterem, tagami i zasobami |
+| **Joplin** | JEX/TAR, folder RAW lub eksport Markdown | Notatki, notatniki, tagi, zasoby, odnośniki wewnętrzne i daty |
 | **Bear (TextBundle)** | Wyeksportowane foldery `.textbundle` | Notatki wraz z obrazami |
 | **Notesnook** | Eksport Markdown | Notatki i ich foldery notatników; notatka w dwóch notatnikach jest importowana raz |
 | **Capacities** | Folder lub ZIP eksportu | Notatki z właściwościami jako frontmatter oraz media |
@@ -171,3 +171,12 @@ Pliki ZIP są przetwarzane z limitami rozmiaru pojedynczego pliku, łącznego ro
 ## Zajęte nazwy plików
 
 Importer sprawdza do 1000 wariantów nazwy. Jeśli żaden nie jest wolny, nie można sprawdzić celu lub zarezerwowana nazwa została zajęta, pomija ten element i podaje przyczynę. Pozostałe elementy są importowane dalej. W imporcie z Notion nieudana rezerwacja pozostawia linki do oryginalnego źródła zamiast przypisywać cel lokalny. Jeśli raport również nie znajdzie wolnej nazwy, import wyświetla błąd; już zaimportowane pliki pozostają w folderze docelowym.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX i RAW
+
+Wybierz odszyfrowany eksport JEX/TAR lub folder RAW. Podgląd liczy notatki, notatniki, tagi i załączniki. Puste notatniki pozostają; takie same tytuły dostają różne nazwy, a odnośniki śledzą ID. Notatki bez wyeksportowanego notatnika trafiają do katalogu głównego importu.
+
+Bajty zasobów są zachowane. Oryginalne rekordy, także nieznane pola, trafiają również do `_Joplin/Export.json`, liczonego jako jeden załącznik. Raport wymienia brakujące zasoby i nierozwiązane odnośniki; oryginalne odnośniki pozostają. Przeczytaj go przed usunięciem eksportu.
+
+JEX wymaga nowego celu. Błędne archiwa, konflikty ścieżek, dowiązania symboliczne/twarde i rozszerzenia TAR, np. PAX, są odrzucane w całości. Limity: 20 000 wpisów, 32 MiB na plik, 2 MiB na tekst, 256 MiB łącznie, 64 MiB tekstu i 64 MiB pliku dodatkowego. Komputer używa prywatnej kopii; telefon czyta fragmenty pliku. Anulowanie analizy nic nie zapisuje w sejfie. Podczas importu zapisane pliki i częściowy raport pozostają; cały folder nie jest automatycznie wycofywany.

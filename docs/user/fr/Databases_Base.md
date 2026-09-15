@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-09-06
+Dernière mise à jour : 2026-09-15
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -287,3 +287,11 @@ Une barre qui dépasse la période affichée est coupée au bord et n'y porte **
 Filtrez par bande de couleur, icône, tags de toute la note ou propriété d’étiquette choisie pour le panneau. Les tags correspondent exactement : #work ne correspond ni à #workshop ni à #work/child. Texte et frontmatter sont réunis. Les valeurs restent disponibles depuis toute la source même sans résultat ; les noms d’icônes inconnus sont conservés.
 
 Le filtre change l’affichage, pas les fichiers. Les valeurs proposées viennent de la source entière, même sans résultat.
+
+## Exporter un tableau
+
+Ouvrez **Exporter le tableau** dans le menu de la base sur ordinateur ou via l’icône d’export de la barre mobile. Le dialogue indique le nombre de lignes du résultat et les colonnes de la vue.
+
+**Formules (.base)** crée un tableau contenant une sélection fixe des lignes actuelles. Ces calculs via des relations enregistrées restent des formules : **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Ouvrez le fichier dans le même coffre avec les notes liées. Les calculs non pris en charge et les relations inverses sont indiqués dans le dialogue ; utilisez l’export des valeurs pour ces colonnes.
+
+**Valeurs (.csv)** contient les valeurs calculées actuelles et les chemins des fichiers. Les valeurs ne seront pas actualisées ; les listes restent au format JSON. Les textes ressemblant à des formules sont protégés comme texte pour les tableurs. Aucune des options n’écrit de propriétés calculées dans les notes d’origine.

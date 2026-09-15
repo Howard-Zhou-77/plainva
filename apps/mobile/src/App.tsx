@@ -72,7 +72,7 @@ import {
   type NavState,
 } from "./navigation";
 import { PendingIntentRunner } from "./PendingIntentRunner";
-import { consumePendingShare, type PendingShare } from "./services/shareTarget";
+import { ShareInbox } from "./components/ShareInbox";
 import { haptics } from "./services/haptics";
 import { closeTopSheet } from "./services/sheetStack";
 import { buildMobileCommands } from "./services/mobileCommands";
@@ -142,20 +142,11 @@ export default function App() {
   // here; the PendingIntentRunner below (rendered after the vault guard)
   // executes them with the real capture/openDaily closures.
   const [pendingShortcut, setPendingShortcut] = useState<string | null>(null);
-  const [pendingShare, setPendingShare] = useState<PendingShare | null>(null);
   useEffect(() => {
     const onShortcut = (e: Event) => setPendingShortcut(String((e as CustomEvent).detail?.which ?? ""));
-    const onPollShare = () => {
-      void consumePendingShare().then((share) => {
-        if (share) setPendingShare(share);
-      });
-    };
     window.addEventListener("m-shortcut", onShortcut);
-    window.addEventListener("m-poll-share", onPollShare);
-    onPollShare(); // cold start: the stashed intent is already waiting
     return () => {
       window.removeEventListener("m-shortcut", onShortcut);
-      window.removeEventListener("m-poll-share", onPollShare);
     };
   }, []);
 
@@ -456,39 +447,10 @@ export default function App() {
   const runPendingIntents = (
     <PendingIntentRunner
       onCapture={capture}
-      onCaptureShared={(share) => {
-        void (async () => {
-          const inbox = getMobileSettings().inboxFolder;
-          const sanitize = (n: string) => ((n || "shared").split(/[\\/]/).pop() || "shared").replace(/[<>:"|?*]/g, "_").slice(0, 120) || "shared";
-          const suffixed = (n: string, k: number) => { const d = n.lastIndexOf("."); return d > 0 ? `${n.slice(0, d)} ${k}${n.slice(d)}` : `${n} ${k}`; };
-          const embeds: string[] = [];
-          for (const f of share.files) {
-            try {
-              const binStr = atob(f.data);
-              const bytes = new Uint8Array(binStr.length);
-              for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-              const rel = sanitize(f.name);
-              let path = `Attachments/${rel}`;
-              for (let k = 2; await vault.files.exists(path); k++) path = `Attachments/${suffixed(rel, k)}`;
-              await vault.files.writeBinaryFile(path, bytes);
-              // Images embed inline; other files are linked.
-              embeds.push((f.mime || "").startsWith("image/") ? `![[${path}]]` : `[[${path}]]`);
-            } catch { /* skip a bad payload, keep the rest */ }
-          }
-          const firstLine = share.text.split("\n")[0]?.slice(0, 60).trim() ?? "";
-          const firstFileTitle = share.files[0] ? sanitize(share.files[0].name).replace(/\.[^.]+$/, "") : "";
-          const title = share.subject.trim() || firstLine || firstFileTitle || "Note";
-          const body = [share.text.trim(), ...embeds].filter(Boolean).join("\n\n");
-          const notePath = await vaultOps.createNoteFromTemplate(vault, inbox, title, body);
-          if (notePath) setNav((s2) => pushCapturedNote(s2, slots, notePath));
-        })();
-      }}
       onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
       onOpenToday={() => openDaily(isoOf(new Date()))}
-      pendingShare={pendingShare}
       pendingShortcut={pendingShortcut}
-      setPendingShare={setPendingShare}
       setPendingShortcut={setPendingShortcut}
     />
   );
@@ -691,6 +653,7 @@ export default function App() {
   return (
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
+      <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
       {!onboarded && (
         <div className="m-onboarding">
           <h1>{t("mobile.onboardingTitle")}</h1>

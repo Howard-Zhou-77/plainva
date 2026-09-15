@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-09-06
+Laatst bijgewerkt: 2026-09-15
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -131,3 +131,14 @@ Taken van de aanbieder worden op identiteit gekoppeld. Afzonderlijke herhalingen
 Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde titel kunnen aparte instanties zijn. Beide inhouden blijven als aparte taken bewaard.
 
 **Als aparte taken behouden** — Dit bestand blijft ongewijzigd: Huidig bestand  De conflictkopie blijft bewaard als apart bestand: conflictkopie
+
+<!-- tasks-jex-2026-09-14 -->
+## Tasks-metagegevens en herhaling
+
+Desktop, mobiel en Live Preview herkennen ➕ aangemaakt, ✅ voltooid, 📅 vervaldatum, ⏳ gepland, 🛫 start, 🆔 ID en 🔁 herhaling. Datums: YYYY-MM-DD. Bestaande ID’s blijven bij verplaatste regels; onbekende gegevens blijven in Markdown.
+
+Alleen de Engelse regels `every [N] day/week/month/year[s] [when done]` (N: 1–999) zijn automatisch. Voltooien schuift één periode op, ook als die nog verlopen is; `when done` telt vanaf voltooiing. Afstanden tussen datums blijven behouden, begrensd op het maandeinde. Zonder datum blijft de opvolger ongedateerd. Complexe regels, afhankelijkheden, blok-ID’s, dubbele ID’s, ongeldige datums, ingesprongen inhoud, native herhaling en providertaken schakelen deze generator uit.
+
+Afvinken voegt bij taken met metagegevens de voltooiingsdatum toe. Ondersteunde herhaling voegt zo nodig een ID toe en geeft de opvolger een eigen `pv-…`-ID. Het geheel is één Markdown-bewerking; Ongedaan maken herstelt die volledig. Heropenen en opnieuw afvinken behoudt de opvolger en zijn wijzigingen.
+
+Native databasetaken slaan verlopen perioden nog steeds over. Een opgeslagen doelplan voorkomt dubbele opvolgers. Controleer bij een onbevestigde opvolger de takenmap; heropenen en afvinken kan een schrijffout hervatten. Bij een gewijzigde bron wordt geen afwijkende kopie geschreven: controleer de notities en maak de opvolger zo nodig handmatig. Een bevestigde en later verwijderde opvolger wordt niet hersteld.

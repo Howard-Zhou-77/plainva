@@ -1,8 +1,11 @@
 # Performance Notes (Measurement Guide)
 
-Last reviewed: 2026-07-05 (internal planning document, maintainer workspace — P2)
+Last reviewed: 2026-09-14
 
-This document records WHAT is measured against (budgets from an internal planning document, maintainer workspace, §4.3), HOW it is measured (synthetic test vaults + fixed measurement points), and which structural changes the P2 sprint introduced. The maintainer will add native measurements after the first runs.
+This document records measurement budgets, fixture methods and structural changes.
+The [September large-vault report](Performance_Large_Vault_2026-09-14.md) adds native
+Windows cold/warm measurements, repeated vault switches and the directory-scan
+contention fix, with debug-build limitations stated alongside the results.
 
 ## Budgets (internal planning document, maintainer workspace, §4.3 — release gates)
 

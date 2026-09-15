@@ -1,13 +1,16 @@
+import { projectPublicationFeedbackForOwner } from "@plainva/core";
+import { perfMeasure } from "../services/perfMetrics";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
+import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
-import { readSyncRootFolder } from "../services/syncRootFolder";
+import { readDriveDestination, readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
@@ -16,6 +19,7 @@ import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpl
 import { createLimiter, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
+import { workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -699,7 +703,7 @@ export const VaultProvider: React.FC<{
       // the last window looking away starts the drain and cannot await it, so
       // the next open does. Without this wait, closing and reopening a vault in
       // quick succession would put two workers on one queue.
-      await awaitVaultTeardown(path);
+      await perfMeasure("vault open: previous drain", () => awaitVaultTeardown(path));
 
       // Which extra file types this vault opens as text (C15). It belongs to
       // the vault, so it is installed with the vault and not by whoever first
@@ -727,7 +731,7 @@ export const VaultProvider: React.FC<{
       if (currentAbortSignal.aborted) return;
 
       const tauriVaultAdapter = new TauriVaultAdapter(path);
-      await tauriVaultAdapter.initialize();
+      await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
 
       // Retention (snapshot interval / max count / max age) is per-vault
@@ -756,11 +760,11 @@ export const VaultProvider: React.FC<{
       // Backups stay in the vault; an existing in-vault DB is migrated once.
       const dbPath = await resolveIndexDbUrl(path);
       const dbAdapter = new TauriDatabaseAdapter(dbPath);
-      await dbAdapter.initialize();
-      await initializeSchema(dbAdapter);
+      await perfMeasure("vault open: database pool", () => dbAdapter.initialize());
+      await perfMeasure("vault open: database schema", () => initializeSchema(dbAdapter));
 
       const syncQueue = new SyncQueue(dbAdapter);
-      const workspaceSecurityStatus = await getWorkspaceSecurityStatus(path);
+      const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
       // "Locked" and "no key bundle here" are different answers and need different offers
       // (finding 2026-08-25, B6). They used to arrive as the same null.
       const workspaceAccess = workspaceSecurityStatus ? await readWorkspaceRuntime(path) : null;
@@ -838,16 +842,17 @@ export const VaultProvider: React.FC<{
           // The adapter auto-merged external + local changes and wrote the result to disk.
           // Tell the editor so it adopts the merged content instead of overwriting it on the next save.
           window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
-        }
+        },
+        workspaceStateStore ?? syncRepo
       );
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below.
-      const driveCreds = await credentialManager.getDriveCredentials(path).catch(() => null);
-      const webdavCreds = await credentialManager.getWebDavCredentials(path).catch(() => null);
-      const oneDriveCreds = await credentialManager.getOneDriveCredentials(path).catch(() => null);
-      const dropboxCreds = await credentialManager.getDropboxCredentials(path).catch(() => null);
-      const s3Creds = await credentialManager.getS3Credentials(path).catch(() => null);
+      const driveCreds = await perfMeasure("vault open: drive credentials", () => credentialManager.getDriveCredentials(path)).catch(() => null);
+      const webdavCreds = await perfMeasure("vault open: webdav credentials", () => credentialManager.getWebDavCredentials(path)).catch(() => null);
+      const oneDriveCreds = await perfMeasure("vault open: onedrive credentials", () => credentialManager.getOneDriveCredentials(path)).catch(() => null);
+      const dropboxCreds = await perfMeasure("vault open: dropbox credentials", () => credentialManager.getDropboxCredentials(path)).catch(() => null);
+      const s3Creds = await perfMeasure("vault open: s3 credentials", () => credentialManager.getS3Credentials(path)).catch(() => null);
       // Whether this device can open the vault's provider is ONE rule, shared
       // with the account surface — see `fileSyncAccess.ts` for why it may not
       // be restated per caller.
@@ -897,6 +902,7 @@ export const VaultProvider: React.FC<{
       // onFirstCycleComplete then sweeps only the genuinely local-only files.
       let deferInitialEnqueue = true;
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
+        scanSignal: currentAbortSignal,
         onExternalModification: (path) => {
           console.log(`VaultContext: External modification detected for ${path}`);
           window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
@@ -986,6 +992,7 @@ export const VaultProvider: React.FC<{
       // sideband file, not a note); the sync worker merges it every cycle.
       const deletionJournal = new DeletionJournal(backupVaultAdapter, await getDeviceId());
       const runTaskSyncNow = async () => {
+        if (currentAbortSignal.aborted) return;
         if (taskSyncRunning) {
           taskSyncQueued = true;
           return;
@@ -1113,12 +1120,11 @@ export const VaultProvider: React.FC<{
               fileTreeVersionPaths: null,
             }));
           })
-          .catch((e) => console.error("[VaultContext] background full index failed", e));
+          .catch((e) => { if (!currentAbortSignal.aborted) console.error("[VaultContext] background full index failed", e); });
       } else {
         // Fresh/empty index: block with progress so the tree isn't empty. Every file is
         // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
         // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
-        const { perfMeasure } = await import("../services/perfMetrics");
         await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull());
         reportInitialProgress = false;
         deferInitialEnqueue = false;
@@ -1146,6 +1152,7 @@ export const VaultProvider: React.FC<{
         // (cloud accounts stage B). Undefined for every other account.
         if (driveReady && driveCreds && (driveCreds.refreshToken || driveTokenProvider)) {
           syncProvider = "drive";
+          const driveDestination = await readDriveDestination(path);
           const driveTarget = new DriveSyncTarget(
             {
               clientId: driveCreds.clientId,
@@ -1156,7 +1163,8 @@ export const VaultProvider: React.FC<{
               // From the per-vault settings, not the slot: the slot's copy dies
               // with the account, and the default that took over then created a
               // second folder in the cloud (finding 2026-08-19).
-              rootFolderName: (await readSyncRootFolder(path, "drive")) || undefined,
+              rootFolderName: driveDestination.path || undefined,
+              rootFolderId: driveDestination.id,
             },
             fetch,
             undefined,
@@ -1186,12 +1194,10 @@ export const VaultProvider: React.FC<{
           } else {
             // Microsoft ROTATES refresh tokens: persist every rotation immediately or the
             // stored token goes stale and the user is forced through the consent flow again.
-            oneDriveTarget.onTokensRefreshed = (_accessToken, refreshToken) => {
+            oneDriveTarget.onTokensRefreshed = async (_accessToken, refreshToken) => {
               if (!refreshToken || refreshToken === oneDriveCreds.refreshToken) return;
+              await rotateLegacyFileGrant(path, "onedrive", { ...oneDriveCreds, refreshToken: oneDriveCreds.refreshToken ?? "" }, refreshToken);
               oneDriveCreds.refreshToken = refreshToken;
-              credentialManager
-                .saveOneDriveCredentials(path, { ...oneDriveCreds, refreshToken })
-                .catch((e) => console.error("[VaultContext] persisting rotated OneDrive token failed", e));
             };
           }
           oneDriveTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
@@ -1209,12 +1215,10 @@ export const VaultProvider: React.FC<{
             undefined,
             tauriSyncUploader
           );
-          dropboxTarget.onTokensRefreshed = (_accessToken, refreshToken) => {
+          dropboxTarget.onTokensRefreshed = async (_accessToken, refreshToken) => {
             if (!refreshToken || refreshToken === dropboxCreds.refreshToken) return;
+            await rotateLegacyFileGrant(path, "dropbox", { clientId: dropboxCreds.appKey, refreshToken: dropboxCreds.refreshToken ?? "" }, refreshToken);
             dropboxCreds.refreshToken = refreshToken;
-            credentialManager
-              .saveDropboxCredentials(path, { ...dropboxCreds, refreshToken })
-              .catch((e) => console.error("[VaultContext] persisting rotated Dropbox token failed", e));
           };
           dropboxTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           target = dropboxTarget;
@@ -1300,14 +1304,15 @@ export const VaultProvider: React.FC<{
                     return access.state === "unlocked" ? access.runtime : null;
                   },
                 });
-                worker.onStatusChange = (status, errorMsg) => {
-                  syncStatusStore.set(path, { status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
+                worker.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => {
+                  const message = workspaceSyncFailureText(errorMsg, failureKind);
+                  syncStatusStore.set(path, { status, message, retryAt, workspaceFailure: failureKind, authRecoverable: failureKind === "authentication", ...(status !== "syncing" ? { progress: null } : {}) });
                   void workspaceStateStore.loadMeta().then(async (meta) => {
                     if (!meta) return;
                     const publicStatus: WorkspaceSecurityPublicStatus = {
                       ...activeSecurityStatus,
                       phase: status === "error" ? "error" : meta.phase,
-                      lastError: errorMsg || meta.lastError,
+                      lastError: message || meta.lastError,
                     };
                     await saveWorkspaceSecurityStatus(path, publicStatus);
                     setState((s) => s.vaultPath === path ? { ...s, workspaceSecurityStatus: publicStatus } : s);
@@ -1563,6 +1568,7 @@ export const VaultProvider: React.FC<{
     };
     void installOwnerBus({
       vaultPath: state.vaultPath,
+      db: state.queryService?.db,
       vaultAdapter: state.vaultAdapter,
       indexer: state.indexer,
       pimRuntime: state.pimRuntime,
@@ -2090,6 +2096,7 @@ export const VaultProvider: React.FC<{
     // the end of this function takes time, and a timer that is still live would
     // start a fresh cycle right in the middle of it.
     worker?.stop();
+    state.indexQueue?.stop();
     state.pimRuntime?.stop();
     syncTargetRef.current = null;
     syncProviderRef.current = null;
@@ -2130,6 +2137,8 @@ export const VaultProvider: React.FC<{
     const drain = (async () => {
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
+      await state.indexer?.whenIdle?.();
+      await state.indexQueue?.whenIdle();
     })();
     if (path) noteVaultTeardown(path, drain);
     await drain;
@@ -3039,12 +3048,12 @@ export const VaultProvider: React.FC<{
           mode: record.config.mode,
           sourceObjectIds: [object.objectId],
         });
-        collected.push(...found.map((entry) => ({ ...entry, publicationName: record.config.name })));
+        collected.push(...found.map((entry) => ({ ...entry, path, publicationName: record.config.name })));
       } catch {
         continue;
       }
     }
-    return collected;
+    return projectPublicationFeedbackForOwner(collected, await workspaceState.listRawComments());
   };
 
   /** Every note that carries comments, for the vault-wide overview (D9). */
@@ -3068,6 +3077,7 @@ export const VaultProvider: React.FC<{
     const byPath = new Map<string, PublicationCommentEntry[]>();
     if (!state.workspaceSecurityStatus) return byPath;
     const { workspaceState } = workspaceControlPlane();
+    const localDecisions = await workspaceState.listRawComments();
     const pathOf = new Map<string, string>();
     for (const object of await workspaceState.listObjects()) pathOf.set(object.objectId, object.path);
     for (const record of await workspaceState.listPublications()) {
@@ -3085,13 +3095,14 @@ export const VaultProvider: React.FC<{
           mode: record.config.mode,
           sourceObjectIds,
         });
-        for (const entry of found) {
+        for (const entry of projectPublicationFeedbackForOwner(found, localDecisions)) {
           // `path` is the publisher's own path, filled by core - no second
           // lookup, and no chance of disagreeing with the column's grouping.
-          const list = byPath.get(entry.path);
-          const withName = { ...entry, publicationName: record.config.name };
+          const path = pathOf.get(entry.comment.targetObjectId)!;
+          const list = byPath.get(path);
+          const withName = { ...entry, path, publicationName: record.config.name };
           if (list) list.push(withName);
-          else byPath.set(entry.path, [withName]);
+          else byPath.set(path, [withName]);
         }
       } catch {
         continue;

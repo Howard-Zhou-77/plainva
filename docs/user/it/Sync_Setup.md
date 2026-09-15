@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-09-10
+Ultimo aggiornamento: 2026-09-15
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -183,3 +183,26 @@ Aggiungi file, calendario o email all’account appropriato. Plainva verifica l�
 Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
 
 Quando aggiungi file sul dispositivo mobile, Plainva mostra origine, destinazione e collisioni prima del trasferimento. Contenuti e servizi esistenti vengono conservati; un trasferimento interrotto può essere ripetuto.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Certificati per server autogestiti
+
+Android considera attendibili anche le autorità di certificazione installate nelle impostazioni di sistema. Vale per tutte le connessioni Plainva che usano questa configurazione, non solo per un server WebDAV. Sul desktop, HTTP usa le autorità di sistema e le radici pubbliche; iOS usa le proprie impostazioni di attendibilità. La validità e il nome del server vengono ancora verificati. Correggi i certificati scaduti, non ancora validi o di un altro server. Plainva non permette mai di accettare tutti i certificati. Se il sistema non specifica la causa, Plainva segnala la verifica fallita senza supposizioni. La diagnostica HTTP mobile contiene metodo e codice di errore, senza credenziali, nomi dei certificati o percorsi privati.
+
+<!-- workspace-retry-2026-09-14 -->
+## Tentativi automatici e cronologia di sincronizzazione mancante
+
+La connessione è temporaneamente non disponibile. Plainva riproverà automaticamente; le modifiche in attesa restano su questo dispositivo.
+
+Accedi di nuovo all’account di sincronizzazione. Le modifiche in attesa restano su questo dispositivo finché l’accesso non viene ripristinato.
+
+Plainva non può verificare il vault cifrato. La sincronizzazione è sospesa; i dati locali e le modifiche in attesa vengono conservati. Apri Sicurezza e condivisione, ripristina una copia verificabile se disponibile, poi verifica di nuovo.
+
+Su un dispositivo che conserva la cronologia completa e verificabile, scegli Sincronizza ora. Plainva può ripristinare le operazioni firmate mancanti da quella copia. Poi verifica di nuovo su Plainva. Se non esiste una copia valida, conserva o esporta i dati locali; la verifica non viene mai reimpostata per aggirare la lacuna.
+
+I file di annotazioni non cifrati di altri dispositivi restano sul server. Solo il dispositivo di origine può completare la conversione. Plainva non elimina i file di altri dispositivi.
+
+<!-- account-grants-destination-2026-09-14 -->
+Gli accessi esistenti vengono adottati dopo aver verificato identità, permessi effettivamente concessi e archiviazione sicura. Un account può mantenere autorizzazioni distinte; aggiungere un servizio conserva gli accessi degli altri. La posta Microsoft può riutilizzare un accesso compatibile per file o calendario. Un altro dispositivo richiede un proprio accesso.
+
+Nelle impostazioni di sincronizzazione, il selettore Google Drive mostra la destinazione attuale e l’anteprima della cartella scelta. Apri cartelle omonime e confronta file e date. «Usa questa destinazione» salva l’ID univoco della cartella. Se diventa inaccessibile, Plainva segnala l’errore senza creare una sostituta. Le altre cartelle non vengono spostate né eliminate.

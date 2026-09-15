@@ -36,7 +36,7 @@ vi.mock("./CredentialManager", () => ({
   },
 }));
 
-import { readSyncRootFolder, syncRootFolderKey, writeSyncRootFolder } from "./syncRootFolder";
+import { readDriveDestination, readSyncRootFolder, syncRootFolderKey, writeSyncRootFolder } from "./syncRootFolder";
 
 describe("syncRootFolder", () => {
   beforeEach(() => {
@@ -49,6 +49,15 @@ describe("syncRootFolder", () => {
     slots.delete("drive"); // what removeCloudAccount leaves behind
 
     expect(await readSyncRootFolder("/v", "drive")).toBe("wiki");
+  });
+
+  it("retains a same-named folder's identity through reconnect and clears it on a new path choice", async () => {
+    await writeSyncRootFolder("/v", "drive", "Plainva", "second-folder");
+    slots.clear();
+    expect(await readDriveDestination("/v")).toEqual({ path: "Plainva", id: "second-folder" });
+    expect(await readSyncRootFolder("/v", "drive")).toBe("Plainva");
+    await writeSyncRootFolder("/v", "drive", "New vault");
+    expect(await readDriveDestination("/v")).toEqual({ path: "New vault" });
   });
 
   it("carries the old slot value over on the first read", async () => {

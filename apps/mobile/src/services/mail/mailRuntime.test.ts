@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setPlatformServices } from "@plainva/ui";
+import { oauthScopeFor, setPlatformServices } from "@plainva/ui";
 import { listMailAccounts, setMailPlatform, mailSecretKey } from "@plainva/ui/mail";
 import type { MailTransport } from "@plainva/ui/mail";
 import { connectMicrosoftMail, listMobileMailAccounts, startMobileMail, stopMobileMail } from "./mailRuntime";
 import { handlePimOAuthRedirect } from "../pim/pimOAuth";
+import { clearConnectQueue, startConnectQueue } from "../connectQueue";
+import { accountSecretKey, forgetAccountBroker } from "../accountBroker";
+import { refreshOneDriveAccessToken } from "@plainva/core";
 
 /**
  * The one integration risk of G1: a Microsoft consent started for MAIL must
@@ -32,10 +35,16 @@ vi.mock("../../adapters/webdavHttp", () => ({ webdavFetch: async () => new Respo
 vi.mock("@plainva/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@plainva/core")>()),
   exchangeOneDriveCode: async () => ({ refreshToken: "refresh-1", accessToken: "access-1" }),
+  refreshOneDriveAccessToken: vi.fn(async ({ scope }: { scope?: string }) => ({ accessToken: "shared-access", expiresIn: 3600, scope })),
 }));
 
 const settings = new Map<string, unknown>();
 const secrets = new Map<string, unknown>();
+vi.mock("../../platform/secureStore", () => ({ secureCredentialStore: {
+  readSecret: async (key: string) => secrets.get(key) ?? null,
+  writeSecret: async (key: string, value: unknown) => { secrets.set(key, value); },
+  removeSecret: async (key: string) => { secrets.delete(key); },
+} }));
 
 function installPlatform(): void {
   setPlatformServices({
@@ -82,12 +91,54 @@ if (typeof globalThis.window === "undefined") {
 }
 
 describe("mobile mail runtime", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     settings.clear();
     secrets.clear();
     opened.length = 0;
     addPimAccount.mockClear();
     installPlatform();
+    await clearConnectQueue();
+    forgetAccountBroker("v1", "shared");
+    vi.mocked(refreshOneDriveAccessToken).mockClear();
+  });
+
+  async function prepareSharedMail() {
+    settings.set("cloudAccounts_v1", [{ id: "shared", family: "microsoft", label: "someone@contoso.com",
+      verifiedProviderIdentity: { issuer: "microsoft", subject: "subject" }, services: { files: { provider: "onedrive" } } }]);
+    secrets.set(accountSecretKey("v1", "shared"), { clientId: "client", refreshToken: "existing-grant",
+      scopes: `${oauthScopeFor("microsoft", "files")} ${oauthScopeFor("microsoft", "mail")}` });
+    startMobileMail({ vaultId: "v1" } as never);
+    await startConnectQueue("microsoft", ["mail"], { vaultId: "v1", cloudAccountId: "shared" });
+  }
+
+  it("adds mail through an existing file grant without a second browser consent", async () => {
+    await prepareSharedMail();
+    await connectMicrosoftMail();
+    const mail = (await listMobileMailAccounts())[0];
+    expect(mail.user).toBe("someone@contoso.com");
+    expect(opened).toHaveLength(0);
+    expect(secrets.get(mailSecretKey("v1", mail.id))).toEqual({ refreshToken: "" });
+    expect(secrets.get(accountSecretKey("v1", "shared"))).toMatchObject({ refreshToken: "existing-grant" });
+  });
+
+  it("requests only mail again for an expired grant while keeping the file sign-in", async () => {
+    await prepareSharedMail();
+    vi.mocked(refreshOneDriveAccessToken).mockRejectedValueOnce(new Error("invalid_grant"));
+    await connectMicrosoftMail();
+    expect(opened).toHaveLength(1);
+    const scope = new URL(opened[0]).searchParams.get("scope");
+    expect(scope).toContain("Mail.ReadWrite");
+    expect(scope).not.toContain("Files.ReadWrite");
+    expect(secrets.get(accountSecretKey("v1", "shared"))).toMatchObject({ refreshToken: "existing-grant" });
+    expect(await listMobileMailAccounts()).toHaveLength(0);
+  });
+
+  it("does not turn a storage or network failure into another consent", async () => {
+    await prepareSharedMail();
+    vi.mocked(refreshOneDriveAccessToken).mockRejectedValueOnce(new Error("offline"));
+    await expect(connectMicrosoftMail()).rejects.toThrow("offline");
+    expect(opened).toHaveLength(0);
+    expect(await listMobileMailAccounts()).toHaveLength(0);
   });
 
   it("turns a Microsoft consent started for mail into a mail account, not a calendar account", async () => {

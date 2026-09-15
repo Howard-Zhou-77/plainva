@@ -1,3 +1,4 @@
+import { loadDesktopBookmarks, publishBookmarks } from "./bookmarks";
 import { CommentOperationError, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
@@ -5,7 +6,7 @@ import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
-import { parkTreeReveal, toggleBookmarkOnDisk } from "@plainva/ui";
+import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,
@@ -75,6 +76,7 @@ export interface OwnerWorkspaceHistoryDeps {
 }
 
 export interface OwnerBusDeps {
+  db?: import("@plainva/core").IDatabaseAdapter;
   /** Absolute path of the open vault — auxiliary windows belong to one vault. */
   vaultPath: string;
   /** The comment surface for auxiliary windows (V7); absent only in tests that never ask. */
@@ -423,6 +425,23 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
+    await bus.handle("suggestion-park-write", async record => {
+      if (!deps.db || !record.path || typeof record.base !== "string" || typeof record.copy !== "string" || typeof record.note !== "string"
+        || new TextEncoder().encode(JSON.stringify(record)).length > 16 * 1024 * 1024) throw new Error("Invalid suggestion draft");
+      const { writeParkedSuggestion } = await import("@plainva/core");
+      await writeParkedSuggestion(deps.db, record);
+    }, { vaultPath: deps.vaultPath }),
+    await bus.handle("suggestion-park-clear", async ({ path }) => {
+      if (!deps.db) throw new Error("The suggestion store is unavailable");
+      const { clearParkedSuggestion } = await import("@plainva/core");
+      await clearParkedSuggestion(deps.db, path);
+    }, { vaultPath: deps.vaultPath }),
+    await bus.handle("bookmarks-list", () => loadDesktopBookmarks(deps.vaultAdapter), { vaultPath: deps.vaultPath }),
+    await bus.handle("remove-bookmarks", async ({ paths }) => {
+      const bookmarks = await removeBookmarksOnDisk(deps.vaultAdapter, paths);
+      publishBookmarks(deps.vaultPath, bookmarks);
+      return bookmarks;
+    }, { vaultPath: deps.vaultPath }),
     await bus.handle("toggle-bookmark", async ({ path }) => {
       // The write belongs to the vault this handler is bound to, never to the
       // vault the owner window happens to SHOW (multi-window D6). Since stage D
@@ -431,14 +450,8 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       // the star can never land in the wrong vault's list -- and a vault that
       // nobody is looking at still gets it.
       const bookmarks = await toggleBookmarkOnDisk(deps.vaultAdapter, path);
-      // What travels is the RESULT, addressed. A window drawing this vault
-      // mirrors it; one drawing another ignores it. The DOM event is
-      // window-global, the address is not.
-      window.dispatchEvent(
-        new CustomEvent("plainva-bookmarks-changed", {
-          detail: { vaultPath: deps.vaultPath, bookmarks },
-        }),
-      );
+      publishBookmarks(deps.vaultPath, bookmarks);
+      return bookmarks;
     }, { vaultPath: deps.vaultPath }),
   );
 
@@ -470,6 +483,15 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
 export async function installOwnerAppBus(): Promise<() => void> {
   const bus = await getWindowBus();
   const offs: Array<() => void> = [];
+  const { mainTabTransfers } = await import("./tabTransfer");
+  offs.push(
+    await bus.handle("tab-transfer-begin", (snapshot, from, vaultPath) => {
+      if (snapshot.vaultPath !== vaultPath) throw new Error("Tab transfer vault mismatch");
+      return mainTabTransfers.begin(snapshot, from);
+    }),
+    await bus.handle("tab-transfer-status", ({ id }, from) => mainTabTransfers.status(id, from)),
+    await bus.handle("tab-transfer-cancel", ({ id }, from) => mainTabTransfers.cancel(id, from)),
+  );
 
   offs.push(
     await bus.handle("focus-content", async ({ path }, _from, vaultPath) => {

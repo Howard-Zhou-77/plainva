@@ -1,7 +1,7 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type MailRowCaps } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type MailRowCaps } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -18,6 +18,7 @@ import {
   snoozeUntil,
   type SnoozeEntry,
   type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
+import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { flatMailRows, mailListKeyAction, stepMailRow, stepMailRowInto, threadNavId, threadedMailRows, type MailNavStep } from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
 import { activeDocument } from "../../services/activeDocument";
@@ -26,7 +27,7 @@ import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, mailAccountKind, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
-import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
+import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
@@ -175,6 +176,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const threadAnchorRef = useRef<string | null>(null);
   // Quick filter over the loaded list (server search still works alongside).
   const [filterUnread, setFilterUnread] = useState(false);
+  const [filterAttachments, setFilterAttachments] = useState(false);
+  const [bulkReport, setBulkReport] = useState<MailBulkReportItem[]>([]);
+  const bulkAbort = useRef<AbortController | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const bulkContext = useRef("");
+  useLayoutEffect(() => {
+    bulkContext.current = JSON.stringify([vaultPath, accountId, mailbox]);
+    return () => { bulkAbort.current?.abort(); };
+  }, [vaultPath, accountId, mailbox]);
   /** Messages put aside (S22) — from the profile, so both devices agree. */
   const [snoozed, setSnoozed] = useState<SnoozeEntry[]>([]);
   const [showSnoozed, setShowSnoozed] = useState(false);
@@ -288,8 +298,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * matching control, rather than at a generic one that would make the user
    * hunt for the second hop.
    */
-  const mailIsOauth = account ? mailAccountKind(account) === "microsoft" : false;
-  const mailProviderName = account ? (mailIsOauth ? "Microsoft" : account.host) : "";
+  const mailIsOauth = account ? mailAccountKind(account) !== "imap" : false;
+  const mailProviderName = account ? (account.kind === "gmail" ? "Gmail" : mailIsOauth ? "Microsoft" : account.host) : "";
 
   /**
    * The snooze list, and the one place it is pruned.
@@ -795,7 +805,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // independently). "Ungelesen" keeps only unread envelopes.
   const visibleEnvelopes = useMemo(
     () => {
-      const kept = displayedEnvelopes.filter((e) => (!filterUnread || !e.seen) && (!filterFlagged || e.flagged));
+      const kept = displayedEnvelopes.filter((e) => (!filterUnread || !e.seen) && (!filterFlagged || e.flagged) && (!filterAttachments || e.hasAttachments === true));
       // Snoozed messages (S22) leave the list until their time. A search, the
       // flagged list and the merged view are NOT filtered: a snooze says "not in
       // my way", and someone searching for a mail by name wants to find it.
@@ -808,7 +818,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         idOf: (e) => e.id,
       });
     },
-    [displayedEnvelopes, filterUnread, filterFlagged, searchResults, flaggedResults, unified, showSnoozed, snoozed, snoozeNow, mailbox, account]
+    [displayedEnvelopes, filterUnread, filterFlagged, filterAttachments, searchResults, flaggedResults, unified, showSnoozed, snoozed, snoozeNow, mailbox, account]
   );
   /**
    * Conversation rows (P9.3). Built from the open folder PLUS the Sent folder,
@@ -846,7 +856,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [threadable, mailbox, unified],
   );
   /** Conversations are only shown where they exist: a flat list stays flat. */
-  const showThreads = threadMode && !searchResults && !flaggedResults && rows.length > 0;
+  const showThreads = !filterAttachments && threadMode && !searchResults && !flaggedResults && rows.length > 0;
   /** The rows the arrow keys walk, in screen order (pure, see listNavigation). */
   const navRows = useMemo(
     () => (showThreads ? threadedMailRows(rows, openThreads) : flatMailRows(visibleEnvelopes)),
@@ -1016,7 +1026,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
 
   // ---- id-aware bulk actions (reader single message, list selection, context
-  // menu). Bulk = N single calls (the backend has no multi-uid command). ----
+  // menu). IMAP changes use bounded UID sets; results retain their origin. ----
   /**
    * Does this loaded envelope belong to one of the selected ids? The lists hold
    * bare transport ids; a selection can hold addressed ones (conversation view,
@@ -1028,21 +1038,48 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [account]
   );
 
+  const runBulkAction = useCallback(async (ids: string[], action: MailBulkAction) => {
+    if (!vaultPath) return [];
+    const controller = new AbortController(); bulkAbort.current = controller;
+    const context = bulkContext.current;
+    setBulkReport([]);
+    const report: MailBulkReportItem[] = [];
+    setBulkRunning(true);
+    try {
+    for (const group of originGroups(ids)) {
+      const entries = group.uids.map(uid => {
+        const addressed = unifiedId({ accountId: group.account.id, mailbox: group.mailbox, uid });
+        const id = ids.includes(addressed) ? addressed : uid;
+        const rows = group.mailbox === mailbox ? [...(searchResults ?? []), ...(flaggedResults ?? []), ...envelopes] : group.mailbox === sentBox ? sentEnvelopes : [];
+        const row = unifiedEnvelopes.find(e => e.id === addressed) ?? rows.find(e => e.id === uid);
+        return { id: uid, uidValidity: row?.uidValidity, selectionId: id, label: (row?.subject || uid) + " · " + group.account.label + " / " + group.mailbox };
+      });
+      const result = await applyMailBulk(vaultPath, group.account, group.mailbox, entries, action, controller.signal);
+      if (context !== bulkContext.current) return [];
+      for (const item of result) {
+        const entry = entries.find(e => e.id === item.id)!;
+        report.push({ ...item, id: entry.selectionId, label: entry.label });
+      }
+      if (action.kind === "move" || action.kind === "delete") await forgetCachedMessages(dbAdapter, group.account.id, group.mailbox, result.filter(r => r.status === "done").map(r => r.id)).catch(() => toast.error(t("mail.cacheUpdateFailed")));
+      setBulkReport([...report]);
+      if (result.some(r => r.status === "uncertain")) controller.abort();
+    }
+    const done = report.filter(r => r.status === "done").map(r => r.id);
+    setSelectedIds(prev => new Set([...prev].filter(id => !done.includes(id))));
+    return done;
+    } finally { setBulkRunning(false); }
+  }, [vaultPath, originGroups, mailbox, sentBox, envelopes, sentEnvelopes, searchResults, flaggedResults, unifiedEnvelopes, dbAdapter, t]);
+
   const bulkSetSeen = useCallback(
     async (ids: string[], seen: boolean) => {
       if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
-      const idSet = new Set(ids);
-      const src = searchResults ?? envelopes;
-      const hit = hits(idSet, mailbox);
-      let delta = 0;
-      for (const e of src) if (hit(e) && e.seen !== seen) delta += seen ? -1 : 1;
+
       setActionBusy(true);
       try {
-        // Per ORIGIN, not per screen state: in the merged list two accounts can
-        // both hold a message with uid "1234" (P9.3b).
-        for (const g of originGroups(ids)) {
-          for (const uid of g.uids) await setMessageSeen(vaultPath, g.account, g.mailbox, uid, seen);
-        }
+        const done = await runBulkAction(ids, { kind: "seen", value: seen });
+        const idSet = new Set(done);
+        const hit = hits(idSet, mailbox);
+        const delta = (searchResults ?? envelopes).filter(e => hit(e) && e.seen !== seen).length * (seen ? -1 : 1);
         setUnifiedEnvelopes((list) => list.map((e) => (idSet.has(e.id) ? { ...e, seen } : e)));
         setEnvelopes((list) => list.map((e) => (hit(e) ? { ...e, seen } : e)));
         setSentEnvelopes((list) => list.map((e) => (hits(idSet, sentBox)(e) ? { ...e, seen } : e)));
@@ -1054,7 +1091,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, sentBox, actionBusy, envelopes, searchResults, originGroups, hits, t]
+    [vaultPath, account, mailbox, sentBox, actionBusy, envelopes, searchResults, runBulkAction, hits, t]
   );
   /**
    * A read-state change the USER asked for, as opposed to the auto-read timer.
@@ -1075,12 +1112,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const bulkSetFlagged = useCallback(
     async (ids: string[], flagged: boolean) => {
       if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
-      const idSet = new Set(ids);
       setActionBusy(true);
       try {
-        for (const g of originGroups(ids)) {
-          for (const uid of g.uids) await setMessageFlagged(vaultPath, g.account, g.mailbox, uid, flagged);
-        }
+        const idSet = new Set(await runBulkAction(ids, { kind: "flagged", value: flagged }));
         const hit = hits(idSet, mailbox);
         const apply = (list: MailEnvelope[]) => list.map((e) => (hit(e) ? { ...e, flagged } : e));
         setUnifiedEnvelopes((list) => list.map((e) => (idSet.has(e.id) ? { ...e, flagged } : e)));
@@ -1094,7 +1128,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, sentBox, actionBusy, originGroups, hits, t]
+    [vaultPath, account, mailbox, sentBox, actionBusy, runBulkAction, hits, t]
   );
 
   // Leaving a message releases its hold, so opening it again behaves normally.
@@ -1160,10 +1194,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // side of a conversation, and the two result sets.
       const idSet = new Set([uid]);
       const raw = parseUnifiedId(uid)?.uid ?? uid;
-      const gone = (e: { id: string }) => e.id === uid || hits(idSet, mailbox)(e) || hits(idSet, sentBox)(e);
+      const gone = hits(idSet, mailbox);
+      const goneSent = hits(idSet, sentBox);
       setUnifiedEnvelopes((list) => list.filter((e) => e.id !== uid));
       setEnvelopes((list) => list.filter((e) => !gone(e)));
-      setSentEnvelopes((list) => list.filter((e) => !gone(e)));
+      setSentEnvelopes((list) => list.filter((e) => !goneSent(e)));
       setSearchResults((r) => (r ? r.filter((e) => !gone(e)) : r));
       setFlaggedResults((r) => (r ? r.filter((e) => !gone(e)) : r));
       setSelectedId((cur) => (cur === raw || cur === uid ? null : cur));
@@ -1177,18 +1212,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setMoveMenu(null);
       if (!vaultPath || !account || ids.length === 0 || actionBusy || target === mailbox) return;
       setActionBusy(true);
-      let moved = 0;
       try {
-        for (const g of originGroups(ids)) {
-          for (const uid of g.uids) {
-            await moveMessage(vaultPath, g.account, g.mailbox, uid, target);
-            moved++;
-          }
-          // It no longer lives in this folder, so neither does its cached row.
-          void forgetCachedMessages(dbAdapter, g.account.id, g.mailbox, g.uids);
-        }
-        for (const id of ids) removeFromList(id);
-        toast.info(
+        const done = await runBulkAction(ids, { kind: "move", target });
+        const moved = done.length;
+        for (const id of done) removeFromList(id);
+        if (moved) toast.info(
           isGmail
             ? t("mail.gmailLabelsChanged", { n: moved, folder: mailFolderLabel(target, delimiter), defaultValue: "Gmail-Label für {{n}} Nachricht(en) auf {{folder}} geändert" })
             : moved > 1
@@ -1199,10 +1227,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
-        clearSel();
       }
     },
-    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t, originGroups, dbAdapter]
+    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, isGmail, t, runBulkAction]
   );
 
   /**
@@ -1416,23 +1443,16 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       if (!ok) return;
       setActionBusy(true);
       try {
-        for (const g of originGroups(ids)) {
-          for (const uid of g.uids) await deleteMessagePermanently(vaultPath, g.account, g.mailbox, uid);
-          // The cached copy goes with it — otherwise the message keeps coming
-          // back at the top of the list on every open until the refresh lands
-          // (finding 2026-07-30).
-          void forgetCachedMessages(dbAdapter, g.account.id, g.mailbox, g.uids);
-        }
-        for (const id of ids) removeFromList(id);
-        setTotal((n) => Math.max(0, n - ids.length));
-        clearSel();
+        const done = await runBulkAction(ids, { kind: "delete" });
+        for (const id of done) removeFromList(id);
+        setTotal(n => Math.max(0, n - done.length));
       } catch (e) {
         toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
       }
     },
-    [isTrash, vaultPath, account, actionBusy, removeFromList, clearSel, t, originGroups, dbAdapter]
+    [isTrash, vaultPath, account, actionBusy, removeFromList, t, runBulkAction]
   );
 
   const captureNote = useCallback(
@@ -1775,6 +1795,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             >
               {listLabels ? t("mail.filterUnread", { defaultValue: "Ungelesen" }) : null}
             </Button>
+            <Button size="sm" variant={filterAttachments ? "primary" : "ghost"} aria-pressed={filterAttachments} aria-label={t("mail.filterAttachments")} data-testid="mail-filter-attachments" icon={<Paperclip size={ICON.ui} />} onClick={() => setFilterAttachments(v => !v)}>{listLabels ? t("mail.filterAttachments") : null}</Button>
             {/* A server query over ONE folder — it has no answer for five (P9.3b). */}
             {!unified && (
               <Button
@@ -1826,6 +1847,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             </Button>
           </div>
         )}
+        <MailBulkReport items={bulkReport} busy={bulkRunning} onCancel={() => bulkAbort.current?.abort()} onDismiss={() => setBulkReport([])} />
+        {filterAttachments && <Banner kind="info">{t("mail.attachmentsLoaded", { known: displayedEnvelopes.filter(e => e.hasAttachments !== undefined).length, loaded: displayedEnvelopes.length })}</Banner>}
         <div className="pv-mail-scroll" data-testid="mail-list" ref={listRef} role="listbox" aria-multiselectable onKeyDown={onListKeyDown}>
           {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {unifiedBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}

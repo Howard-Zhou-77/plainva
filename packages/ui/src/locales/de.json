@@ -187,7 +187,8 @@
       "logseq": "Logseq",
       "notion_file": "Notion (ZIP)",
       "notion_api": "Notion (API)",
-      "obsidian": "Obsidian"
+      "obsidian": "Obsidian",
+      "joplin": "Joplin (JEX / Markdown)"
     },
     "hints": {
       "generic_markdown": "Wähle einen Ordner oder Dateien mit Markdown (.md).",
@@ -196,7 +197,8 @@
       "evernote": "Wähle die aus Evernote exportierten .enex-Dateien (Notizbuch → Als ENEX exportieren).",
       "logseq": "Wähle Deinen Logseq-Graph-Ordner (den mit /journals und /pages).",
       "notion_file": "Wähle Dein Notion-ZIP oder den entpackten Ordner. Seiten kommen mit; Datenbank-Inhalte brauchen den API-Import.",
-      "notion_api": "Gib einen Notion-Integrations-Token ein, um freigegebene Seiten und Datenbanken direkt zu importieren — samt Zeilen und Relationen."
+      "notion_api": "Gib einen Notion-Integrations-Token ein, um freigegebene Seiten und Datenbanken direkt zu importieren — samt Zeilen und Relationen.",
+      "joplin": "JEX-Datei, RAW-Ordner oder Markdown-Export mit Frontmatter aus Joplin auswählen. Notizbücher, Tags, Anhänge und ursprüngliche Zeitangaben bleiben erhalten."
     },
     "report": {
       "title": "Import-Bericht",
@@ -312,7 +314,19 @@
     "targetNewVaultHintMobile": "Auf diesem Gerät entsteht ein neuer, leerer Vault, in den der Import schreibt.",
     "undoVaultMobile": "Rückgängig machst Du diesen Import, indem Du den Vault unter „Mehr → Vaults\" entfernst.",
     "syncUploadHintMobile": "Dieser Vault wird synchronisiert: Alle {{n}} importierten Notizen werden hochgeladen.",
-    "obsidianConnectMobile": "Am Telefon verbindest Du dazu unter „Mehr → Vaults\" dieselbe Cloud, in der Dein Obsidian-Vault liegt — die Notizen kommen dann über den Sync."
+    "obsidianConnectMobile": "Am Telefon verbindest Du dazu unter „Mehr → Vaults\" dieselbe Cloud, in der Dein Obsidian-Vault liegt — die Notizen kommen dann über den Sync.",
+    "archiveInvalid": "Das Archiv ist beschädigt oder enthält nicht unterstützte, unsichere oder doppelte Einträge. Es wurde nichts übernommen.",
+    "archiveTooLarge": "JEX-Grenzen: 20.000 Einträge, 32 MiB je Datei, 256 MiB insgesamt und 64 MiB Text. Textdateien: höchstens 2 MiB je Datei.",
+    "jexInvalid": "Kein lesbarer Joplin-Export. Exportiere die Daten in Joplin als JEX oder RAW.",
+    "jexEncrypted": "Der Export enthält noch verschlüsselte Daten. Exportiere ihn in Joplin nach vollständiger Entschlüsselung erneut.",
+    "jexFreshTarget": "Wähle einen noch nicht vorhandenen Zielordner.",
+    "jexOriginals": "Die Originaldatensätze bleiben in einer zusätzlichen Datei erhalten. Sie zählt bei den Anhängen mit.",
+    "jexIncomplete": "Einige Ziele oder Anhänge fehlen. Nicht auflösbare Links und Originaldaten bleiben erhalten.",
+    "jexExtraRecords": "Weitere Joplin-Datensatztypen bleiben in den Originaldaten erhalten.",
+    "jexNoNotes": "Dieser Export enthält keine Notizen.",
+    "jexMissingFolders": "Nicht mitexportierte Notizbücher: Die betreffenden Notizen werden direkt im Importordner abgelegt.",
+    "statFolders": "Notizbücher",
+    "statTags": "Tags"
   },
   "settings": {
     "about": "Über & Diagnose",
@@ -519,7 +533,7 @@
     "fontSearch": "Schrift suchen…",
     "fontFieldEmpty": "Schrift wählen…",
     "customThemeAdoptFrom": "Übernehmen von…",
-    "customThemePageDesc": "Dein eigenes Design: Grundstimmung, Hintergrund und Akzent wählst Du, die Textfarben leitet Plainva ab, damit Schrift nie im Hintergrund verschwindet.",
+    "customThemePageDesc": "Deine Farben für eine helle und eine dunkle Stimmung.",
     "customThemeEdit": "Bearbeiten",
     "groupColors": "Farben",
     "groupShape": "Form",
@@ -611,12 +625,23 @@
     "fontContentDesc": "Editor und Leseansicht.",
     "fontCode": "Code",
     "fontCodeDesc": "Codeblöcke, Inline-Code und der Code-Modus.",
-    "fontsDeviceHint": "Gilt für dieses Gerät — installierte Schriften sind je Gerät verschieden."
+    "fontsDeviceHint": "Gilt für dieses Gerät — installierte Schriften sind je Gerät verschieden.",
+    "customThemePairHint": "Helle und dunkle Stimmung werden getrennt gespeichert. Mit beiden folgt „System“ Deinem Gerät.",
+    "customThemeProposal": "Diese Stimmung ist ein Vorschlag. Dein gespeichertes Design bleibt unverändert, bis Du sie übernimmst.",
+    "customThemeAdoptMood": "Stimmung übernehmen",
+    "customThemeSaveFailed": "Das Design konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "customThemeSyncTitle": "Persönlicher Abgleich",
+    "customThemeSyncEnabled": "Über diesen Vault abgleichen",
+    "customThemeSyncHint": "Farben und Ecken werden nur für Dich abgeglichen. Wähle auf jedem Gerät einen Vault als Quelle. Dazu muss die Synchronisierung der Einstellungen eingeschaltet sein.",
+    "customThemeSyncSource": "Gewählte Quelle: {{name}}",
+    "customThemeSyncLocal": "Dein Design bleibt auf diesem Gerät. Zum Einschalten einen entsperrten Vault öffnen.",
+    "customThemeSyncFailed": "Der Design-Abgleich konnte nicht vollständig gespeichert oder geladen werden. Prüfe die Verbindung und entsperre den Vault; öffne diese Seite anschließend erneut.",
+    "customThemeSyncConflict": "Zwei Geräte haben das Design gleichzeitig geändert. Alle Varianten bleiben erhalten, bis Du eine auswählst oder das Design bearbeitest.",
+    "customThemeSyncChoose": "Variante {{number}} übernehmen"
   },
   "editor": {
     "completionHeadings": "Überschriften",
     "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",
-    "fileNotFound": "Datei nicht gefunden",
     "loading": "Laden...",
     "menu": "Menü",
     "time": "Uhrzeit",
@@ -908,8 +933,6 @@
     "searchTags": "Tags filtern…",
     "searchDatabases": "Datenbanken filtern…",
     "noResults": "Keine Treffer",
-    "resultCount_one": "1 Treffer",
-    "resultCount_other": "{{count}} Treffer",
     "matchesName": "Dateiname",
     "matchesContent": "Inhalt",
     "resize": "Seitenleistenbreite anpassen",
@@ -957,7 +980,7 @@
     "viewBoard": "Board",
     "viewCalendar": "Kalender",
     "calendarLegend": "Einträge stehen an ihrem Datum aus {{field}}",
-    "viewTimeline": "Zeitachse",
+    "viewTimeline": "Zeitleiste",
     "viewPinboard": "Pinnwand",
     "pinboardFilterBy": "Label-Quelle",
     "opIs": "ist",
@@ -1214,7 +1237,18 @@
     "filterTags": "Tags · ganze Notiz",
     "filterLabelsFrom": "Labels · {{property}}",
     "filterPropertyTags": "{{property}} · Eigenschaft",
-    "filterSearchValues": "Werte durchsuchen…"
+    "filterSearchValues": "Werte durchsuchen…",
+    "exportTitle": "Tabelle exportieren",
+    "exportValues": "Werte (.csv)",
+    "exportFormulas": "Formeln (.base)",
+    "exportScope": "Ergebniszeilen: {{count}}. Der Export enthält die Spalten dieser Ansicht.",
+    "exportFormulaHint": "Die .base-Datei enthält die aktuellen Zeilen als feste Auswahl. Unterstützte Berechnungen bleiben Formeln. Öffne sie im selben Vault mit den verknüpften Notizen.",
+    "exportUnsupported": "Diese Spalten lassen sich noch nicht mit gleicher Bedeutung als Formeln exportieren:",
+    "exportIssue_operation": "Diese Berechnung wurde nicht als gleichwertig bestätigt.",
+    "exportIssue_relation": "Rückbeziehungen oder abweichende Relationsschlüssel werden nicht übersetzt.",
+    "exportIssue_property": "Diese Dateieigenschaft wird nicht übersetzt.",
+    "exportValuesHint": "CSV enthält die derzeit berechneten Werte und Dateipfade. Die Werte aktualisieren sich später nicht. Listen bleiben als JSON erhalten.",
+    "exportFailed": "Der Export ist fehlgeschlagen. Deine Daten sind unverändert; bitte erneut versuchen."
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",
@@ -1565,7 +1599,7 @@
     "mBaseCellEdit": "Zelle direkt bearbeiten; Häkchen schaltet direkt",
     "mBasePeek": "Notiz im schwebenden Peek-Fenster öffnen",
     "mBaseSplit": "Notiz im geteilten Bereich öffnen",
-    "mBaseCardDrag": "Board: Spaltenwert setzen; Kalender/Zeitachse: Datum setzen",
+    "mBaseCardDrag": "Board: Spaltenwert setzen; Kalender/Zeitleiste: Datum setzen",
     "mBaseColumnDrag": "Spalten umsortieren (und die Optionen der Eigenschaft)",
     "mBaseSort": "Sortierung wechseln",
     "mBaseViewPill": "Ansicht wechseln; ziehen zum Umsortieren; ▾ = umbenennen/duplizieren/löschen",
@@ -1610,7 +1644,11 @@
     "prevYear": "Vorheriges Jahr",
     "nextYear": "Nächstes Jahr",
     "showWeeks": "Kalenderwochen anzeigen",
-    "weekShort": "KW"
+    "weekShort": "KW",
+    "dailyNoteExists": "Tagesnotiz vorhanden",
+    "openDailyNote": "Tagesnotiz öffnen",
+    "createDailyNote": "Tagesnotiz anlegen",
+    "dailyNotesUnavailable": "Die Tagesnotizmarken konnten nicht geladen werden."
   },
   "titlebar": {
     "openTabs": "Geöffnete Dateien",
@@ -2297,7 +2335,11 @@
     "differentTasks": "Zwei verschiedene Aufgaben",
     "differentTasksHint": "Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei wiederkehrenden Aufgaben nicht dieselbe Instanz. Beide Inhalte bleiben als getrennte Aufgaben erhalten.",
     "keepSeparateTasks": "Als getrennte Aufgaben behalten",
-    "comparisonChanged": "Eine Datei hat sich seit dem Öffnen verändert. Der Vergleich wurde neu geladen. Prüfe die aktuellen Inhalte und wähle erneut."
+    "comparisonChanged": "Eine Datei hat sich seit dem Öffnen verändert. Der Vergleich wurde neu geladen. Prüfe die aktuellen Inhalte und wähle erneut.",
+    "versionUnavailable": "Die ausgewählte Version ist nicht mehr verfügbar.",
+    "countsUnavailable": "Für diese Dateigröße sind keine Zeilenzahlen verfügbar.",
+    "windowFailed": "Das Vergleichsfenster konnte nicht geöffnet werden.",
+    "lineChanges": "+{{added}} / −{{removed}} Zeilen"
   },
   "conflict": {
     "resolveFailed": "Konflikt konnte nicht aufgelöst werden: {{error}}",
@@ -2593,7 +2635,7 @@
     "repeatEvery_monthly": "alle {{n}} M",
     "repeatEvery_yearly": "alle {{n}} J",
     "repeatSpawned": "Nächste Fälligkeit: {{date}}",
-    "repeatFailed": "Die nächste Aufgabe konnte nicht angelegt werden.",
+    "repeatFailed": "Die Aufgabe ist erledigt. Die nächste Aufgabe konnte nicht bestätigt werden. Prüfe den Aufgabenordner vor einem erneuten Versuch.",
     "repeatRemote": "Diese Aufgabe kommt von einem Anbieter und wiederholt sich dort.",
     "repeatPreview": "Nächste Fälligkeit: {{date}}",
     "repeatPreviewFromToday": "Gerechnet ab heute, weil Du beim Abhaken zählst.",
@@ -2610,7 +2652,16 @@
     "deletingWithUndo_one": "Aufgabe gelöscht. Wird in {{seconds}} s auch beim Anbieter gelöscht.",
     "deleteCancelled_one": "Löschen rückgängig gemacht — die Notiz ist zurück.",
     "deletingWithUndo_other": "{{count}} Aufgaben gelöscht. Werden in {{seconds}} s auch beim Anbieter gelöscht.",
-    "deleteCancelled_other": "Löschen rückgängig gemacht — {{count}} Notizen sind zurück."
+    "deleteCancelled_other": "Löschen rückgängig gemacht — {{count}} Notizen sind zurück.",
+    "metadata": {
+      "created": "Erstellt",
+      "start": "Beginn",
+      "scheduled": "Geplant",
+      "completed": "Erledigt",
+      "taskId": "ID",
+      "recurrence": "Wiederholung",
+      "unsupported": "Regel bleibt erhalten; hier keine automatische Fortsetzung."
+    }
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",
@@ -2700,7 +2751,7 @@
     "authConfig": "Die App-Registrierung dieses Kontos passt nicht. Prüfe Client-ID, Secret und Redirect-URI beim Anbieter.",
     "authApiDisabled": "Die Anmeldung stimmt, aber die angefragte Google-API ist in Deinem eigenen Google-Cloud-Projekt nicht aktiviert. Aktiviere sie dort (Kalender: „Google Calendar API“, Aufgaben: „Google Tasks API“) und versuche es dann erneut.",
     "authExpired": "Die Anmeldung dieses Kontos ist abgelaufen oder wurde widerrufen. Melde Dich neu an, dann läuft es wieder.",
-    "authExpiredGoogle": "Die Anmeldung dieses Kontos ist abgelaufen oder wurde widerrufen. Melde Dich neu an. Wenn Du eine eigene Google-App nutzt und deren Zustimmungsbildschirm noch auf „Test“ steht, lässt Google jede Anmeldung nach 7 Tagen verfallen — das endet, sobald Du das Projekt veröffentlichst.",
+    "authExpiredGoogle": "Google hat diese Anmeldung abgelehnt. Melde Dich erneut an. Bei einer eigenen App können unter anderem abgelaufene Testzugänge oder ein Widerruf die Ursache sein. Plainva kann den Projektstatus nicht aus diesem Fehler ablesen.",
     "authNetwork": "Das Konto war nicht erreichbar. Das sieht nach einem Verbindungsproblem aus — versuche es erneut.",
     "openVaultFirst": "Nur für den geöffneten Vault verfügbar.",
     "noAccounts": "Noch keine Kalender-Konten verbunden.",
@@ -2741,7 +2792,7 @@
     "retrying": "Wird versucht …",
     "retrySameError": "Der erneute Versuch endete mit demselben Fehler.",
     "davPass": "App-Passwort",
-    "googleByoHint": "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben.",
+    "googleByoHint": "Nutze die zu diesem Gerät passende Google-Client-ID. Ein Desktop-Client benötigt zusätzlich den zugehörigen Client-Secret-Wert. Die Anleitung beschreibt die mobilen Registrierungen. Berechtigungen: Kalender und Aufgaben.",
     "clientFromDevice": "Client-ID von diesem Gerät übernommen.",
     "googleClientSecret": "Client-Secret (optional bei Desktop-Clients)",
     "googleClientIdRequired": "Google braucht eine eigene Client-ID (BYO).",
@@ -3027,7 +3078,6 @@
     "noSearchResults": "Keine Treffer in diesem Ordner.",
     "markRead": "Als gelesen markieren",
     "markUnread": "Als ungelesen markieren",
-    "bulkPartial": "Nicht jede Nachricht ließ sich ändern ({{n}} fehlgeschlagen): {{error}}",
     "moveTo": "Verschieben nach…",
     "moved": "Verschoben nach {{folder}}",
     "delete": "Löschen",
@@ -3133,7 +3183,24 @@
     "unsubscribeFailed": "Die Abmelde-Seite ließ sich nicht öffnen.",
     "sendingWithUndo": "Wird in {{seconds}} s gesendet",
     "sendCancelled": "Senden abgebrochen — die Nachricht wurde nicht verschickt.",
-    "emlAdded": "Rohkopie zu „{{name}}“ ergänzt."
+    "emlAdded": "Rohkopie zu „{{name}}“ ergänzt.",
+    "googleSignInTest": "Mit Google anmelden · Test",
+    "googleTestHint": "Testzugang für freigeschaltete Google-Testkonten. Du erlaubst Plainva, E-Mails zu lesen, zu verwalten und zu senden. Abgelegte E-Mails werden Teil Deines Vaults und folgen dessen Synchronisierung.",
+    "filterAttachments": "Mit Anhängen",
+    "attachmentsLoaded": "Metadaten für {{known}} von {{loaded}} geladenen Nachrichten. Weitere Nachrichten können Anhänge enthalten.",
+    "bulkWorking": "Sammelaktion läuft. Abbrechen stoppt nach dem aktuellen Paket.",
+    "bulkReport": "{{done}} abgeschlossen, {{failed}} nicht bestätigt.",
+    "bulkUncertain": "Ergebnis unklar. Ordner neu laden, bevor Du die Aktion erneut ausführst.",
+    "bulkReason": {
+      "missing": "Nachricht nicht mehr im ursprünglichen Ordner.",
+      "changed": "Ordner wurde erneuert oder stammt aus dem Cache. Bitte neu laden.",
+      "unsupported": "Der Server unterstützt diese gezielte Aktion nicht (MOVE/UIDPLUS).",
+      "rejected": "Der Server hat die Änderung nicht bestätigt.",
+      "connection": "Verbindung unterbrochen.",
+      "cancelled": "Noch nicht ausgeführt: abgebrochen."
+    },
+    "noAttachmentMatches": "Keine bestätigten Anhänge in den geladenen Nachrichten.",
+    "cacheUpdateFailed": "Änderung auf dem Server bestätigt. Der lokale Mail-Cache konnte nicht aktualisiert werden; lade den Ordner erneut."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",
@@ -3335,7 +3402,7 @@
     "suggestDiscard": "Verwerfen",
     "suggestDiscardConfirm": "{{n}} Änderungen verwerfen? Die Notiz bleibt, wie sie war.",
     "suggestSend": "Vorschläge senden ({{n}})",
-    "suggestSent": "{{n}} Vorschläge gesendet.",
+    "suggestSent": "Gesendete Vorschläge: {{n}}.",
     "suggestNothing": "Noch keine Änderung.",
     "suggestParkedTitle": "Ungesendete Vorschläge gefunden",
     "suggestParkedResume": "Weiter bearbeiten",
@@ -3417,7 +3484,9 @@
     "decisionConflict": "Widersprüchliche Entscheidungen",
     "decisionConfirmDeclined": "Als abgelehnt bestätigen",
     "decisionConfirmApplied": "Als übernommen bestätigen",
-    "decisionReviewHelp": "Vergleiche den Vorschlag mit dem aktuellen Text. Deine Entscheidung bestätigt diesen Textstand und ersetzt nur die hier bekannten Entscheidungen. Der Vorschlag wird dabei nicht erneut eingefügt."
+    "decisionReviewHelp": "Vergleiche den Vorschlag mit dem aktuellen Text. Deine Entscheidung bestätigt diesen Textstand und ersetzt nur die hier bekannten Entscheidungen. Der Vorschlag wird dabei nicht erneut eingefügt.",
+    "publicationReviewLocal": "Diese Entscheidung wird beim Original im eigenen Vault festgehalten.",
+    "suggestionNotPermitted": "Dein Zugriff erlaubt hier keine Vorschläge."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Verschlüsselte Workspaces sind experimentell und noch nicht unabhängig geprüft. Bewahre Wiederherstellungsdatei und -code sicher auf — ohne sie lassen sich verschlüsselte Notizen nicht wiederherstellen.",
@@ -3868,7 +3937,7 @@
       "chainGap": {
         "title": "Änderungen eines Geräts warten: die Kette ist unterbrochen",
         "explain": "Dieses Gerät erwartet von {{device}} die Änderung Nr. {{expected}}, in der Cloud liegt Nr. {{found}}. Was dazwischen fehlt oder ersetzt wurde, blockiert alles danach — die Gruppe umfasst {{count}} Änderungen.",
-        "hint": "Meist steckt ein zweiter Stand desselben Geräts dahinter — etwa eine Entwicklungs-Instanz mit eigenem Speicher — oder ein Gerät, das neu verbunden wurde und wieder bei 1 zählt. Lass {{device}} einmal synchronisieren und prüfe hier erneut. Ignorierst Du die Gruppe, gehen diese Änderungen verloren."
+        "hint": "Wähle auf einem Gerät mit dem vollständigen überprüfbaren Verlauf „Jetzt synchronisieren“. Plainva kann daraus fehlende signierte Änderungen wiederherstellen. Prüfe anschließend auf {{device}} erneut. Gibt es keine gültige Kopie, behalte oder exportiere die lokalen Daten; der Prüfpunkt wird niemals zurückgesetzt, um die Lücke zu umgehen."
       },
       "chainBlocked": {
         "title": "Wartet hinter einer Lücke",
@@ -4072,18 +4141,18 @@
     "title": "Was gibt's Neues in Plainva {{version}}",
     "lead": "Größte Neuerung",
     "experimental": "Experimentell",
-    "highlight1Title": "Vorhandene Konten erweitern",
-    "highlight1": "Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.",
-    "highlight2Title": "Einrichtung mit klaren Schritten",
-    "highlight2": "Der mobile Assistent öffnet sofort die passende Verbindung. Nach der Anmeldung wählst Du Kalender und Aufgabenlisten und siehst das Ergebnis.",
-    "highlight3Title": "Dateien mit Vorschau übernehmen",
-    "highlight3": "Wenn Du mobil Dateien ergänzt, zeigt Plainva Quelle, Ziel und Kollisionen vor der Übernahme. Vorhandene Inhalte und Dienste bleiben erhalten; eine unterbrochene Übernahme lässt sich wiederholen.",
-    "highlight4Title": "Gleichnamige Aufgaben sicher trennen",
-    "highlight4": "Aufgaben vom Anbieter werden anhand ihrer Identität zugeordnet. Verschiedene Wiederholungen bekommen eigene Dateien. Vorhandene Fehlkonflikte lassen sich als getrennte Aufgaben behalten.",
-    "highlight5Title": "Beim Dateivergleich genau entscheiden",
-    "highlight5": "Beide Dateinamen und Speicherorte sind sichtbar. Vor dem Ersetzen nennt die Bestätigung Quelle und Ziel. Ändert sich eine Datei inzwischen, wird der Vergleich neu geladen.",
-    "highlight6Title": "Mehr Platz in der mobilen Navigation",
-    "highlight6": "Das ausgewählte Symbol behält auch in der kompakten Leiste Abstand zum Rand. Die Fläche zum Antippen bleibt groß genug; die Platzreserve passt sich der Schriftgröße an.",
+    "highlight1Title": "Zuverlässiger verbinden und synchronisieren",
+    "highlight1": "Unterbrechungen werden gezielt wiederholt. Anmeldeprobleme und unsichere Datenstände sind klarer erkennbar; lokale Änderungen bleiben erhalten.",
+    "highlight2Title": "Fundstellen, Embeds und Verlauf",
+    "highlight2": "Springe zur passenden Textstelle, bette einzelne Abschnitte oder Blöcke ein und vergleiche die tatsächlichen Zeilenänderungen einer Version.",
+    "highlight3Title": "JEX-Import und Datenbank-Export",
+    "highlight3": "Importiere Joplin-Archive mit Anhängen in einen neuen Ordner. Exportiere unterstützte Rollups als Obsidian-Formeln oder bewusst als Werte. Aufgaben behalten ihre Metadaten.",
+    "highlight4Title": "Mail mit klaren Ergebnissen",
+    "highlight4": "Mehrfachaktionen zeigen Erfolge und Fehler pro Nachricht. Der Anhangfilter erklärt unvollständige Metadaten; zusätzliche Kontodienste erhalten bestehende Anmeldungen.",
+    "highlight5Title": "Dein Design und tägliche Abläufe",
+    "highlight5": "Gestalte Hell und Dunkel getrennt und gleiche Dein Design auf Wunsch persönlich ab. Tagesnotizen, Fensterübergabe und wartende geteilte Inhalte sind verlässlicher.",
+    "highlight6Title": "Rückmeldungen zu Publikationen",
+    "highlight6": "Berechtigte Empfänger können kommentieren und Änderungen vorschlagen. Eigentümer können Rückmeldungen prüfen und behalten sie auch nach einem Empfängerentzug.",
     "readBlog": "Blogpost lesen",
     "understand": "Verstanden"
   },
@@ -4281,7 +4350,12 @@
     "noVaultTitle": "Kein Vault geöffnet",
     "noVaultBody": "Dieses Fenster zeigt gerade keinen Vault. Wähle einen der zuletzt geöffneten oder such einen Ordner aus.",
     "revealNoTree": "Kein Fenster mit Dateibaum zeigt diesen Vault.",
-    "ownerUnreachable": "Das Hauptfenster antwortet nicht."
+    "ownerUnreachable": "Das Hauptfenster antwortet nicht.",
+    "returnToMain": "Zurück ins Hauptfenster",
+    "transferFailed": "Die Übergabe wurde nicht abgeschlossen. Der Quelltab und sein Entwurf bleiben erhalten.",
+    "transferUnknown": "Das Hauptfenster hat noch nicht bestätigt. Dein Entwurf bleibt hier erhalten; prüfe den Status erneut.",
+    "transferPending": "Der Tab wird übergeben. Er bleibt hier geöffnet, bis das Hauptfenster die Übernahme bestätigt.",
+    "transferCheck": "Status erneut prüfen"
   },
   "commentNotify": {
     "actionOpen": "Öffnen",
@@ -4342,5 +4416,72 @@
     "retrySaved": "Verbindung abschließen",
     "clientSecret": "Client-Secret (nur falls vorhanden)",
     "googleClientUnsupported": "Die Google-Registrierung passt nicht zum Rückkehrweg dieses Geräts. Prüfe den Client-Typ und die mobile Einrichtung in der Google-Anleitung."
+  },
+  "connectionFailure": {
+    "TLS_CERTIFICATE_EXPIRED": "Das Serverzertifikat ist abgelaufen. Erneuere es auf dem Server.",
+    "TLS_CERTIFICATE_NOT_YET_VALID": "Das Serverzertifikat ist noch nicht gültig. Prüfe die Geräteuhr und den Gültigkeitszeitraum.",
+    "TLS_HOSTNAME_MISMATCH": "Das Zertifikat passt nicht zur Serveradresse. Prüfe die Adresse und das Zertifikat.",
+    "TLS_CERTIFICATE_UNTRUSTED": "Die Zertifizierungsstelle wird auf diesem Gerät nicht als vertrauenswürdig geführt. Prüfe die Zertifikatskette des Servers und die installierten CAs.",
+    "TLS_HANDSHAKE_FAILED": "Die sichere Verbindung konnte nicht verifiziert werden. Prüfe das Serverzertifikat und die TLS-Konfiguration.",
+    "HTTP_ORIGIN_BLOCKED": "Die Verbindung oder Weiterleitung wurde gesperrt, weil ihre Herkunft nicht freigegeben ist. Prüfe die eingetragene Serveradresse.",
+    "HTTP_TIMEOUT": "Der Server hat nicht rechtzeitig geantwortet. Plainva versucht es erneut.",
+    "HTTP_NETWORK_ERROR": "Die Netzwerkverbindung ist fehlgeschlagen. Plainva versucht es erneut, sobald die Verbindung verfügbar ist.",
+    "HTTP_REQUEST_FAILED": "Die Anfrage konnte nicht abgeschlossen werden. Prüfe die Verbindungseinstellungen und den Diagnoseexport."
+  },
+  "workspaceSync": {
+    "transient": "Die Verbindung ist vorübergehend nicht verfügbar. Plainva versucht es automatisch erneut; ausstehende Änderungen bleiben auf diesem Gerät.",
+    "authentication": "Melde Dich erneut beim Sync-Konto an. Ausstehende Änderungen bleiben auf diesem Gerät, bis der Zugriff wieder funktioniert.",
+    "integrity": "Plainva kann den verschlüsselten Vault nicht überprüfen. Die Synchronisierung pausiert; lokale Daten und ausstehende Änderungen bleiben erhalten. Öffne Sicherheit & Freigaben, stelle gegebenenfalls eine überprüfbare Kopie wieder her und prüfe erneut.",
+    "fatal": "Die Synchronisierung pausiert, bis das Verbindungsproblem behoben ist. Lokale Daten und ausstehende Änderungen bleiben erhalten. Prüfe die Verbindung und versuche es anschließend erneut.",
+    "foreignLegacy": "Unverschlüsselte Anmerkungsdateien anderer Geräte liegen weiterhin auf dem Server. Nur das jeweilige Ursprungsgerät kann seine Umstellung abschließen. Plainva löscht keine Dateien anderer Geräte."
+  },
+  "noteEmbed": {
+    "openSource": "Quelle öffnen",
+    "depth": "Die maximale Verschachtelung der Einbettung ist erreicht.",
+    "unreadable": "„{{target}}“ konnte nicht gelesen werden.",
+    "missing": "„{{target}}“ wurde nicht gefunden.",
+    "ambiguous": "„{{target}}“ passt zu mehreren Notizen. Verwende einen Pfad relativ zum Vault."
+  },
+  "searchResults": {
+    "loading": "Suche läuft…",
+    "loaded": "Angezeigte Fundstellen: {{count}}",
+    "more": "Weitere Fundstellen laden",
+    "line": "Zeile {{line}}",
+    "failed": "Suche fehlgeschlagen. Erneut versuchen",
+    "empty": "Keine passenden Fundstellen.",
+    "changed": "Die Fundstelle ist im geänderten Text nicht mehr vorhanden."
+  },
+  "driveDestination": {
+    "title": "Drive-Ziel wählen",
+    "current": "Bisheriges Ziel",
+    "selected": "Gewähltes Ziel",
+    "folderId": "Ordner-ID: {{id}}",
+    "review": "Vorschau prüfen",
+    "apply": "Dieses Ziel übernehmen",
+    "more": "Weitere Einträge laden",
+    "effect": "Nach der Übernahme gleicht Plainva diesen Vault mit dem gewählten Ordner ab. Prüfe die vorhandenen Dateien. Andere Cloud-Ordner werden weder verschoben noch gelöscht."
+  },
+  "shareInbox": {
+    "title": "Geteilte Inhalte",
+    "waiting": "Wartende Übergaben: {{count}}",
+    "review": "Ansehen",
+    "destination": "Ziel",
+    "chooseVault": "Vault wählen",
+    "chooseFolder": "Ordner wählen",
+    "locked": "Dieses Vault ist gesperrt. Deine Inhalte warten weiter auf diesem Gerät.",
+    "otherVault": "Die Übernahme gehört zu einem anderen Vault. Öffne dieses Vault, um fortzufahren.",
+    "targetChanged": "Am Ziel liegt inzwischen ein anderer Inhalt. Die wartende Kopie bleibt erhalten; nichts wurde überschrieben.",
+    "writeFailed": "Die Übernahme konnte nicht abgeschlossen werden. Die wartenden Inhalte bleiben erhalten.",
+    "indexIssue": "Gespeichert. Der Suchindex konnte noch nicht aktualisiert werden.",
+    "saved": "Geteilte Inhalte gespeichert.",
+    "incomplete": "Die Übergabe ist unvollständig. Teile die ursprünglichen Inhalte erneut; vorhandene Teile bleiben bis zum Verwerfen erhalten.",
+    "receiving": "Geteilte Inhalte werden vorbereitet…",
+    "progress": "{{done}} von {{total}} gespeichert",
+    "later": "Später übernehmen",
+    "import": "Übernehmen",
+    "discard": "Wartenden Eintrag verwerfen",
+    "discardHint": "Nur diesen wartenden Eintrag vom Gerät entfernen? Bereits ins Vault geschriebene Dateien bleiben erhalten.",
+    "readFailed": "Die wartenden Inhalte konnten nicht gelesen werden. Sie wurden nicht entfernt.",
+    "retry": "Erneut versuchen"
   }
 }

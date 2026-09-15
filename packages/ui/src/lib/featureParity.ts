@@ -335,9 +335,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "The desktop's read mode is its own renderer without a selection bar; the " +
       "mode switch is Mod+E or the mode button, and a mouse double-click must keep " +
       "selecting the word. The phone's read mode is the editor itself, so the bar " +
-      "over a selection carries Edit as its third verb (Build-91 feedback, E5).",
+      "over a selection carries Edit (Build-91 feedback, E5), Copy and Select all.",
     mobile: "yes",
-    verified: "2026-09-07",
+    verified: "2026-09-15",
   },
   {
     id: "device-pim-accounts",
@@ -358,22 +358,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "on Android rests on a hash of the visible fields instead of a modification " +
       "date the provider does not expose - a change that leaves every visible " +
       "field alone is invisible to it. Both named on the account card.",
-    verified: "2026-09-04",
-  },
-  {
-    id: "mail-list-keyboard",
-    title: "Arrow-key navigation in the message list",
-    area: "pim",
-    kind: "decision",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The phone's message list is one screen and the reader another " +
-      "(MailListScreen / MailMessageScreen): there is no split pane with a " +
-      "persistent selection for the arrow keys to move, and no hardware " +
-      "keyboard in the common case. Swipe gestures are the phone's way through " +
-      "the list. An iPad with a keyboard would reach it through the same list " +
-      "later — not part of this cut (2026-09-04).",
     verified: "2026-09-04",
   },
   {
@@ -462,8 +446,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "scene at a time, so 'open this note in a second window' has no counterpart " +
       "to build. The need behind it — looking at two things at once — is answered " +
       "there by pushed screens, the context sheet and, on tablets, the adaptive " +
-      "two-column layout. Permanent by platform, not a backlog item.",
-    verified: "2026-08-23",
+      "two-column layout. Desktop tabs can return to the main window with a " +
+      "confirmed draft transfer; a version comparison can retain its selected " +
+      "snapshot in a separate window. Mobile uses its full comparison screen " +
+      "with the same line-change counts. Permanent by platform, not a backlog item.",
+    verified: "2026-09-14",
   },
   {
     id: "process-exit-diagnostics",
@@ -482,16 +469,17 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "share-target",
-    title: "Receive text or images shared from other apps",
+    title: "Receive text, links and files with durable staging and destination review",
     area: "platform",
     kind: "decision",
     desktop: null,
     desktopReason:
       "Desktop operating systems have no comparable inbound share bus; the desktop " +
-      "equivalent is drag & drop and paste, which the phone in turn lacks. Worth " +
+      "equivalent is drag & drop, paste and file import. The mobile inbox keeps " +
+      "waiting transfers until the user confirms a vault destination. Worth " +
       "revisiting only if a platform grows a real share target.",
     mobile: "yes",
-    verified: "2026-08-19",
+    verified: "2026-09-14",
   },
   {
     id: "split-editor",
@@ -710,5 +698,15 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "offering the switch. Editing, indexing, backups and conflict copies work " +
       "the same on both.",
     verified: "2026-09-03",
+  },
+  {
+    id: "http-platform-trust",
+    title: "Secure self-hosted connections and actionable TLS diagnostics",
+    area: "sync",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason: "Android explicitly includes user-installed CAs in the platform network security configuration. iOS uses URLSession platform trust and may report an indeterminate trust failure without distinguishing a hostname failure. Both retain TLS and hostname validation; no per-host trust bypass is offered.",
+    verified: "2026-09-14",
   },
 ];

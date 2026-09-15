@@ -146,9 +146,9 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     return info;
   }
 
-  async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {
+  async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
     const out: VaultFileInfo[] = [];
-    await this.walk(norm(path ?? ""), recursive ?? false, out);
+    await this.walk(norm(path ?? ""), recursive ?? false, out, false, [], 0, options?.signal);
     return out;
   }
 
@@ -172,10 +172,13 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     }
   }
 
-  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0): Promise<void> {
+  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     if (includeHidden && depth > 256) throw new Error("Backup directory depth exceeded at " + rel);
     const res = await this.plugin.list({ handle: this.handle, path: rel });
+    signal?.throwIfAborted();
     for (const e of res.entries) {
+      signal?.throwIfAborted();
       // Desktop and container parity: dot-prefixed children stay out of the
       // tree and the index — here that also covers the OTHER app's markers
       // (`.stfolder`, `.obsidian`) that share the folder with us.
@@ -184,7 +187,7 @@ export class ExternalVaultAdapter implements IVaultAdapter {
       if (e.isDirectory && excludeDirNames.includes(e.name)) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       out.push(toInfo(childRel, e));
-      if (e.isDirectory && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1);
+      if (e.isDirectory && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1, signal);
     }
   }
 }

@@ -1,8 +1,10 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-07
+Última revisão: 2026-09-15
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
+
+**Pacote da comunidade para Arch Linux:** [plainva no AUR](https://aur.archlinux.org/packages/plainva) é mantido de forma independente. Confira o PKGBUILD antes de compilar; o projeto Plainva não verifica essas compilações da comunidade. O aplicativo continua sob a licença AGPL-3.0-only.
 
 ## Requisitos do sistema
 
@@ -167,7 +169,8 @@ A organização pertence ao vault e viaja para seus outros dispositivos (veja [C
 - **Alternar as barras laterais** pelos dois botões da barra de título ou por `Ctrl+Alt+B` (esquerda) / `Ctrl+Alt+R` (direita) — ótimo para escrever com foco. O Plainva lembra o estado.
 - **Paleta de comandos**: `Ctrl+P` abre **Comandos** — digite e pressione `Enter` para executar (nova nota, nota diária, dividir, barras laterais, **Fazer backup agora** e muito mais).
 - **Densidade**: em **Configurações → App → Aparência**, escolha entre **Confortável** e **Compacto** — Compacto aperta listas, menus e linhas de tabela; o conteúdo das notas não é afetado.
-- **Tema personalizado**: o cartão **Meu tema** em **Configurações → App → Aparência** seleciona o tema e o lápis nele abre a sua página: tom base (claro/escuro), um fundo dentro de uma faixa de luminosidade, qualquer destaque, os cantos (as fontes são escolhidas no cartão **Fontes** da mesma página). O Plainva deriva as cores do texto para que ele nunca desapareça no fundo; um destaque pálido demais é corrigido para pelo menos 3:1, e o editor avisa. No telefone, os mesmos controles ficam na tela **Aparência**.
+- **Tema personalizado**: o cartão **Meu tema** em **Configurações → App → Aparência** seleciona o tema e o lápis nele abre a sua página: tom base (claro/escuro), um fundo dentro de uma faixa de luminosidade, qualquer destaque, os cantos (as fontes são escolhidas no cartão **Fontes** da mesma página). O Plainva deriva as cores do texto para que ele nunca desapareça no fundo; um destaque pálido demais é corrigido para pelo menos 3:1, e o editor avisa. No telefone, os mesmos controles ficam na tela **Aparência**. Os ambientes claro e escuro mantêm suas próprias cores; os cantos são compartilhados. O ambiente já salvo é preservado. O outro começa como proposta e só é salvo após você adotá-lo. Com ambos, **Sistema** acompanha o dispositivo.
+- **Sincronização pessoal do design**: na página do seu tema, ative explicitamente **Sincronizar por este cofre**. Escolha um cofre desbloqueado em cada dispositivo e ative a sincronização de configurações. Um único cofre fornece seu design pessoal; outros membros não são obrigados a usá-lo. Um design já recebido é adotado; caso contrário, o local é compartilhado. Alterações simultâneas mantêm as duas variantes para você escolher. Desativar mantém seu design local. Fontes e a escolha de outro tema não são sincronizadas por esse controle.
 - **Fontes**: em **Configurações → App → Aparência**, o cartão **Fontes** define as fontes de **Interface**, **Conteúdo** e **Código** (padrão do tema, serifada, sem serifa, monoespaçada ou o nome de qualquer fonte instalada) e o **Tamanho da fonte do conteúdo** (12–24 px) — o tamanho escala apenas o editor e o modo de leitura; a interface não muda.
 - **Lista de fontes**: em **Personalizada…** aparece uma lista com as fontes do seu sistema, cada linha na própria fonte; a que não está instalada avisa e não pode ser escolhida. O campo de nome abaixo aceita qualquer outra fonte instalada.
 - **Zoom da interface**: redimensiona TODA a interface entre 80 % e 150 % — em **Configurações → App → Aparência** ou por `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` redefine).
@@ -194,3 +197,7 @@ A barra lateral direita não pode ficar abaixo de **200 px** — nenhuma seção
 - [Notas & Markdown](Notes_and_Markdown.md) — tudo sobre a escrita
 - [Atalhos de Teclado](Keyboard_Shortcuts.md)
 - [FAQ e Solução de Problemas](FAQ.md)
+
+## Devolver uma aba
+
+Em uma janela separada ou em uma segunda janela completa, clique com o botão direito na aba e escolha **Voltar à janela principal**. Texto, seleção, visualização, rolagem, histórico e fixação são mantidos. A aba de origem só fecha após a confirmação. Sem ela, a aba e o rascunho permanecem disponíveis. Os favoritos são atualizados em todas as janelas.

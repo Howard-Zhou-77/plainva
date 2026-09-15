@@ -304,6 +304,8 @@ export interface WorkspaceRuntimeMeta {
   migrationInventoryComplete: boolean;
   lastSyncAt: string | null;
   lastError: string | null;
+  /** Last failed cycle, distinct from each queued mutation's attempts. */
+  lastSyncFailure?: import("./syncFailure.js").WorkspaceSyncFailure | null;
   operationHeads: Record<string, { sequence: number; operationHash: string }>;
   needsPublication: boolean;
   pendingPublication: WorkspacePendingPublication | null;
@@ -538,7 +540,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
       if (!sameLegacyComment(existing, comment)) throw new Error("Legacy comment identity conflict");
       return;
     }
-    this.comments.set(comment.commentId, clone(comment));
+    this.comments.set(comment.commentId, { ...clone(comment), ...(existing?.retractedAt ? { retractedAt: existing.retractedAt } : {}) });
     // The author's own retraction applies in either arrival order: marker
     // first or comment first. A stranger's marker does nothing here - the
     // worker applies a moderator's through `retractComment` after checking

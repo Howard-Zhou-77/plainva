@@ -1,15 +1,23 @@
 import {
   accountServices,
+  logDiagnostic,
   createServiceGrantProbe,
   resolveFileBrokerAccount,
   type FileBrokerBinding,
   createTokenBroker,
+  hasStoredAccountGrant,
   oauthScopeFor,
   sameStoredAccountToken,
+  primaryAccountToken,
+  selectAccountToken,
+  mergeAccountToken,
+  rotateAccountToken,
+  updateAccountCredentials,
   withAccountCredentialLock,
   replaceOAuthClientRegistration,
   sameOAuthClient,
   type CloudProviderFamily,
+  type CloudAccountRecord,
   type CloudServiceId,
   type OAuthClientRegistration,
   type TokenBroker,
@@ -25,6 +33,8 @@ import { secureCredentialStore } from "../platform/secureStore";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { forgetGraphMailRuntime } from "@plainva/ui/mail";
+import { accountCredentialStore } from "./accountCredentialStore";
+import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 
 /**
  * Mobile half of the account token broker (cloud accounts stage B / E10).
@@ -40,8 +50,19 @@ export function accountSecretKey(vaultId: string, accountId: string): string {
   return `account_${accountId}_${vaultId}`;
 }
 
-export async function getAccountToken(vaultId: string, accountId: string): Promise<StoredAccountToken | null> {
-  return withAccountCredentialLock(accountSecretKey(vaultId, accountId), () => secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId)));
+async function readAccountCredentials(vaultId: string, accountId: string): Promise<unknown> {
+  const raw = await accountCredentialStore.read(accountSecretKey(vaultId, accountId));
+  if (raw === null) return null;
+  const value: unknown = JSON.parse(raw);
+  if (value === null) throw new Error("The stored account sign-in is invalid");
+  return value;
+}
+
+export async function getAccountToken(vaultId: string, accountId: string, audience?: string, family?: "google" | "microsoft", client?: OAuthClientRegistration): Promise<StoredAccountToken | null> {
+  return withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+    const raw = await readAccountCredentials(vaultId, accountId);
+    return audience && family ? selectAccountToken(raw, family, audience, client) : primaryAccountToken(raw);
+  });
 }
 
 async function forgetAccountMailRuntime(vaultId: string, accountId: string): Promise<void> {
@@ -51,13 +72,14 @@ async function forgetAccountMailRuntime(vaultId: string, accountId: string): Pro
 
 export async function saveAccountToken(vaultId: string, accountId: string, token: StoredAccountToken, expected?: StoredAccountToken | null): Promise<void> {
   await withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
-    if (expected !== undefined) {
-      const current = await secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId));
-      if (expected === null ? current !== null : !sameStoredAccountToken(current, expected)) throw new Error("The account sign-in changed. Please try again.");
-    }
+    await updateAccountCredentials(accountCredentialStore, accountSecretKey(vaultId, accountId), (raw) => {
+      if (expected !== undefined) {
+        const current = primaryAccountToken(raw);
+        if (expected === null ? current !== null : !sameStoredAccountToken(current, expected)) throw new Error("The account sign-in changed. Please try again.");
+      }
+      return mergeAccountToken(raw, token);
+    });
     forgetAccountBroker(vaultId, accountId);
-    await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), token);
-    if (!sameStoredAccountToken(await secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId)), token)) throw new Error("The account sign-in could not be confirmed in secure storage.");
   });
   await forgetAccountMailRuntime(vaultId, accountId);
 }
@@ -69,10 +91,11 @@ export async function replaceAccountClientRegistration(
   next: OAuthClientRegistration,
 ): Promise<boolean> {
   return withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
-    const current = await secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId));
+    const current = primaryAccountToken(await readAccountCredentials(vaultId, accountId));
     if (current && sameOAuthClient(current, next)) return false;
     forgetAccountBroker(vaultId, accountId);
-    await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), replaceOAuthClientRegistration(current, next));
+    await updateAccountCredentials(accountCredentialStore, accountSecretKey(vaultId, accountId), (raw) =>
+      mergeAccountToken(raw, replaceOAuthClientRegistration(primaryAccountToken(raw), next)));
     await forgetAccountMailRuntime(vaultId, accountId);
     return true;
   });
@@ -92,7 +115,7 @@ export function microsoftScopeFor(audience: string): string {
   return scope;
 }
 
-/** Google scopes per audience; Gmail is IMAP, so it is not one of them. */
+/** Required Google permissions for each service, including Gmail XOAUTH2. */
 export function googleScopeFor(audience: string): string {
   const scope = sharedGoogleScopeFor(audience);
   if (!scope) throw new Error(`unknown Google audience: ${audience}`);
@@ -107,6 +130,17 @@ export function brokerFamily(family: CloudProviderFamily): "microsoft" | "google
 /** One instance per (vault, account) — see the desktop counterpart. */
 const brokers = new Map<string, TokenBroker>();
 
+async function adoptLegacyGrant(vaultId: string, record: CloudAccountRecord, service: CloudServiceId): Promise<boolean> {
+  try {
+    const { migrateLegacyAccountGrant } = await import("./accountGrantMigration");
+    await migrateLegacyAccountGrant(vaultId, record, service);
+    return true;
+  } catch {
+    logDiagnostic("sync", `The existing ${service} sign-in could not be adopted; its service source was kept.`);
+    return false;
+  }
+}
+
 export function getAccountBroker(vaultId: string, accountId: string, family: "microsoft" | "google" = "microsoft"): TokenBroker {
   const slotKey = accountSecretKey(vaultId, accountId);
   const key = JSON.stringify([slotKey, family]);
@@ -115,16 +149,16 @@ export function getAccountBroker(vaultId: string, accountId: string, family: "mi
 
   const broker = createTokenBroker({
     family,
+    onForget: family === "google" ? forgetNativeGoogleTokens : undefined,
     store: {
-      read: () => getAccountToken(vaultId, accountId),
+      read: (audience, client) => getAccountToken(vaultId, accountId, audience, family, client),
       write: (next, expected) => withAccountCredentialLock(slotKey, async () => {
-        const current = await secureCredentialStore.readSecret<StoredAccountToken>(slotKey);
-        if (!sameStoredAccountToken(current, expected)) throw new Error("account sign-in changed before rotation could be saved");
-        await secureCredentialStore.writeSecret(slotKey, next);
+        await updateAccountCredentials(accountCredentialStore, slotKey, (current) => rotateAccountToken(current, next, expected));
       }),
     },
-    refresh: async ({ clientId, clientSecret, refreshToken, scope }) => {
+    refresh: async ({ clientId, clientSecret, refreshToken, scope, ...nativeGrant }) => {
       if (family === "google") {
+        if (nativeGrant.nativeGoogle) return authorizeNativeGoogle(scope, false, { ...nativeGrant, clientId, refreshToken });
         const tokens = await refreshDriveAccessToken({ clientId, clientSecret: clientSecret ?? "", refreshToken }, webdavFetch);
         return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn, scope: tokens.scope };
       }
@@ -154,11 +188,11 @@ export function fileGrantProbe(vaultId: string, accountId: string, family: "goog
 function serviceGrantProbe(vaultId: string, accountId: string, family: "google" | "microsoft", service: CloudServiceId, client: { clientId: string; clientSecret?: string }) {
   return createServiceGrantProbe({ accountId, family, service, ...client }, {
     records: () => loadCloudAccounts(vaultId),
-    token: () => getAccountToken(vaultId, accountId),
+    token: () => getAccountToken(vaultId, accountId, service, family, client),
     accessToken: async (force) => {
       const broker = getAccountBroker(vaultId, accountId, family);
       if (force) broker.forget();
-      return broker.getAccessToken(service);
+      return broker.getAccessToken(service, client);
     },
   });
 }
@@ -177,7 +211,6 @@ export async function brokerTokenProvider(
   const records = await loadCloudAccounts(vaultId);
   const candidates = records.filter((record) => {
     if (!brokerFamily(record.family) || !accountServices(record).includes(service)) return false;
-    if (record.family === "google" && service === "mail") return false;
     if (!subsystemId) return true;
     if (service === "calendar") return record.services.calendar?.pimAccountId === subsystemId;
     if (service === "mail") return record.services.mail?.mailAccountId === subsystemId;
@@ -186,8 +219,9 @@ export async function brokerTokenProvider(
   for (const record of candidates) {
     const family = brokerFamily(record.family);
     if (!family) continue;
-    const stored = await getAccountToken(vaultId, record.id);
-    if (!stored?.refreshToken) continue;
+    if (!await adoptLegacyGrant(vaultId, record, service)) continue;
+    const stored = await getAccountToken(vaultId, record.id, service, family);
+    if (!hasStoredAccountGrant(stored)) continue;
     if (!tokenCoversService(stored, service, family)) continue;
     return async (force: boolean) => {
       const broker = getAccountBroker(vaultId, record.id, family);
@@ -199,14 +233,17 @@ export async function brokerTokenProvider(
 }
 
 export async function fileBrokerTokenProvider(vaultId: string, binding: FileBrokerBinding): Promise<((force: boolean) => Promise<string>) | undefined> {
-  const resolve = () => loadCloudAccounts(vaultId).then((records) => resolveFileBrokerAccount(records, binding, (id) => getAccountToken(vaultId, id)));
+  const candidates = (await loadCloudAccounts(vaultId)).filter((record) => record.family === (binding.provider === "drive" ? "google" : "microsoft")
+    && record.services.files?.provider === binding.provider && (!binding.accountId || record.id === binding.accountId));
+  for (const candidate of candidates) if (!await adoptLegacyGrant(vaultId, candidate, "files")) return undefined;
+  const resolve = () => loadCloudAccounts(vaultId).then((records) => resolveFileBrokerAccount(records, binding, (id) => getAccountToken(vaultId, id, "files", binding.provider === "drive" ? "google" : "microsoft", binding)));
   const record = await resolve();
   if (!record) return undefined;
   return async (force) => {
     if ((await resolve())?.id !== record.id) throw new Error("The file account changed. Reconnect file sync.");
     const broker = getAccountBroker(vaultId, record.id, binding.provider === "drive" ? "google" : "microsoft");
     if (force) broker.forget();
-    return broker.getAccessToken("files");
+    return broker.getAccessToken("files", binding);
   };
 }
 
@@ -227,5 +264,5 @@ export async function accountTokenCovers(
   service: CloudServiceId,
   family: "google" | "microsoft",
 ): Promise<boolean> {
-  return tokenCoversService(await getAccountToken(vaultId, accountId).catch(() => null), service, family);
+  return tokenCoversService(await getAccountToken(vaultId, accountId, service, family).catch(() => null), service, family);
 }

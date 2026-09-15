@@ -66,5 +66,6 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     degradedRoamBlockRefs: limit('roamBlockRefs', d.degradedRoamBlockRefs),
     degradedHtmlStructure: limit('htmlStructure', d.degradedHtmlStructure),
     degradedBaseSerializer: limit('baseSerializer', d.degradedBaseSerializer),
+    jexIncomplete: t('import.jexIncomplete'),
   };
 }

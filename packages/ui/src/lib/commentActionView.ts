@@ -6,6 +6,7 @@ export function commentActionErrorKey(error: unknown): string | null {
   if (error instanceof CommentOperationError) return error.reason === "needs-review" ? "comments.operationNeedsReview"
     : error.reason === "context" ? "comments.operationContextChanged" : "comments.operationSaveFailed";
   if (error instanceof Error) {
+    if (error.message === "workspace-suggestion-not-permitted") return "comments.suggestionNotPermitted";
     if (error.message === "comment-editor-unavailable") return "comments.operationEditorChanged";
     if (error.message === "comment-suggestion-orphan" || error.message === "comment-suggestion-overlap") return "comments.suggestRoundOrphan";
     if (error.message === "comment-decision-needs-review") return "comments.decisionConflict";

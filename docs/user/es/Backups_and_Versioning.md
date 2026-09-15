@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-09-07
+Última actualización: 2026-09-15
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -90,3 +90,7 @@ Estos archivos pertenecen a tareas diferentes. Las tareas recurrentes con el mis
 Un archivo cambió desde que lo abriste. Se ha recargado la comparación. Revisa el contenido actual y elige de nuevo.
 
 Fusionar línea por línea es una herramienta del escritorio; aquí adoptas una versión completa o conservas ambas.
+
+## Comparar la copia seleccionada
+
+La versión seleccionada muestra líneas añadidas y eliminadas respecto a la nota actual, aunque se oculte el diff. **Abrir en una ventana nueva** mantiene esa misma copia seleccionada en escritorio. Si desaparece, Plainva lo indica. Los archivos grandes pueden no tener recuentos; los binarios no tienen comparación de texto. Móvil muestra los mismos recuentos en la comparación completa.

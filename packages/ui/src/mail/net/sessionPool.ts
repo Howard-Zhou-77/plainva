@@ -39,6 +39,7 @@ export interface SessionPoolHooks<C> {
 
 export class SessionPool<C> {
   private readonly idle = new Map<string, Idle<C>>();
+  private readonly active = new Set<{ key: string; released: boolean }>();
 
   constructor(
     private readonly hooks: SessionPoolHooks<C>,
@@ -58,6 +59,8 @@ export class SessionPool<C> {
    * overlapping calls never share one connection.
    */
   async with<T>(key: string, open: () => Promise<C>, fn: (conn: C) => Promise<T>): Promise<T> {
+    const lease = { key, released: false }; this.active.add(lease);
+    try {
     const retired: C[] = [];
     const pooled = this.take(key, retired);
     for (const conn of retired) await this.hooks.close(conn).catch(() => undefined);
@@ -74,6 +77,7 @@ export class SessionPool<C> {
 
     try {
       const value = await fn(conn);
+      if (lease.released) { await this.hooks.close(conn).catch(() => undefined); return value; }
       const evicted = this.put(key, conn);
       if (evicted !== undefined) await this.hooks.close(evicted).catch(() => undefined);
       return value;
@@ -82,6 +86,7 @@ export class SessionPool<C> {
       await this.hooks.close(conn).catch(() => undefined);
       throw err;
     }
+    } finally { this.active.delete(lease); }
   }
 
   /** Takes the fresh connection for `key`; collects every expired one to close. */
@@ -108,6 +113,7 @@ export class SessionPool<C> {
 
   /** Closes pooled connections: one account when `marker` is given, all otherwise. */
   async release(marker?: string): Promise<void> {
+    for (const lease of this.active) if (marker === undefined || lease.key.includes(marker)) lease.released = true;
     const keys = [...this.idle.keys()].filter((k) => marker === undefined || k.includes(marker));
     const closing: Promise<void>[] = [];
     for (const key of keys) {
@@ -130,8 +136,8 @@ export class SessionPool<C> {
  * reuse a connection logged in with the old one. Host/port/user stay readable so
  * `release` can drop one account by its delimited fragment.
  */
-export function sessionKey(creds: { host: string; port: number; user: string; pass: string }): string {
-  return `${creds.host}:${creds.port}:${creds.user}#${fingerprint(creds.pass)}`;
+export function sessionKey(creds: { host: string; port: number; user: string; pass: string; auth?: string }): string {
+  return `${creds.host}:${creds.port}:${creds.user}#${fingerprint(creds.auth === "xoauth2" ? `xoauth2:${creds.pass}` : creds.pass)}`;
 }
 
 /**

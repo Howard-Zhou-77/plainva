@@ -192,7 +192,12 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   };
 
   // Leaving the wizard must not leave unpacked exports behind in the temp dir.
-  useEffect(() => () => clearExtracted(), []);
+  useEffect(() => () => { abortRef.current?.abort(); clearExtracted(); }, []);
+
+  const importError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    return t(message, { defaultValue: message });
+  };
 
   /** Translated source name; falls back to the importer's own English name. */
   const sourceName = (id: ImportSourceId, fallback: string): string =>
@@ -205,6 +210,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     setErrorMsg('');
     setArchiveNotes([]);
     clearExtracted();
+    let selectionMade = false;
     try {
       const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
       const res: unknown = await openDialog({
@@ -216,10 +222,11 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       });
 
       if (!res) return;
+      selectionMade = true;
 
       let picked: SelectedFileItem[] = [];
       if (typeof res === 'string') {
-        setSelectedFolderPath(res);
+        setSelectedFolderPath(mode === 'folder' ? res : '');
         picked = [{ name: res.split(/[/\\]/).pop() || res, path: res }];
       } else if (Array.isArray(res)) {
         setSelectedFolderPath('');
@@ -227,9 +234,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       }
       setSelectedFiles(picked);
       // Recognise the source from what was picked, before the user has to.
-      await runDetection(await loadInputPayload(picked, typeof res === 'string' ? res : ''));
-    } catch {
-      fileInputRef.current?.click();
+      abortRef.current = new AbortController();
+      setProgressPct(0); setStep('analyzing');
+      await runDetection(await loadInputPayload(picked, mode === 'folder' && typeof res === 'string' ? res : ''));
+      setStep('select');
+    } catch (error) {
+      if (!selectionMade) fileInputRef.current?.click();
+      else if (!abortRef.current?.signal.aborted) setErrorMsg(importError(error));
+      setStep('select');
+    } finally {
+      abortRef.current = null;
     }
   };
 
@@ -289,6 +303,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         return [{ name: 'JSON', extensions: ['json', 'zip'] }];
       case 'notion_file':
         return [{ name: 'Notion', extensions: ['zip', 'md', 'csv'] }];
+      case 'joplin':
+        return [{ name: 'Joplin', extensions: ['jex', 'tar', 'zip', 'md'] }];
       case 'generic_markdown':
       default:
         // The default is also the filter for the FIRST pick, before anybody has
@@ -298,7 +314,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         return [
           {
             name: t('import.filterAllExports'),
-            extensions: ['md', 'markdown', 'txt', 'zip', 'json', 'enex', 'csv', 'html'],
+            extensions: ['md', 'markdown', 'txt', 'zip', 'jex', 'tar', 'json', 'enex', 'csv', 'html'],
           },
         ];
     }
@@ -350,7 +366,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     }
 
     for (const f of files) {
-      const isZip = f.name.toLowerCase().endsWith('.zip');
+      const isZip = /\.(zip|jex|tar)$/i.test(f.name);
 
       if (f.file) {
         if (isZip) {
@@ -365,7 +381,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         if (isZip) {
           let archive = extractedRef.current.get(f.path);
           if (!archive) {
-            archive = await extractArchive(f.path);
+            archive = await extractArchive(f.path, { signal: abortRef.current?.signal, onProgress: setProgressPct });
             extractedRef.current.set(f.path, archive);
           }
           payload.push(...archive.files);
@@ -444,6 +460,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       // still not carry it over.
       readSourceBytes: async (sourcePath: string) => {
         try {
+          for (const archive of extractedRef.current.values()) {
+            if (archive.readSourceBytes && sourcePath.startsWith(`${archive.root}/@`)) return await archive.readSourceBytes(sourcePath);
+          }
           const { readFile } = await import('@tauri-apps/plugin-fs');
           return await readFile(sourcePath);
         } catch {
@@ -509,6 +528,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
     setStep('analyzing');
     setErrorMsg('');
+    setProgressPct(0);
+    const analysisController = new AbortController();
+    abortRef.current = analysisController;
 
     try {
       const source = defaultImportRegistry.get(selectedSourceId);
@@ -516,14 +538,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
       const httpFetch = await resolveHttpFetch();
       const inputPayload = await loadInputPayload();
-      const analyzedPlan = await source.analyze(inputPayload, await buildOptions(httpFetch));
+      const analyzedPlan = await source.analyze(inputPayload, await buildOptions(httpFetch, undefined, analysisController.signal));
+      if (analysisController.signal.aborted) { setStep('select'); return; }
 
       setPlan(analyzedPlan);
       setStep('preview');
     } catch (e) {
       console.error('Import analyse failed', e);
-      setErrorMsg(`${t('import.errAnalyze')} ${e instanceof Error ? e.message : String(e)}`);
+      if (!analysisController.signal.aborted) setErrorMsg(`${t('import.errAnalyze')} ${importError(e)}`);
       setStep('select');
+    } finally {
+      if (abortRef.current === analysisController) abortRef.current = null;
     }
   };
 
@@ -602,7 +627,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       setStep('report');
     } catch (e) {
       console.error('Import execution failed', e);
-      setErrorMsg(`${t('import.errRun')} ${e instanceof Error ? e.message : String(e)}`);
+      setErrorMsg(`${t('import.errRun')} ${importError(e)}`);
       setStep('preview');
     } finally {
       abortRef.current = null;
@@ -1045,11 +1070,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
           <h3 style={{ marginBottom: 'var(--space-2)' }}>{t('import.analyzingTitle')}</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>{t('import.analyzingBody')}</p>
+          <p role="status">{progressPct}%</p>
+          <Button variant="ghost" onClick={() => abortRef.current?.abort()}>{t('common.cancel')}</Button>
         </div>
       )}
 
       {step === 'preview' && plan && (
         <div>
+          {plan.totalFolders !== undefined && <p>{t('import.statFolders')}: {plan.totalFolders} · {t('import.statTags')}: {plan.totalTags ?? 0}</p>}
           <h3 style={{ marginBottom: 'var(--space-4)' }}>
             {t('import.previewTitle', { source: sourceName(plan.sourceId, plan.sourceName) })}
           </h3>
@@ -1064,7 +1092,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               <Banner kind="warning" rounded>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {[...(plan.warnings ?? []), ...archiveNotes].map((w, idx) => (
-                    <span key={idx}>{w}</span>
+                    <span key={idx}>{t(w, { defaultValue: w })}</span>
                   ))}
                 </div>
               </Banner>

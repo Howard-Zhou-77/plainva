@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -187,3 +187,9 @@ Alles bleibt Standard-Markdown mit Standard-Frontmatter. Obsidian öffnet die Da
 Erstreckt sich eine Auswahl über mehrere Zeilen, werden **Fett**, *Kursiv*, Durchgestrichen, Hervorhebung und Inline-Code getrennt auf jede nichtleere Zeile angewandt. Listen-, Zitat-, Überschriften- und Aufgabenpräfixe bleiben außerhalb der Inline-Markierungen. Links bleiben einzeilig, weil ein mehrzeiliger Linktext kein portables Markdown ist.
 
 Eine ATX-Überschrift und eine GFM-Aufgabe sind alternative Blocktypen. Plainva schreibt deshalb keine fehlerhafte Mischform. Inline-Formatierungen funktionieren in beiden Blöcken vollständig; nutze `- [ ] **Wichtige Aufgabe**` für einen hervorgehobenen Aufgabentitel.
+
+## Abschnitte und Blöcke einbetten
+
+`![[Notiz#Überschrift]]` zeigt den Abschnitt einschließlich seiner Unterüberschriften bis zur nächsten gleich- oder höherstufigen Überschrift. `![[Notiz#^block-id]]` zeigt den adressierten Absatz, Listeneintrag oder den vor einer allein stehenden Block-ID liegenden Block. Ein normaler Link `[[Notiz#^block-id]]` springt auch im Lesemodus dorthin.
+
+Bei gleichen Überschriften kannst Du eine eindeutige Abschnittskette (`#Projekt#Ergebnis`) oder den nummerierten Anker (`#ergebnis-1`) verwenden. Fehlende oder mehrdeutige Ziele zeigen einen Hinweis. Die Quelle bleibt über die Einbettung erreichbar. Verschachtelungen sind begrenzt; Codebeispiele werden nicht als Einbettungen ausgeführt. Auf dem Telefon zeigt die Karte den gewählten Abschnitt oder Block ohne die vierzeilige Kürzung der allgemeinen Notizvorschau. Bestehende Dateien werden nicht verändert.

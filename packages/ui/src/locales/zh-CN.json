@@ -185,7 +185,8 @@
       "logseq": "Logseq",
       "notion_file": "Notion (ZIP)",
       "notion_api": "Notion (API)",
-      "obsidian": "Obsidian"
+      "obsidian": "Obsidian",
+      "joplin": "Joplin (JEX / Markdown)"
     },
     "hints": {
       "generic_markdown": "选择包含 Markdown（.md）文件的文件夹或文件。",
@@ -194,7 +195,8 @@
       "evernote": "选择从 Evernote 导出的 .enex 文件（笔记本 → 导出为 ENEX）。",
       "logseq": "选择你的 Logseq 图谱文件夹（其中包含 /journals 和 /pages）。",
       "notion_file": "选择你的 Notion ZIP 导出文件或已解压的文件夹。页面可以导入；数据库内容则需要通过 API 导入。",
-      "notion_api": "输入 Notion 集成令牌，即可直接导入已共享的页面和数据库，包括行和关联。"
+      "notion_api": "输入 Notion 集成令牌，即可直接导入已共享的页面和数据库，包括行和关联。",
+      "joplin": "选择 Joplin 的 JEX 文件、RAW 文件夹或带前置元数据的 Markdown 导出。笔记本、标签、附件和原始时间会保留。"
     },
     "report": {
       "title": "导入报告",
@@ -310,7 +312,19 @@
     "targetNewVaultHintMobile": "将在本设备上创建一个新的空 vault，导入内容写入其中。",
     "undoVaultMobile": "若要撤销此次导入，请在「更多 → Vault」中移除该 vault。",
     "syncUploadHintMobile": "此 vault 已同步：导入的全部 {{n}} 条笔记都会上传。",
-    "obsidianConnectMobile": "在手机上，请在「更多 → Vault」中连接你的 Obsidian vault 所在的同一个云端——笔记随后会通过同步到达。"
+    "obsidianConnectMobile": "在手机上，请在「更多 → Vault」中连接你的 Obsidian vault 所在的同一个云端——笔记随后会通过同步到达。",
+    "archiveInvalid": "归档已损坏，或包含不受支持、不安全或重复的条目。未导入任何内容。",
+    "archiveTooLarge": "JEX 限制：20,000 个条目，单文件 32 MiB，总计 256 MiB，文本 64 MiB。 文本文件：单文件最多 2 MiB。",
+    "jexInvalid": "这不是可读取的 Joplin 导出。请从 Joplin 导出为 JEX 或 RAW。",
+    "jexEncrypted": "导出中仍有加密数据。请在 Joplin 完成解密后重新导出。",
+    "jexFreshTarget": "请选择尚不存在的目标文件夹。",
+    "jexOriginals": "原始记录会保存在一个附加文件中，该文件计入附件数量。",
+    "jexIncomplete": "部分目标或附件缺失。无法解析的链接和原始数据会保留。",
+    "jexExtraRecords": "其他 Joplin 记录类型会保留在原始数据中。",
+    "jexNoNotes": "此导出不包含笔记。",
+    "jexMissingFolders": "部分笔记本未导出。相关笔记将直接存放在导入文件夹中。",
+    "statFolders": "笔记本",
+    "statTags": "标签"
   },
   "settings": {
     "about": "关于与诊断",
@@ -517,7 +531,7 @@
     "fontSearch": "搜索字体…",
     "fontFieldEmpty": "选择字体…",
     "customThemeAdoptFrom": "取自…",
-    "customThemePageDesc": "你自己的主题：你选择基调、背景和强调色，文字颜色由 Plainva 推导，永远不会淹没在背景中。",
+    "customThemePageDesc": "为浅色和深色外观分别选择你的颜色。",
     "customThemeEdit": "编辑",
     "groupColors": "颜色",
     "groupShape": "形状",
@@ -609,12 +623,23 @@
     "fontContentDesc": "编辑器和阅读视图。",
     "fontCode": "代码",
     "fontCodeDesc": "代码块、行内代码和代码模式。",
-    "fontsDeviceHint": "适用于此设备——已安装的字体因设备而异。"
+    "fontsDeviceHint": "适用于此设备——已安装的字体因设备而异。",
+    "customThemePairHint": "浅色与深色分别保存。采用两者后，“系统”会跟随设备设置。",
+    "customThemeProposal": "此配色仅为建议。采用前，已保存的设计保持不变。",
+    "customThemeAdoptMood": "采用此配色",
+    "customThemeSaveFailed": "无法保存设计，请重试。",
+    "customThemeSyncTitle": "个人同步",
+    "customThemeSyncEnabled": "通过此保险库同步",
+    "customThemeSyncHint": "颜色和圆角仅为你同步。请在每台设备上选择一个保险库作为来源，并开启设置同步。",
+    "customThemeSyncSource": "已选来源：{{name}}",
+    "customThemeSyncLocal": "你的设计保留在此设备上。打开已解锁的保险库即可启用同步。",
+    "customThemeSyncFailed": "无法完整保存或加载设计同步。请检查连接、解锁保险库，然后重新打开此页面。",
+    "customThemeSyncConflict": "两台设备同时更改了设计。所有版本都会保留，直到你选择一个版本或编辑设计。",
+    "customThemeSyncChoose": "采用版本 {{number}}"
   },
   "editor": {
     "completionHeadings": "标题",
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
-    "fileNotFound": "未找到文件",
     "loading": "加载中…",
     "menu": "菜单",
     "time": "时间",
@@ -906,7 +931,6 @@
     "searchTags": "筛选标签…",
     "searchDatabases": "筛选数据库…",
     "noResults": "无结果",
-    "resultCount_other": "{{count}} 个结果",
     "matchesName": "文件名",
     "matchesContent": "内容",
     "resize": "调整侧边栏宽度",
@@ -1207,7 +1231,18 @@
     "filterTags": "标签 · 整篇笔记",
     "filterLabelsFrom": "标签 · {{property}}",
     "filterPropertyTags": "{{property}} · 属性",
-    "filterSearchValues": "搜索值…"
+    "filterSearchValues": "搜索值…",
+    "exportTitle": "导出表格",
+    "exportValues": "数值 (.csv)",
+    "exportFormulas": "公式 (.base)",
+    "exportScope": "结果行数：{{count}}。导出包含此视图的列。",
+    "exportFormulaHint": ".base 文件将当前行保存为固定选择。受支持的计算保留为公式。请在包含链接笔记的同一仓库中打开。",
+    "exportUnsupported": "以下列尚不能导出为等效公式：",
+    "exportIssue_operation": "尚未确认此计算的等效性。",
+    "exportIssue_relation": "不转换反向关联或备用关联键。",
+    "exportIssue_property": "不转换此文件属性。",
+    "exportValuesHint": "CSV 包含当前计算值和文件路径。之后不会自动更新这些值。列表以 JSON 形式保留。",
+    "exportFailed": "导出失败。数据未被修改，请重试。"
   },
   "fileTree": {
     "unsynced": "未同步",
@@ -1603,7 +1638,11 @@
     "prevYear": "上一年",
     "nextYear": "下一年",
     "showWeeks": "显示周数",
-    "weekShort": "周"
+    "weekShort": "周",
+    "dailyNoteExists": "已有日记",
+    "openDailyNote": "打开日记",
+    "createDailyNote": "创建日记",
+    "dailyNotesUnavailable": "无法加载日记标记。"
   },
   "titlebar": {
     "openTabs": "打开的文件",
@@ -2285,7 +2324,11 @@
     "differentTasks": "两个不同的任务",
     "differentTasksHint": "这些文件属于不同的任务。同名的重复任务可能是不同的实例。两个文件的内容将作为独立任务保留。",
     "keepSeparateTasks": "保留为独立任务",
-    "comparisonChanged": "文件在打开后发生了变化。已重新加载比较。请查看当前内容后重新选择。"
+    "comparisonChanged": "文件在打开后发生了变化。已重新加载比较。请查看当前内容后重新选择。",
+    "versionUnavailable": "所选版本已不可用。",
+    "countsUnavailable": "此文件大小不支持行数统计。",
+    "windowFailed": "无法打开比较窗口。",
+    "lineChanges": "+{{added}} / −{{removed}} 行"
   },
   "conflict": {
     "resolveFailed": "无法解决冲突：{{error}}",
@@ -2572,7 +2615,7 @@
     "repeatEvery_monthly": "每 {{n}} 个月",
     "repeatEvery_yearly": "每 {{n}} 年",
     "repeatSpawned": "下次截止：{{date}}",
-    "repeatFailed": "无法创建下一个任务。",
+    "repeatFailed": "任务已完成，但无法确认下一项任务。请先检查任务文件夹，再重试。",
     "repeatRemote": "该任务来自服务商，重复由服务商处理。",
     "repeatPreview": "下次截止：{{date}}",
     "repeatPreviewFromToday": "从今天起算，因为你选择了从完成日期起算。",
@@ -2587,7 +2630,16 @@
     "providerCreateFailed": "任务已在本地创建，但未在服务商处创建。",
     "providerAnchorFailed": "任务已在服务商处创建，但无法关联笔记 — 否则下次同步会为该任务创建第二个笔记。",
     "deletingWithUndo_other": "已删除 {{count}} 个任务。将在 {{seconds}} 秒后同时从提供商处删除。",
-    "deleteCancelled_other": "已撤销删除 — {{count}} 个笔记已恢复。"
+    "deleteCancelled_other": "已撤销删除 — {{count}} 个笔记已恢复。",
+    "metadata": {
+      "created": "创建",
+      "start": "开始",
+      "scheduled": "计划",
+      "completed": "完成",
+      "taskId": "ID",
+      "recurrence": "重复",
+      "unsupported": "保留规则，此处不自动生成下一次任务。"
+    }
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",
@@ -2674,7 +2726,7 @@
     "authConfig": "此账号的应用注册不匹配。请在提供商处检查客户端 ID、密钥和重定向 URI。",
     "authApiDisabled": "登录没有问题，但所调用的 Google API 尚未在你自己的 Google Cloud 项目中启用。请在那里启用它（日历：“Google Calendar API”，任务：“Google Tasks API”），然后重试。",
     "authExpired": "此账号的登录已过期或被撤销。请重新登录以恢复。",
-    "authExpiredGoogle": "此账号的登录已过期或被撤销。请重新登录。如果你使用自己的 Google 客户端，而其同意页面仍处于“测试”状态，Google 会在 7 天后使每个登录失效 — 发布项目即可避免。",
+    "authExpiredGoogle": "Google 拒绝了此次登录。请重新登录。使用自建应用时，原因可能包括测试访问过期或授权被撤销。Plainva 无法从此错误推断项目的发布状态。",
     "authNetwork": "无法连接到此账号。看起来是连接问题 — 请重试。",
     "openVaultFirst": "仅适用于当前打开的仓库。",
     "noAccounts": "尚未连接任何日历账户。",
@@ -2715,7 +2767,7 @@
     "retrying": "正在重试…",
     "retrySameError": "重试后仍是同一个错误。",
     "davPass": "应用专用密码",
-    "googleByoHint": "Google 要求使用你自己的 OAuth 客户端 ID（与 Drive 同步相同）。权限范围：日历 + 任务。",
+    "googleByoHint": "请使用适用于此设备的 Google 客户端 ID。桌面客户端还需要对应的客户端密钥值。移动端注册方式请参阅指南。权限包括日历和任务。",
     "clientFromDevice": "已使用本设备上的客户端 ID。",
     "googleClientSecret": "客户端密钥（桌面客户端可选）",
     "googleClientIdRequired": "Google 需要你自己的客户端 ID（BYO）。",
@@ -3000,7 +3052,6 @@
     "noSearchResults": "此文件夹中没有匹配项。",
     "markRead": "标记为已读",
     "markUnread": "标记为未读",
-    "bulkPartial": "并非所有邮件都能修改（{{n}} 封失败）：{{error}}",
     "moveTo": "移动到…",
     "moved": "已移动到 {{folder}}",
     "delete": "删除",
@@ -3103,7 +3154,24 @@
     "unsubscribeFailed": "无法打开退订页面。",
     "sendingWithUndo": "{{seconds}} 秒后发送",
     "sendCancelled": "已取消发送——邮件没有发出。",
-    "emlAdded": "已将原始副本添加到“{{name}}”。"
+    "emlAdded": "已将原始副本添加到“{{name}}”。",
+    "googleSignInTest": "通过 Google 登录 · 测试",
+    "googleTestHint": "仅供已获批准的 Google 测试账号使用。你将允许 Plainva 读取、管理和发送邮件。保存的邮件会成为仓库内容，并遵循仓库的同步设置。",
+    "filterAttachments": "含附件",
+    "attachmentsLoaded": "已加载的 {{loaded}} 封邮件中，已确认 {{known}} 封的元数据。其他邮件也可能含有附件。",
+    "bulkWorking": "正在批量处理。取消将在当前批次完成后停止。",
+    "bulkReport": "{{done}} 项已完成，{{failed}} 项未确认。",
+    "bulkUncertain": "结果不确定。请先重新加载文件夹，再重试此操作。",
+    "bulkReason": {
+      "missing": "邮件已不在原文件夹中。",
+      "changed": "文件夹已更改或来自缓存，请重新加载。",
+      "unsupported": "服务器不支持此定向操作（MOVE/UIDPLUS）。",
+      "rejected": "服务器未确认更改。",
+      "connection": "连接已中断。",
+      "cancelled": "未执行：已取消。"
+    },
+    "noAttachmentMatches": "已加载的邮件中没有已确认的附件。",
+    "cacheUpdateFailed": "服务器已确认更改，但无法更新本地邮件缓存。请重新加载文件夹。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",
@@ -3302,7 +3370,7 @@
     "suggestDiscard": "放弃",
     "suggestDiscardConfirm": "放弃 {{n}} 处更改？笔记保持原样。",
     "suggestSend": "发送建议（{{n}}）",
-    "suggestSent": "已发送 {{n}} 条建议。",
+    "suggestSent": "已发送的建议：{{n}}。",
     "suggestNothing": "尚无更改。",
     "suggestParkedTitle": "发现未发送的建议",
     "suggestParkedResume": "继续编辑",
@@ -3381,7 +3449,9 @@
     "decisionConflict": "相互矛盾的决定",
     "decisionConfirmDeclined": "确认为已拒绝",
     "decisionConfirmApplied": "确认为已应用",
-    "decisionReviewHelp": "请将建议与当前文本进行比较。你的决定会确认此文本，并且仅替换此处已知的决定。建议不会再次插入。"
+    "decisionReviewHelp": "请将建议与当前文本进行比较。你的决定会确认此文本，并且仅替换此处已知的决定。建议不会再次插入。",
+    "publicationReviewLocal": "此决定会记录在您自己仓库中的原文旁。",
+    "suggestionNotPermitted": "您的权限不允许在此提出建议。"
   },
   "workspaceSecurity": {
     "experimentalNotice": "加密工作区仍处于实验阶段，尚未经过独立审计。请妥善保管恢复文件和恢复码——没有它们将无法恢复已加密的笔记。",
@@ -3830,7 +3900,7 @@
       "chainGap": {
         "title": "某设备的变更在等待：链已中断",
         "explain": "此设备期望来自 {{device}} 的第 {{expected}} 号变更，而云端是第 {{found}} 号。中间缺失或被替换的内容阻塞了其后的一切——该组共 {{count}} 项变更。",
-        "hint": "通常是同一设备的第二份状态所致——例如带有独立存储的开发实例——或某台重新连接、从 1 重新计数的设备。让 {{device}} 同步一次，然后在此重新检查。若忽略该组，这些变更将丢失。"
+        "hint": "在仍保留完整且可验证历史记录的设备上选择“立即同步”。Plainva 可以从该副本恢复缺失的已签名操作。然后在 {{device}} 上重新检查。如果没有有效副本，请保留或导出本地数据；验证检查点绝不会为了绕过缺失部分而被重置。"
       },
       "chainBlocked": {
         "title": "在缺口之后等待",
@@ -4023,18 +4093,18 @@
     "title": "Plainva {{version}} 新功能",
     "lead": "最大更新",
     "experimental": "实验性",
-    "highlight1Title": "扩展现有账户",
-    "highlight1": "直接为相应账户添加文件、日历或邮箱。Plainva 会检查所选登录并请求缺少的权限。",
-    "highlight2Title": "清晰的设置步骤",
-    "highlight2": "移动端助手直接打开相应连接。登录后选择日历和任务列表，即可查看结果。",
-    "highlight3Title": "预览后迁移文件",
-    "highlight3": "在移动端添加文件时，Plainva 会在迁移前显示来源、目标及同名冲突。现有内容和服务得以保留，中断的迁移可以重试。",
-    "highlight4Title": "区分同名任务",
-    "highlight4": "按身份标识匹配服务商任务。不同的重复实例各有独立文件。已有的误报冲突可保留为独立任务。",
-    "highlight5Title": "比较文件时明确选择",
-    "highlight5": "显示两个文件的名称和位置。替换前的确认会列明来源与目标。如果期间文件发生变化，将重新加载比较。",
-    "highlight6Title": "移动导航留出更多空间",
-    "highlight6": "紧凑导航栏中的选中图标也会与边缘保持间距。点击区域足够大，预留空间随字号调整。",
+    "highlight1Title": "更可靠的连接与同步",
+    "highlight1": "中断的操作会按情况重试。登录问题和不确定的数据状态会得到更清晰的说明，同时保留本地更改。",
+    "highlight2Title": "精确搜索、嵌入与历史记录",
+    "highlight2": "跳转到匹配的文本，嵌入指定章节或块，并比较版本之间实际的行更改。",
+    "highlight3Title": "JEX 导入与数据库导出",
+    "highlight3": "将带附件的 Joplin 归档导入新文件夹。将支持的汇总导出为 Obsidian 公式，或明确选择导出为数值。任务元数据会予以保留。",
+    "highlight4Title": "清晰的邮件操作结果",
+    "highlight4": "批量操作会逐封显示成功与失败。附件筛选器会说明元数据不完整的情况；为账户添加服务时保留现有登录。",
+    "highlight5Title": "你的外观与日常操作",
+    "highlight5": "分别设置浅色和深色外观，也可选择同步个人设计。日记、窗口间交接以及待处理的分享内容更加可靠。",
+    "highlight6Title": "发布内容的反馈",
+    "highlight6": "有权限的接收者可以发表评论和修改建议。所有者可以审阅反馈，并在撤销接收者的访问权限后继续保留这些反馈。",
     "readBlog": "阅读博客文章",
     "understand": "知道了"
   },
@@ -4229,7 +4299,12 @@
     "noVaultTitle": "未打开任何知识库",
     "noVaultBody": "此窗口当前没有显示任何知识库。请选择最近使用的一个，或指定一个文件夹。",
     "revealNoTree": "没有带文件树的窗口正在显示此知识库。",
-    "ownerUnreachable": "主窗口没有响应。"
+    "ownerUnreachable": "主窗口没有响应。",
+    "returnToMain": "移回主窗口",
+    "transferFailed": "转移未完成。原标签页及其草稿已保留。",
+    "transferUnknown": "主窗口尚未确认。草稿仍保留在此处，请再次检查状态。",
+    "transferPending": "正在转移标签页。主窗口确认接收之前，它将在此处保持打开。",
+    "transferCheck": "再次检查状态"
   },
   "commentNotify": {
     "actionOpen": "打开",
@@ -4287,5 +4362,72 @@
     "retrySaved": "完成连接",
     "clientSecret": "客户端密钥（如有）",
     "googleClientUnsupported": "Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。"
+  },
+  "connectionFailure": {
+    "TLS_CERTIFICATE_EXPIRED": "服务器证书已过期。请在服务器上更新证书。",
+    "TLS_CERTIFICATE_NOT_YET_VALID": "服务器证书尚未生效。请检查设备时间和证书有效期。",
+    "TLS_HOSTNAME_MISMATCH": "证书与服务器地址不匹配。请检查地址和证书。",
+    "TLS_CERTIFICATE_UNTRUSTED": "此设备不信任该证书颁发机构。请检查服务器证书链和已安装的 CA。",
+    "TLS_HANDSHAKE_FAILED": "无法验证安全连接。请检查服务器证书和 TLS 配置。",
+    "HTTP_ORIGIN_BLOCKED": "连接或重定向的来源未经允许，已被阻止。请检查配置的服务器地址。",
+    "HTTP_TIMEOUT": "服务器未及时响应。Plainva 将重试。",
+    "HTTP_NETWORK_ERROR": "网络连接失败。连接恢复后 Plainva 将重试。",
+    "HTTP_REQUEST_FAILED": "无法完成请求。请检查连接设置和诊断导出。"
+  },
+  "workspaceSync": {
+    "transient": "连接暂时不可用。Plainva 将自动重试；待同步的更改会保留在此设备上。",
+    "authentication": "请重新登录同步帐户。在恢复访问之前，待同步的更改会保留在此设备上。",
+    "integrity": "Plainva 无法验证加密库。同步已暂停；本地数据和待同步的更改均会保留。请打开“安全与共享”，如有可验证的副本则将其恢复，然后重新检查。",
+    "fatal": "同步已暂停，直到连接问题得到解决。本地数据和待同步的更改均会保留。请检查连接后重试。",
+    "foreignLegacy": "其他设备的未加密批注文件仍保留在服务器上。只有原始设备才能完成转换。Plainva 不会删除其他设备的文件。"
+  },
+  "noteEmbed": {
+    "openSource": "打开来源",
+    "depth": "已达到嵌入的最大层级。",
+    "unreadable": "无法读取“{{target}}”。",
+    "missing": "未找到“{{target}}”。",
+    "ambiguous": "“{{target}}”对应多个笔记。请使用相对于仓库的路径。"
+  },
+  "searchResults": {
+    "loading": "正在搜索…",
+    "loaded": "已显示匹配项：{{count}}",
+    "more": "加载更多匹配项",
+    "line": "第 {{line}} 行",
+    "failed": "搜索失败。重试",
+    "empty": "没有匹配项。",
+    "changed": "修改后的文本中已不存在此匹配项。"
+  },
+  "driveDestination": {
+    "title": "云端硬盘同步目标",
+    "current": "当前目标",
+    "selected": "所选目标",
+    "folderId": "文件夹 ID：{{id}}",
+    "review": "检查预览",
+    "apply": "使用此目标",
+    "more": "加载更多项目",
+    "effect": "确认后，Plainva 将此库与所选文件夹同步。请检查现有文件。其他云端文件夹不会被移动或删除。"
+  },
+  "shareInbox": {
+    "title": "共享内容",
+    "waiting": "待处理的传输：{{count}}",
+    "review": "查看",
+    "destination": "保存位置",
+    "chooseVault": "选择 Vault",
+    "chooseFolder": "选择文件夹",
+    "locked": "此 Vault 已锁定。内容会继续保留在此设备上等待处理。",
+    "otherVault": "此传输属于另一个 Vault。请打开该 Vault 以继续。",
+    "targetChanged": "目标位置的内容已更改。待处理的副本已保留，没有覆盖任何内容。",
+    "writeFailed": "无法完成传输。待处理的内容已保留。",
+    "indexIssue": "已保存。搜索索引暂时无法更新。",
+    "saved": "共享内容已保存。",
+    "incomplete": "传输不完整。请重新共享原始内容；已接收的部分会保留，直到你将其丢弃。",
+    "receiving": "正在准备共享内容…",
+    "progress": "已保存 {{done}} 项，共 {{total}} 项",
+    "later": "稍后导入",
+    "import": "导入",
+    "discard": "丢弃待处理的项目",
+    "discardHint": "仅从设备移除此待处理的项目？已写入 Vault 的文件将保留。",
+    "readFailed": "无法读取待处理的内容。内容尚未删除。",
+    "retry": "重试"
   }
 }

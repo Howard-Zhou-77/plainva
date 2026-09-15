@@ -5,7 +5,9 @@ import {
   localIsoKey,
   nextDueDate,
   readRepeatRule,
+  readRepeatCompletionDay,
   writeNextOccurrenceNote,
+  withTaskCompletion,
   type TaskCompletionModel,
 } from "@plainva/ui";
 import { applyIndexChanges } from "./fileActions";
@@ -98,6 +100,10 @@ export async function toggleTaskDone(
   path: string,
   done: boolean
 ): Promise<TaskToggleResult> {
+  return withTaskCompletion(deps.vaultAdapter, path, () => toggleTaskDoneLocked(deps, path, done));
+}
+
+async function toggleTaskDoneLocked(deps: TaskToggleDeps, path: string, done: boolean): Promise<TaskToggleResult> {
   const model = deps.completion;
   await writeTaskNote(deps, path, (raw) =>
     applyTaskCompletion(raw, model, done, (c, p) => readFrontmatterPath(c, p), (c, p, v) => setFrontmatterPath(c, p, v))
@@ -128,7 +134,8 @@ export async function spawnNextOccurrence(
   const rule = readRepeatRule(raw);
   if (!rule || !canRepeat(raw)) return { spawnedDue: null, spawnFailed: false };
   const currentDue = deps.dueKey ? String(readFrontmatterPath(raw, [deps.dueKey]) ?? "").slice(0, 10) : null;
-  const next = nextDueDate(rule, currentDue || null, localIsoKey(new Date()));
+  const completedOn = readRepeatCompletionDay(raw) ?? localIsoKey(new Date());
+  const next = nextDueDate(rule, currentDue || null, completedOn);
   if (!next) return { spawnedDue: null, spawnFailed: false };
 
   // Reopen the copy, carry the rule, set the new due date.
@@ -147,7 +154,7 @@ export async function spawnNextOccurrence(
   // stated again, deliberately.
   content = deleteFrontmatterPath(content, ["blockedBy"]);
 
-  const created = await writeNextOccurrenceNote(deps.vaultAdapter, path, content);
+  const created = await writeNextOccurrenceNote(deps.vaultAdapter, path, content, completedOn);
   if (!created) return { spawnedDue: null, spawnFailed: false };
   if (deps.indexer) await applyIndexChanges(deps.indexer, { added: [created] }).catch(() => undefined);
   deps.triggerFileTreeUpdate([created]);

@@ -69,6 +69,10 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'plugin:store|save') return null;
+        if (cmd === 'plugin:store|delete') {
+          const store = readStore(), existed = args.key in store;
+          delete store[args.key]; writeStore(store); return existed;
+        }
 
         if (cmd === 'plugin:dialog|ask') return true;
         if (cmd === 'plugin:dialog|confirm') return true;
@@ -250,6 +254,66 @@ test('A canonical German dub line unlocks LCARS with its variant — in the Engl
   // Accessibility smoke under LCARS (settings open on purpose — worst case).
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations.filter(v => ['critical', 'serious'].includes(v.impact ?? ''))).toEqual([]);
+});
+
+test('My design preserves the legacy mood until adoption and follows System with both', async ({ page }) => {
+  const legacy = { mode: 'dark', background: '#102221', accent: '#66d8ce', fontUi: '', radius: 'soft' };
+  await page.addInitScript(spec => {
+    const data = JSON.parse(localStorage.getItem('pvE2EStore') || '{}');
+    if (!data.customTheme) localStorage.setItem('pvE2EStore', JSON.stringify({ ...data, customTheme: spec, themeName: 'custom', theme: 'system' }));
+  }, legacy);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await openApp(page);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
+  await page.getByTestId('theme-card-custom-edit').click();
+  await page.getByTestId('custom-theme-mood-light').click();
+  await expect(page.getByTestId('custom-theme-adopt-mood')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('pvE2EStore') || '{}').customTheme);
+  expect(await saved()).toEqual(legacy);
+  await page.getByTestId('custom-theme-adopt-mood').click();
+  await expect.poll(async () => (await saved()).version).toBe(2);
+  expect((await saved()).dark).toEqual(legacy);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect((await saved()).dark).toEqual(legacy);
+});
+
+test('My design opts in, retains concurrent variants and keeps its appearance after opting out', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
+  await page.getByTestId('theme-card-custom-edit').click();
+  const sync = page.getByTestId('custom-theme-sync'), toggle = sync.getByRole('switch');
+  await expect(toggle).toBeEnabled(); await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await toggle.click(); await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await page.evaluate(async () => {
+    // Real controller/import path; only the two remote envelopes are fixtures.
+    // @ts-expect-error Vite resolves this browser-only absolute module path.
+    const { desktopPersonalDesignForEditor } = await import('/src/services/personalDesign.ts');
+    const c = await desktopPersonalDesignForEditor('/test-vault'), baseline = (await c.read()).profile!;
+    const head = baseline.variants[0];
+    for (const [device, radius] of [['remote-a', 'soft'], ['remote-b', 'sharp']]) {
+      await c.receive({ version: 1, variants: [{ device, counter: 1, clock: { ...head.clock, [device]: 1 },
+        design: { ...head.design, radius },
+      }] });
+    }
+  });
+  const variants = sync.getByRole('button', { name: /Use variant|Variante .* übernehmen/ });
+  await expect(variants).toHaveCount(2);
+  await variants.last().scrollIntoViewIfNeeded();
+  await sync.screenshot({ path: test.info().outputPath('personal-design-conflict.png') });
+  await variants.last().click(); await expect(variants).toHaveCount(0);
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('pvE2EStore')!).customTheme);
+  expect(before.radius).toBe('sharp');
+  await toggle.click(); await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await page.reload();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pvE2EStore')!).customTheme)).toEqual(before);
 });
 
 test('Theme cards switch bundled themes; single-mode themes pin the mode', async ({ page }) => {

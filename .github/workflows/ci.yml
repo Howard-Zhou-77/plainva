@@ -80,6 +80,9 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm --filter desktop exec playwright install --with-deps chromium
 
+      - name: Core package consumer smoke
+        run: npm --prefix packages/core run smoke:package
+
       - name: E2E tests
         run: xvfb-run pnpm --filter desktop run test:e2e
 

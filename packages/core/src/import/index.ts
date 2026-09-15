@@ -78,3 +78,4 @@ defaultImportRegistry.register(new TiddlyWikiImporter());
 defaultImportRegistry.register(new TanaPasteImporter());
 defaultImportRegistry.register(new RemNoteImporter());
 defaultImportRegistry.register(new HtmlFolderImporter());
+export * from './tarArchive.js';

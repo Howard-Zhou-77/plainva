@@ -416,6 +416,7 @@ pub fn run() {
             mail_imap::mail_set_seen,
             mail_imap::mail_set_flagged,
             mail_imap::mail_move_message,
+            mail_imap::mail_bulk_action,
             mail_imap::mail_set_junk,
             mail_imap::mail_create_mailbox,
             mail_sieve::mail_sieve_get,

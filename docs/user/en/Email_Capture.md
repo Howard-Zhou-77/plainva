@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-15
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -12,7 +12,7 @@ Plainva can read your mailbox to get knowledge out of email and into your vault,
 
 - **Microsoft** — for Outlook.com and Microsoft 365: tick **Email** in the services step (on request together with **Files** and **Calendar & tasks** — one account, one sign-in) and sign in directly in the browser, with no app password and no IMAP. Plainva uses the central Plainva app registration (you can optionally supply your own app ID in the account details). Reading, capturing and **sending directly** all go through the Microsoft sign-in.
 - **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — dedicated tiles: email address plus an **app password**, the servers are already filled in (most of these tiles also let you tick **Calendar & tasks** in the same step — one app password for every chosen service). The assistant links each provider's official guide for creating the app password.
-- **Email server (IMAP)** — for every other provider: host, port and a password or **app password**. Ready-made presets cover providers from all over the world — from **web.de**/**GMX** and **T-Online** through **Orange**, **Libero**, **WP**, **Seznam** and **Comcast** to **QQ Mail**, **NetEase**, **Naver** and **Yahoo! JAPAN**; the **Provider** select has a search line for them, and typing your address picks the matching preset automatically. Where a provider has quirks, the assistant says so right below the form: some require an **app password** or an **authorization code** instead of the account password, others need IMAP enabled in the provider's settings first — each with a link to the official guide. For Gmail that is `imap.gmail.com`, port `993`, with an app password from [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requires 2-factor authentication) — no OAuth, no verification; the assistant points this out itself for Gmail addresses. **Outlook.com mailboxes** can no longer connect via password IMAP (Microsoft turned that path off) — the preset points to the **Microsoft** tile. **Proton Mail** works only through the locally running, paid Proton Mail Bridge (its own preset). Add an SMTP host to send directly.
+- **Email server (IMAP)** — for every other provider: host, port and a password or **app password**. Ready-made presets cover providers from all over the world — from **web.de**/**GMX** and **T-Online** through **Orange**, **Libero**, **WP**, **Seznam** and **Comcast** to **QQ Mail**, **NetEase**, **Naver** and **Yahoo! JAPAN**; the **Provider** select has a search line for them, and typing your address picks the matching preset automatically. Where a provider has quirks, the assistant says so right below the form: some require an **app password** or an **authorization code** instead of the account password, others need IMAP enabled in the provider's settings first — each with a link to the official guide. For Gmail that is `imap.gmail.com`, port `993`, with an app password from [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requires 2-factor authentication) — a separate app-password sign-in; the assistant points this out itself for Gmail addresses. **Outlook.com mailboxes** can no longer connect via password IMAP (Microsoft turned that path off) — the preset points to the **Microsoft** tile. **Proton Mail** works only through the locally running, paid Proton Mail Bridge (its own preset). Add an SMTP host to send directly.
 
 Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The connected mailboxes and the capture settings then live in the **Email** area: the **Mail folder** setting chooses where captured emails are stored (default `Mail`).
 
@@ -137,3 +137,18 @@ Gmail rules are still set up in Google's own settings.
 ## Extend existing accounts
 
 Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+
+<!-- gmail-oauth-2026-09-14 -->
+## Sign in to Gmail with Google
+
+A configured test build shows **Sign in with Google · Test** in email accounts. This access is not generally available yet. Desktop and iOS use the system browser; Android uses the native Google account picker. Plainva verifies the selected account and the actual mail permissions before adding to its existing services. A different Google account, cancellation or refused consent does not replace an existing sign-in.
+
+Google requires full mail access for IMAP and SMTP. Sign-in stays on this device; OAuth tokens do not travel through vault sync. Email you capture as a note or EML file becomes vault content: its storage location, sharing and sync settings apply. Existing Gmail app passwords remain usable.
+
+## Multiple messages, attachments and keyboard
+
+Select several messages to mark them read or unread, move them or delete them together. Confirmed changes update the list; unconfirmed messages remain selected, with a report for each message. Cancel stops after the current batch. Reload the folder before retrying an uncertain action. If the server cannot perform a targeted move or deletion, Plainva explains why and leaves unrelated messages alone.
+
+**With attachments** filters loaded messages. The notice states how many have known metadata. Missing metadata does not mean there are no attachments; further pages can contain more matches.
+
+With a mobile hardware keyboard, Up/Down and Home/End move focus within the mail list. Enter opens the message or selects it in selection mode. Left/Right fold or unfold conversations; Escape clears selection or cancels subsequent batches. Search fields retain normal editing keys.

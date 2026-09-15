@@ -104,6 +104,29 @@ describe.each(["bundle", "memory", "sql"] as const)("comment decisions through %
 });
 
 describe("verified recovery of old SQL decision markers", () => {
+  it("rebuilds moderation from SQL after a marker overtakes its target, preserving duplicate delivery", async () => {
+    const ctx = await workspace("sql"), targetId = id(800);
+    const object = (await ctx.state.getObjectByPath("note.md"))!;
+    // Go through the real queue, signatures, transport and durable operation
+    // journal. The previously accepted target arrives in a later cycle.
+    await ctx.newStore().post({ path: "note.md", body: "", retractsCommentId: targetId,
+      identity: { commentId: id(801), createdAt: at(20) } });
+    await ctx.worker.runCycle();
+    expect(await ctx.state.listCommentOutbox()).toEqual([]);
+    const target: WorkspaceCommentRecord = { commentId: targetId, targetObjectId: object.objectId,
+      targetRevisionId: object.currentRevisionId!, parentCommentId: null, authorMemberId: id(802),
+      authorDeviceId: id(803), operationHash: "a".repeat(64), payloadHash: "b".repeat(64), body: "Late remark",
+      anchor: null, suggestion: null, createdAt: at(10), resolvedCommentId: null, resolvedAt: null };
+    const reopened = new SqlWorkspaceStateStore(ctx.db);
+    await reopened.saveComment(target);
+    expect(await reopened.listComments(object.objectId)).toHaveLength(1);
+    await new EncryptedWorkspaceWorker(ctx.remote, reopened, ctx.raw, ctx.runtime).runCycle();
+    expect(await reopened.listComments(object.objectId)).toEqual([]);
+    await reopened.saveComment(target);
+    expect(await new SqlWorkspaceStateStore(ctx.db).listComments(object.objectId)).toEqual([]);
+    expect((await reopened.getComment(targetId))?.retractedAt).toBe(at(20));
+  });
+
   async function oldState() {
     const ctx = await workspace("sql");
     const store = ctx.newStore();

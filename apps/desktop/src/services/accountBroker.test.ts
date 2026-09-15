@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import type { CloudAccountRecord, StoredAccountToken } from "@plainva/ui";
+import { primaryAccountToken, type CloudAccountRecord, type StoredAccountToken } from "@plainva/ui";
 
 const secrets = new Map<string, StoredAccountToken>();
 const cloudRecords: CloudAccountRecord[] = [];
@@ -98,7 +98,7 @@ describe("microsoft account scopes", () => {
     expect(a).not.toBe(accountSecretKey("/vault/one", "acc2"));
   });
 
-  it("stores a changed client without the old grant in the same local slot", async () => {
+  it("stores a changed client without pairing it with the old client's grant", async () => {
     const key = accountSecretKey("/vault/one", "acc1");
     secrets.set(key, {
       clientId: "old-client",
@@ -111,7 +111,7 @@ describe("microsoft account scopes", () => {
       clientId: "new-client",
       clientSecret: "new-secret",
     })).resolves.toBe(true);
-    expect(secrets.get(key)).toEqual({
+    expect(primaryAccountToken(secrets.get(key))).toEqual({
       clientId: "new-client",
       clientSecret: "new-secret",
       refreshToken: "",
@@ -131,8 +131,9 @@ describe("google account scopes", () => {
     expect(googleScopeFor("calendar")).toContain("auth/calendar");
   });
 
-  it("refuses a mail token: Gmail is IMAP with an app password, not OAuth", () => {
-    expect(() => googleScopeFor("mail")).toThrow(/unknown Google audience/);
+  it("requests the Gmail IMAP/SMTP scope only for the mail audience", () => {
+    expect(googleScopeFor("mail")).toContain("https://mail.google.com/");
+    expect(googleScopeFor("files")).not.toContain("https://mail.google.com/");
   });
 
   it("names exactly the families that can share one token", () => {
@@ -156,6 +157,14 @@ describe("google account scopes", () => {
  * working account into a permanent 401 that no amount of signing in could fix.
  */
 describe("google account tokens are only used for the services they cover", () => {
+  it("serves a Gmail mailbox from its confirmed grant without routing a different mailbox to it", async () => {
+    const vault = "gmail-vault";
+    cloudByVault.set(vault, [{ id: "gmail", family: "google", label: "Gmail", services: { mail: { mailAccountId: "gmail-box" } } }]);
+    secrets.set(accountSecretKey(vault, "gmail"), { clientId: "gmail-client", refreshToken: "gmail-refresh", scopes: googleScopeFor("mail") });
+    const provider = await brokerTokenProvider(vault, "mail", "gmail-box");
+    await expect(provider?.(false)).resolves.toBe("AT-GOOGLE");
+    expect(await brokerTokenProvider(vault, "mail", "other-mailbox")).toBeUndefined();
+  });
   const V = "/vault";
   const card: CloudAccountRecord = {
     id: "g1",
@@ -413,7 +422,7 @@ describe("two vaults holding the same account", () => {
     await saveAccountToken(A, "a1", { clientId: "cid", refreshToken: "new-consent", scopes: microsoftScopeFor("files") });
     release(); await failure;
     await expect(provider(false)).resolves.toBe("AT-MICROSOFT");
-    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("new-consent");
+    expect(primaryAccountToken(secrets.get(accountSecretKey(A, "a1")))?.refreshToken).toBe("new-consent");
     expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("RT-1");
   });
 

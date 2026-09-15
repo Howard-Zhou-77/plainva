@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ComposeEditor } from "./ComposeEditor";
 import { Users } from "lucide-react";
-import { Button, ChipField, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
+import { Button, ChipField, EmptyState, GmailSignInButton, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
+import { desktopGmailClient, signInGmail } from "../../services/mail/gmailAuth";
 import { checkMailLogin, listMailAccounts, mailAccountKind, normalizeSenderAddress, senderOptions, setMailPassword, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
 import { deviceSignInStates, type DeviceSignInState } from "../../services/deviceSignIn";
 import { AccountMark } from "../settings/cloudAccountsShared";
@@ -49,7 +50,7 @@ function MailAccountRow({
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const oauth = mailAccountKind(account) === "microsoft";
+  const oauth = mailAccountKind(account) !== "imap";
   const needsSignIn = signedIn !== "active";
 
   const signIn = useCallback(async () => {
@@ -82,7 +83,7 @@ function MailAccountRow({
         <div className="pv-acct-who">
           <div className="pv-acct-name">{account.label}</div>
           <div className="pv-acct-id">
-            {oauth ? "Microsoft" : `${account.host}:${account.port}`}
+            {account.kind === "gmail" ? "Gmail" : oauth ? "Microsoft" : `${account.host}:${account.port}`}
           </div>
         </div>
         {needsSignIn && !oauth && (
@@ -90,7 +91,7 @@ function MailAccountRow({
             {t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
           </Button>
         )}
-        {needsSignIn && oauth && onOpenCloudAccounts && (
+        {needsSignIn && account.kind !== "gmail" && oauth && onOpenCloudAccounts && (
           <Button variant="primary" onClick={() => onOpenCloudAccounts(account.id)} data-testid="mail-signin-oauth">
             {t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
           </Button>
@@ -101,6 +102,11 @@ function MailAccountRow({
           </Button>
         )}
       </div>
+      {needsSignIn && account.kind === "gmail" && desktopGmailClient() && <GmailSignInButton onSignIn={async () => {
+        const record = (await loadCloudAccounts(vaultPath)).find(row => row.services.mail?.mailAccountId === account.id);
+        if (!record) throw new Error("The account changed during sign-in");
+        await signInGmail(vaultPath, record); onSignedIn();
+      }} />}
       {/* The description is deliberately the SAME sentence the phone shows for
           the same situation — two surfaces explaining one fact in two wordings
           is how they drift apart. */}
@@ -296,6 +302,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   return (
     <div data-testid="mail-accounts">
       <SettingCard label={t("cloudAccounts.mailboxesGroup")}>
+        {desktopGmailClient() && <GmailSignInButton onSignIn={async () => { await signInGmail(vaultPath); await reload(); }} />}
         {accounts.length === 0 && (
           <EmptyState title={t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })} icon={<Users size={ICON.empty} />}>
             {onOpenCloudAccounts && (

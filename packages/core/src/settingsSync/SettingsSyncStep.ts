@@ -45,6 +45,9 @@ export interface ProfileSettingsPort {
    * chance to normalize it.
    */
   normalizeValues?(values: Record<string, unknown>): Record<string, unknown>;
+  /** Domain registers may join all observed versions before ordinary LWW.
+   * Return only owned fields; an absent value must never erase a register. */
+  mergeObservedValues?(versions: readonly Record<string, unknown>[]): Record<string, unknown>;
 }
 
 /**
@@ -333,6 +336,22 @@ export class SettingsSyncStep {
       deviceId: this.options.deviceId,
       now: (this.options.now ?? (() => new Date().toISOString()))(),
     });
+
+    // Join custom registers even on first participation and when local LWW
+    // would win. Applying only the winning document would lose unseen forks.
+    const joined = this.options.port.mergeObservedValues?.([
+      current, local?.values ?? {}, remote?.values ?? {}, stalePlaintext?.values ?? {},
+    ]);
+    if (joined && Object.keys(joined).length) {
+      const base = decision.upload ?? decision.writeLocal ?? local ?? remote;
+      const desired = { ...(decision.applyToStore ?? current), ...joined };
+      const next = reconcileProfile({ current: desired, local: base, remote: base,
+        deviceId: this.options.deviceId, now: (this.options.now ?? (() => new Date().toISOString()))(),
+      });
+      if (next.writeLocal) decision.writeLocal = next.writeLocal;
+      if (next.upload) decision.upload = next.upload;
+      if (stableStringify(desired) !== stableStringify(current)) decision.applyToStore = desired;
+    }
 
     const localWriteBase =
       decision.writeLocal

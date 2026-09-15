@@ -1,3 +1,7 @@
+import { useWindowBookmarks } from "./hooks/useWindowBookmarks";
+import { useTabTransferSource, useTabTransferTarget } from "./hooks/useTabTransfer";
+import { COMPARISON_PREFIX } from "./services/comparisonWindow";
+const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
@@ -13,7 +17,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ICON, isImagePath, RECENTS_MAX, parkTreeReveal, parseBookmarksFile, rememberSearch, removeBookmarksOnDisk, SearchField, serializeBookmarksFile, toggleBookmarkOnDisk, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -46,8 +50,8 @@ import { PaneTabStrip } from "./components/PaneTabStrip";
 import { TabContextMenu } from "./components/TabContextMenu";
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
-import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate, makeDailyPathProvider } from "./services/dailyNotes";
-import { applyTemplateInteractive, pokeTemplateCaret } from "./services/templateInteractive";
+import { listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
+import { useDailyNoteAction } from "./hooks/useDailyNoteAction";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
@@ -232,7 +236,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
-  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const { bookmarks, toggleBookmark, removeBookmarks } = useWindowBookmarks(vaultAdapter, vaultPath);
   // The two sides need different floors (plan P3): on the left a narrow strip
   // still works — file names simply truncate — while on the right no section is
   // usable below 200 px. The calendar, the property rows and the graph all need
@@ -292,7 +296,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     try { return vaultAdapter ? await vaultAdapter.exists(p) : false; } catch { return false; }
   }, [vaultAdapter]);
   const {
-    layout, splitRatio, activePane, activePath, isSplit, activeSplitDirection,
+    layout, layoutReady, adoptTransferredTab, splitRatio, activePane, activePath, isSplit, activeSplitDirection,
     openTab, openInFocusedPane, focusOrOpenVirtual, openInOtherPane, openPathInSplit, navigateTab, selectTab, closeTab, closeTabsBulk, toggleTabPinned, closeTabsByPrefix,
     renameTabPrefix, focusPane, splitEditor, splitEditorWithTab, moveTabTo, setSplitRatio, normalizeNow,
   } = usePaneLayout({
@@ -324,6 +328,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // key.
     layoutScope: windowLabel,
   });
+  useTabTransferTarget(vaultPath, vaultAdapter, layoutReady, !windowLabel, adoptTransferredTab);
+  const tabTransfer = useTabTransferSource(vaultPath, windowLabel ?? null, layout, selectTab, closeTab);
 
   /**
    * Remark notifications (Stufe F, F2).
@@ -611,101 +617,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     };
   }, [vaultPath, vaultAdapter]);
 
-  // Load bookmarks
-  useEffect(() => {
-    if (!vaultPath || !vaultAdapter) {
-      setBookmarks([]);
-      return;
-    }
-    const loadBookmarks = async () => {
-      try {
-        let plainvaBookmarks: string[] = [];
-        let obsidianBookmarks: string[] = [];
-
-        // Check Obsidian bookmarks
-        try {
-          const obsData = await vaultAdapter.readTextFile(".obsidian/bookmarks.json");
-          const obsJson = JSON.parse(obsData);
-          if (obsJson.items) {
-             const extractFiles = (items: any[]) => {
-               let res: string[] = [];
-               for (const item of items) {
-                 if (item.type === "file" && item.path) res.push(item.path);
-                 if (item.type === "group" && item.items) res.push(...extractFiles(item.items));
-               }
-               return res;
-             };
-             obsidianBookmarks = extractFiles(obsJson.items);
-          }
-        } catch(e) {
-          console.debug("No obsidian bookmarks or parse error", e);
-        }
-
-        // Check Plainva bookmarks (shared parser accepts the legacy mobile
-        // bare-array shape too — .plainva/bookmarks.json is one contract now)
-        let plainvaBookmarksExisted = false;
-        try {
-          const plData = await vaultAdapter.readTextFile(".plainva/bookmarks.json");
-          const plFile = parseBookmarksFile(plData);
-          plainvaBookmarks = plFile.paths;
-          plainvaBookmarksExisted = plFile.existed;
-        } catch(e) {
-          console.debug("No plainva bookmarks or parse error", e);
-        }
-
-        // Merge without overwriting
-        const merged = Array.from(new Set([...plainvaBookmarks, ...obsidianBookmarks]));
-
-        // Save back if there were obsidian bookmarks imported that weren't in plainva
-        if (obsidianBookmarks.length > 0 && merged.length > plainvaBookmarks.length || !plainvaBookmarksExisted && merged.length > 0) {
-          await vaultAdapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(merged));
-        }
-
-        setBookmarks(merged);
-      } catch (e) {
-        console.error("Failed to load bookmarks", e);
-      }
-    };
-    loadBookmarks();
-  }, [vaultPath, vaultAdapter]);
-
-  /**
-   * The list is re-read from disk before it is written (multi-window C1).
-   *
-   * Since stage C two windows can draw the same bookmark list, and each holds
-   * its own copy in React state. Writing the whole file from that copy means the
-   * second window's star quietly drops whatever the first one added. The shared
-   * helper does read-modify-write — the shape `pushRecent` has always had — so
-   * the state below is a mirror of the file rather than its source.
-   */
-  const toggleBookmark = (path: string) => {
-    if (!vaultPath || !vaultAdapter) return;
-    // Optimistic, so the star flips under the finger; the disk answer wins.
-    setBookmarks(prev => (prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]));
-    void toggleBookmarkOnDisk(vaultAdapter, path)
-      .then(setBookmarks)
-      .catch((e) => {
-        // The optimistic state update already happened — a silent write
-        // failure would leave bookmarks permanently out of sync with disk.
-        console.error("Failed to persist bookmarks", e);
-        toast.error(t("sidebar.bookmarkSaveFailed"));
-      });
-  };
-
-  // An auxiliary window (multi-window P2) has the star in its graph but not the
-  // list: it asks over the bus, and the owner handler writes the file of the
-  // vault it is bound to. What arrives here is the RESULT -- and it is checked,
-  // because since stage D this window may well be drawing a different vault.
-  useEffect(() => {
-    const onChanged = (e: Event) => {
-      const detail = (e as CustomEvent<{ vaultPath?: string; bookmarks?: string[] }>).detail;
-      if (!detail || detail.vaultPath !== vaultPath) return;
-      if (Array.isArray(detail.bookmarks)) setBookmarks(detail.bookmarks);
-    };
-    window.addEventListener("plainva-bookmarks-changed", onChanged);
-    return () => window.removeEventListener("plainva-bookmarks-changed", onChanged);
-  }, [vaultPath]);
-
   // index.md auto-update (plan UI-UX P11): file operations report themselves
   // via "plainva-file-ops" AFTER their reindex; managed listings of the
   // affected folders refresh debounced. Loop-free: index.md writes are
@@ -821,14 +732,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     for (const p of paths) closeTabsByPrefix(p);
     const gone = new Set(paths);
     if (!bookmarks.some((b) => gone.has(b))) return;
-    setBookmarks((prev) => prev.filter((b) => !gone.has(b)));
-    if (!vaultAdapter) return;
-    void removeBookmarksOnDisk(vaultAdapter, paths)
-      .then(setBookmarks)
-      .catch((e) => {
-        console.error("Failed to persist bookmarks", e);
-        toast.error(t("sidebar.bookmarkSaveFailed"));
-      });
+    removeBookmarks(paths);
   });
 
   // Drag the divider between the two panes to change their size ratio (the hook clamps
@@ -1155,45 +1059,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
 
   // Calendar click: open the daily note for the picked date, creating it from
   // the template if it doesn't exist yet.
-  const handleOpenDailyNote = async (date: Date) => {
-    if (!vaultPath || !vaultAdapter || !indexer) return;
-    try {
-      // No confirmation (plan § 7.2): six entry points used to disagree about
-      // whether creating a daily note needs asking. Creating one is harmless and
-      // undoable, so the answer is the same everywhere — just do it.
-      const path = await resolveOrCreateDailyNote(date, {
-        vaultPath,
-        adapter: vaultAdapter,
-        onIndex: () => indexer.indexVaultFull(),
-        confirmCreate: false,
-        onCreated: (p) => notifyFileOps([{ type: "create", path: p }]),
-        // Opening a daily note is a deliberate act, so its template may ask
-        // (plan Vorlagen-Engine, P3). A template without questions still opens
-        // no dialog; cancelling creates no note at all.
-        resolveTemplate: async (raw, ctx) =>
-          applyTemplateInteractive(
-            raw,
-            {
-              ...ctx,
-              vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-              // A daily note is the one place where "yesterday" and "tomorrow"
-              // are obvious, so `{{daily±N}}` belongs here. Without the provider
-              // the token has nothing to resolve against and would stay visible
-              // in every note the template writes.
-              dailyPath: await makeDailyPathProvider(vaultPath, ctx.now),
-            },
-            t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
-          ),
-      });
-      if (path) {
-        triggerFileTreeUpdate();
-        openInFocusedPane(path);
-        pokeTemplateCaret(path);
-      }
-    } catch (e) {
-      console.error("Failed to open daily note from calendar", e);
-    }
-  };
+  const handleOpenDailyNote = useDailyNoteAction(openInFocusedPane);
 
   /** "+ → Tageseintrag" and the palette: today's note, same path as the calendar. */
   const openTodayDailyNote = () => handleOpenDailyNote(new Date());
@@ -1575,6 +1441,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <MailView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} isActivePane={isActivePane} />
                       </Suspense>
+                    ) : path.startsWith(COMPARISON_PREFIX) ? (
+                      <Suspense fallback={null}><ComparisonWindow key={path} path={path} onClose={() => closeTab(i, pane.activeIndex)} /></Suspense>
                     ) : path === COMMENTS_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <CommentsOverview onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
@@ -1925,11 +1793,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             // finding 2026-08-23). Everything else in this menu stays file-only
             // because a view has no path to rename, bookmark or reveal.
             onOpenInNewWindow={tabPath ? () => openInNewWindow(tabPath) : undefined}
+            onReturnToMain={windowLabel && tabPath ? () => { void tabTransfer.start(tabMenu.paneIndex, tabMenu.tabIndex); } : undefined}
           />
         );
       })()}
       <TemplatePickerModal isOpen={showTemplatePicker} onClose={() => setShowTemplatePicker(false)} />
       {children}
+      {tabTransfer.modal}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { VaultFileNotFoundError } from "@plainva/core";
 import {
   BOOKMARKS_FILE,
   parseBookmarksFile,
@@ -56,6 +57,21 @@ function createDisk(initial: string[]) {
 }
 
 describe("changing bookmarks with two windows open (multi-window C1)", () => {
+  it("serializes simultaneous read-modify-write requests", async () => {
+    const disk = createDisk(["A.md"]);
+    await Promise.all([toggleBookmarkOnDisk(disk.io, "B.md"), toggleBookmarkOnDisk(disk.io, "C.md")]);
+    expect(disk.read()).toEqual(["A.md", "B.md", "C.md"]);
+  });
+
+  it("keeps an existing file intact when its read fails or its contents are invalid", async () => {
+    const writes: string[] = [];
+    const io: BookmarksIO = { readTextFile: async () => { throw new Error("permission denied"); }, writeTextFile: async (_path, text) => { writes.push(text); } };
+    await expect(toggleBookmarkOnDisk(io, "New.md")).rejects.toThrow("permission denied");
+    io.readTextFile = async () => "{invalid";
+    await expect(toggleBookmarkOnDisk(io, "New.md")).rejects.toThrow("Unreadable bookmarks");
+    expect(writes).toEqual([]);
+  });
+
   it("keeps what the other window added", async () => {
     const disk = createDisk(["A.md"]);
     // Window 1 stars B while window 2 still believes the list is ["A.md"].
@@ -88,7 +104,7 @@ describe("changing bookmarks with two windows open (multi-window C1)", () => {
     let text: string | null = null;
     const io: BookmarksIO = {
       readTextFile: async () => {
-        throw new Error("not found");
+        throw new VaultFileNotFoundError(BOOKMARKS_FILE);
       },
       writeTextFile: async (path, content) => {
         expect(path).toBe(BOOKMARKS_FILE);

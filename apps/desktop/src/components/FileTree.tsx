@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { ICON, toast, errorText } from "@plainva/ui";
+import { ICON, toast, errorText, useSearchPages, Button } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isInternalPath, VaultQueryService } from "@plainva/core";
+import { isInternalPath, VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database,
@@ -377,7 +377,7 @@ export const FileTree: React.FC<{
   // Performance telemetry removed to reduce console noise
   const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
   const docIcons = useDocumentIcons();
-  const [files, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null }[]>([]);
+  const [treeFiles, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null; occurrence?: SearchOccurrence }[]>([]);
   const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [newItemParams, setNewItemParams] = useState<{ type: "file" | "folder" | "base", parentPath: string, template?: string } | null>(null);
@@ -419,6 +419,12 @@ export const FileTree: React.FC<{
   // The sidebar owns the search box (plan Suche P3); the built-in fallback
   // field is gone — without an externalQuery the tree simply shows everything.
   const effectiveQuery = externalQuery ?? "";
+  const searchPage = useSearchPages(queryService, effectiveQuery, fileTreeVersion);
+  // Derive search rows in the same render as the query. An effect mirror
+  // briefly rendered every tree entry as a search hit before the first page.
+  const files: typeof treeFiles = useMemo(() => effectiveQuery.trim()
+    ? searchPage.hits.map(r => ({ path: r.path, title: r.title || r.path, snippet: r.snippet ?? null, titleHl: r.titleHighlighted ?? null, occurrence: r.occurrence }))
+    : treeFiles, [effectiveQuery, searchPage.hits, treeFiles]);
 
   // Folders are invisible to the SQL index (only file rows exist), so they
   // need a recursive DISK listing — the expensive half of every tree refresh.
@@ -479,18 +485,6 @@ export const FileTree: React.FC<{
           // content-only autosave does not rebuild + re-render the whole tree.
           // Under a time sort the times ARE tree-relevant (a save moves the row).
           if (!cancelled) setFiles((prev) => (sameTreeFiles(prev, allFiles, sort.key !== "title") ? prev : allFiles));
-        } else {
-          // FTS5 search — prefix matching + snippets/title highlight (P1/P2).
-          const { perfMeasure } = await import("../services/perfMetrics");
-          const results = await perfMeasure("sidebar search", () => queryService.searchFullText(effectiveQuery));
-          if (!cancelled) {
-            setFiles(results.map(r => ({
-              path: r.path,
-              title: r.title || r.path,
-              snippet: r.snippet ?? null,
-              titleHl: r.titleHighlighted ?? null,
-            })));
-          }
         }
 
         // Pending (local_ahead) indicator only makes sense with an active sync
@@ -510,14 +504,12 @@ export const FileTree: React.FC<{
         }
       } catch (e) {
         console.error("Error fetching files:", e);
-        // A failed search must not leave stale rows standing.
-        if (!cancelled && effectiveQuery.trim() !== "") setFiles([]);
       }
     };
 
     fetchFiles();
     return () => { cancelled = true; };
-  }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders]);
+  }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders, sort.key]);
 
   const folderPaths = useMemo(() => collectFolderPaths(files), [files]);
   // Which folders already carry an overview note: the context menu says "refresh" there (shared row list).
@@ -1172,7 +1164,9 @@ export const FileTree: React.FC<{
   if (files.length === 0) {
     content = (
       <div style={{ padding: "1rem", color: "var(--text-faint)", textAlign: "center", fontSize: "var(--text-md)" }}>
-        {isSearching ? t("sidebar.noResults") : t("fileTree.noNotes")}
+        {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
+        {isSearching && searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("sync.retryNow")}</Button>}
+        {isSearching && searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
       </div>
     );
   } else if (isSearching) {
@@ -1194,7 +1188,19 @@ export const FileTree: React.FC<{
 
       return (
         <div
-          key={file.path}
+          key={file.path + ":" + (file.occurrence?.from ?? "file")}
+          data-search-occurrence=""
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); event.currentTarget.click(); }
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault(); event.stopPropagation();
+              const rows = Array.from(event.currentTarget.closest("[data-search-results]")?.querySelectorAll<HTMLElement>("[data-search-occurrence]") ?? []);
+              const next = rows.indexOf(event.currentTarget) + (event.key === "ArrowDown" ? 1 : -1);
+              rows[Math.max(0, Math.min(rows.length - 1, next))]?.focus();
+            }
+          }}
           onClick={(e) => {
             if (isRenaming) return;
             const plainClick = !e.ctrlKey && !e.metaKey && !e.shiftKey;
@@ -1204,7 +1210,7 @@ export const FileTree: React.FC<{
             // jump is PARKED (the editor pane may not be mounted yet) and
             // mounted panes get poked via the event.
             if (plainClick && searchJumpTerm) {
-              setPendingSearchJump({ path: file.path, term: searchJumpTerm });
+              setPendingSearchJump({ path: file.path, term: searchJumpTerm, ...file.occurrence });
               window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: file.path } }));
             }
           }}
@@ -1261,6 +1267,7 @@ export const FileTree: React.FC<{
                   {folder}
                 </div>
               )}
+              {file.occurrence && <div className="pv-search-context">{file.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: file.occurrence.line })}</div>}
               {file.snippet && hasSnippetMark(file.snippet) && (
                 <div className="pv-search-snippet" style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                   {renderSnippetNodes(file.snippet)}
@@ -1280,15 +1287,18 @@ export const FileTree: React.FC<{
     const showGroupHeaders = searchGroups.name.length > 0 && searchGroups.content.length > 0;
 
     content = (
-      <>
+      <div data-search-results="">
         <div style={{ padding: "2px 8px 4px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-          {t("sidebar.resultCount", { count: files.length })}
+          {t("searchResults.loaded", { count: files.length })}
         </div>
         {showGroupHeaders && groupHeader("gh-name", t("sidebar.matchesName"), searchGroups.name.length)}
         {searchGroups.name.map(renderHit)}
         {showGroupHeaders && groupHeader("gh-content", t("sidebar.matchesContent"), searchGroups.content.length)}
         {searchGroups.content.map(renderHit)}
-      </>
+        {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
+        {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+        {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
+      </div>
     );
   } else {
     // Tree view

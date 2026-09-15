@@ -87,14 +87,14 @@ describe("the swipe hint", () => {
     // list it describes. The anchor is the LIST CONTAINER, not the first
     // `<SwipeRow`: a row may be built in a helper defined further up the file,
     // so source order is not render order.
-    const surfaces: Array<[string, string]> = [
-      ["screens/BrowseScreen.tsx", "<RowList>"],
-      ["screens/MailListScreen.tsx", '<ul className="m-maillist">'],
+    const surfaces: Array<[string, RegExp]> = [
+      ["screens/BrowseScreen.tsx", /<RowList\b/],
+      ["screens/MailListScreen.tsx", /<ul\b[^>]*\bclassName="m-maillist"(?:\s|>)/],
     ];
     for (const [file, list] of surfaces) {
       const src = read(file);
       const hintAt = src.indexOf("<SwipeHint />");
-      const listAt = src.indexOf(list);
+      const listAt = src.search(list);
       expect(hintAt, `${file}: no hint on a surface with swipe rows`).toBeGreaterThan(-1);
       expect(listAt, `${file}: list container gone`).toBeGreaterThan(-1);
       expect(hintAt, `${file}: the hint sits below the list it describes`).toBeLessThan(listAt);
@@ -115,7 +115,8 @@ describe("the swipe hint", () => {
     // In the mailbox the hint sits in the branch that renders the list; the
     // empty/error branch is a sibling, so an empty mailbox never teaches.
     const mailAt = mail.indexOf("<SwipeHint />");
-    const listAt = mail.indexOf('<ul className="m-maillist">');
+    const listAt = mail.search(/<ul\b[^>]*\bclassName="m-maillist"(?:\s|>)/);
+    expect(listAt, "the mail list container is missing").toBeGreaterThan(-1);
     const between = mail.slice(mailAt, listAt);
     expect(between, "the hint is separated from the list it belongs to").not.toContain("EmptyState");
   });

@@ -10,10 +10,13 @@ import {
   getPlatformServices,
   getThemeDef,
   type VaultTemplateDefinition,
-  defaultCustomTheme,
-  parseCustomTheme,
+  defaultCustomThemeDesign,
+  parseCustomThemeDesign,
+  customThemeSpecForMode,
   setCustomTheme,
+  recoverPersonalDesign,
   type CustomThemeSpec,
+  type CustomThemeDesign,
 } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
@@ -60,7 +63,7 @@ export interface MobileSettings extends VaultScopedSettings {
    * themes pin `data-theme` regardless of `themeMode`. */
   themeName: string;
   /** The user's own theme (plan 2026-09-04, P2), applied while themeName is "custom". */
-  customTheme: CustomThemeSpec;
+  customTheme: CustomThemeDesign;
   defaultView: DefaultView;
   /** Empty = follow the system language. */
   language: string;
@@ -154,7 +157,7 @@ function defaults(): MobileSettings {
   return (cachedDefaults ??= {
     themeMode: "system",
     themeName: DEFAULT_THEME_NAME,
-    customTheme: defaultCustomTheme(),
+    customTheme: defaultCustomThemeDesign(),
     defaultView: "read",
     language: "",
     onboarded: false,
@@ -242,7 +245,7 @@ function applyTheme(): void {
   // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
   // default variant get it applied. themeMode maps 1:1 onto ThemePref.
   // The custom entry only exists once its spec is registered (P2).
-  setCustomTheme(parseCustomTheme(live().customTheme) ?? defaultCustomTheme());
+  setCustomTheme(live().customTheme);
   const name = getThemeDef(live().themeName) ? live().themeName : DEFAULT_THEME_NAME;
   applyResolved(live().themeMode, name, live().themeVariants[name]);
   const root = document.documentElement;
@@ -281,21 +284,30 @@ export async function initMobileSettings(): Promise<void> {
     // E2 (2026-09-06): the interface font left "My design". A saved spec that
     // still names one seeds the interface slot — only while that slot was
     // never saved — and the spec's field is cleared so it cannot seed twice.
-    const moved = migrateCustomThemeFont(mobileAppFonts(cache), cache.customTheme?.fontUi, saved?.uiFontFamily != null);
-    if (moved || cache.customTheme?.fontUi) {
+    const design = parseCustomThemeDesign(cache.customTheme) ?? defaultCustomThemeDesign();
+    const legacyFont = customThemeSpecForMode(design, "light").fontUi;
+    const moved = migrateCustomThemeFont(mobileAppFonts(cache), legacyFont, saved?.uiFontFamily != null);
+    if (moved || legacyFont || JSON.stringify(cache.customTheme) !== JSON.stringify(design)) {
       cache = {
         ...cache,
         ...(moved ? { uiFontFamily: moved.ui.family, uiFontCustom: moved.ui.customName } : {}),
-        customTheme: { ...cache.customTheme, fontUi: "" },
+        customTheme: { ...design, light: design.light ? { ...design.light, fontUi: "" } : null, dark: design.dark ? { ...design.dark, fontUi: "" } : null },
       };
       await store.set(KEY, stripVaultKeys(cache));
+      await store.save();
     }
+    cache.customTheme = parseCustomThemeDesign(cache.customTheme) ?? defaultCustomThemeDesign();
   } catch {
     /* fresh install / plain web — defaults apply */
     activeVaultId = LOCAL_VAULT_ID;
   }
   applyTheme();
   if (live().language) await changeAppLanguage(live().language).catch(() => {});
+  await getPlatformServices().loadSettings().then(store => recoverPersonalDesign(store, async () => live().customTheme,
+    async design => { await updateMobileSettings({ customTheme: design }); })).catch(() => {
+    // Keep the last confirmed appearance. The settings page reports the pending
+    // failure and a later profile cycle/read retries the durable mirror.
+  });
 }
 
 /**
@@ -336,23 +348,42 @@ export async function applyTemplateSettings(ts: VaultTemplateDefinition["setting
   });
 }
 
-export async function updateMobileSettings(patch: Partial<MobileSettings>): Promise<void> {
-  cache = { ...live(), ...patch };
-  applyTheme();
-  if (patch.language !== undefined) {
-    // Empty string = back to the system language.
-    const target = patch.language || navigator.language;
-    await changeAppLanguage(target).catch(() => {});
-  }
-  // The app shell re-reads tab slots (and other live settings) on this.
-  window.dispatchEvent(new CustomEvent("m-settings-changed"));
-  const store = await getPlatformServices().loadSettings();
-  await store.set(KEY, stripVaultKeys(live()));
-  // Per-vault fields land in the ACTIVE vault's record only when touched.
-  if (VAULT_KEYS.some((k) => k in patch)) {
-    await store.set(vaultKey(activeVaultId), pickVault(live()));
-  }
-  await store.save();
+let settingsWrites: Promise<unknown> = Promise.resolve();
+function writeSettings<T>(work: () => Promise<T>): Promise<T> {
+  const result = settingsWrites.then(work, work);
+  settingsWrites = result.catch(() => {});
+  return result;
+}
+
+export function updateMobileSettings(patch: Partial<Omit<MobileSettings, "customTheme">> & { customTheme?: CustomThemeSpec | CustomThemeDesign }): Promise<void> {
+  const targetVault = activeVaultId;
+  return writeSettings(async () => {
+    const design = patch.customTheme === undefined ? live().customTheme : parseCustomThemeDesign(patch.customTheme);
+    if (!design) throw new Error("custom_theme_invalid");
+    const store = await getPlatformServices().loadSettings();
+    const touchedVault = VAULT_KEYS.some(k => k in patch);
+    const previousGlobal = await store.get(KEY), previousVault = touchedVault ? await store.get(vaultKey(targetVault)) : undefined;
+    const vault = targetVault === activeVaultId ? pickVault(live()) : await loadVaultRecord(store, targetVault);
+    const next = { ...live(), ...vault, ...patch, customTheme: design };
+    try {
+      await store.set(KEY, stripVaultKeys(next));
+      if (touchedVault) await store.set(vaultKey(targetVault), pickVault(next));
+      await store.save();
+    } catch (error) {
+      // A failed acknowledgement never becomes the visible theme. Restore the
+      // store's in-memory value too, so a later unrelated save cannot commit it.
+      try {
+        if (previousGlobal == null) await store.delete(KEY); else await store.set(KEY, previousGlobal);
+        if (touchedVault) { if (previousVault == null) await store.delete(vaultKey(targetVault)); else await store.set(vaultKey(targetVault), previousVault); }
+        await store.save();
+      } catch { /* The caller sees the original write failure. */ }
+      throw error;
+    }
+    cache = { ...next, ...((targetVault === activeVaultId && touchedVault) ? pickVault(next) : pickVault(live())) };
+    applyTheme();
+    if (patch.language !== undefined) await changeAppLanguage(patch.language || navigator.language).catch(() => {});
+    window.dispatchEvent(new CustomEvent("m-settings-changed"));
+  });
 }
 
 /**
@@ -371,7 +402,8 @@ export async function getVaultSettings(vaultId: string): Promise<VaultScopedSett
  * into the live cache when that vault is the active one, so a background apply
  * for another vault can never clobber the folders the user currently sees.
  */
-export async function applyVaultSettings(vaultId: string, patch: Partial<VaultScopedSettings>): Promise<void> {
+export function applyVaultSettings(vaultId: string, patch: Partial<VaultScopedSettings>): Promise<void> {
+  return writeSettings(async () => {
   const store = await getPlatformServices().loadSettings();
   const current = vaultId === activeVaultId ? pickVault(live()) : await loadVaultRecord(store, vaultId);
   const next = { ...current, ...patch };
@@ -382,4 +414,5 @@ export async function applyVaultSettings(vaultId: string, patch: Partial<VaultSc
     applyTheme();
     window.dispatchEvent(new CustomEvent("m-settings-changed"));
   }
+  });
 }

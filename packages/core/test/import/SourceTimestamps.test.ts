@@ -28,7 +28,7 @@ function fakeVault() {
     async writeTextFile(path: string, content: string) {
       files.set(path, content);
     },
-    async createFolder() {
+    async createDir() {
       /* implicit */
     },
     async setFileTimes(path: string, times: { createdMs?: number; modifiedMs?: number }) {

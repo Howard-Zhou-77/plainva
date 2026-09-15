@@ -36,6 +36,7 @@ import { readCommentMoveJournals } from "./commentMoveJournal.js";
 import { CommentIdentityConflictError, sameCommentContent } from "./commentIdentity.js";
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
+import { SidebandReadCache } from "../sync/sidebandReadCache.js";
 import { COMMENTS_DEVICES_PATH, COMMENTS_ENC_PATH, COMMENTS_SYNC_DIR, COMMENTS_SYNC_PATH } from "../settingsSync/paths.js";
 import {
   CommentBundleError,
@@ -482,6 +483,8 @@ function sameRoster(a: CommentDevicesRoster | null, b: CommentDevicesRoster | nu
 /* The sideband step                                                   */
 
 export interface CommentsSyncOptions {
+  /** Still-present remote plaintext owned by other devices, never cleaned here. */
+  onForeignPlaintext?: (count: number) => void;
   /** Workspace upgrades receive old clients' history, but publish via signed objects. */
   downloadOnly?: boolean;
   /** Same stable vault identity as the shell store, independent of adapter instances. */
@@ -503,18 +506,28 @@ function deleteOp(path: string) {
   return { id: 0, file_path: path, operation: "delete" as const, retry_count: 0, next_retry_at: 0, queued_at: 0 };
 }
 
+const readCaches = new WeakMap<ISyncTarget, WeakMap<IVaultAdapter, SidebandReadCache>>();
+
 export class CommentsSyncStep {
   constructor(private readonly options: CommentsSyncOptions) {}
 
   run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     return withCommentsSync(vault, this.options, async () => {
       const faults: CommentBundleFault[] = [];
-      try { await this.runCycle(target, vault, faults); }
+      let vaultCaches = readCaches.get(target);
+      if (!vaultCaches) { vaultCaches = new WeakMap(); readCaches.set(target, vaultCaches); }
+      let cache = vaultCaches.get(vault);
+      if (!cache) { cache = new SidebandReadCache(); vaultCaches.set(vault, cache); }
+      const reads = cache.begin(target);
+      try {
+        await this.runCycle(target, vault, faults, reads.read);
+        if (faults.length === 0) reads.commit();
+      }
       finally { if (faults.length > 0) this.options.onFaults?.(faults); }
     });
   }
 
-  private async runCycle(target: ISyncTarget, vault: IVaultAdapter, faults: CommentBundleFault[]): Promise<void> {
+  private async runCycle(target: ISyncTarget, vault: IVaultAdapter, faults: CommentBundleFault[], read: (path: string, accept?: (bytes: Uint8Array | null) => boolean) => Promise<Uint8Array | null>): Promise<void> {
     const now = (this.options.now ?? (() => new Date().toISOString()))();
     const { crypto, deviceId } = this.options;
     const sealed = !!crypto;
@@ -523,7 +536,7 @@ export class CommentsSyncStep {
       files: await listCommentsFiles(vault, faults),
       roster: await readLocalRoster(vault),
     }));
-    const rosterBytes = await target.download(COMMENTS_DEVICES_PATH);
+    const rosterBytes = await read(COMMENTS_DEVICES_PATH, bytes => bytes === null || parseCommentDevicesRoster(decoder.decode(bytes as BufferSource)) !== null);
     const remoteRoster = parseCommentDevicesRoster(rosterBytes ? decoder.decode(rosterBytes as BufferSource) : null);
     const devices = new Set([
       ...Object.keys(initial.roster?.devices ?? {}),
@@ -540,9 +553,10 @@ export class CommentsSyncStep {
     const downloaded = new Map<string, { bytes: Uint8Array | null; bundle: CommentsBundle | null; sealed: boolean }>();
     // No disk gate spans a network request: replies remain immediately durable.
     for (const [path, encrypted] of paths) {
-      const bytes = await target.download(path);
+      const bytes = await read(path);
       downloaded.set(path, { bytes, bundle: this.decodeRemote(bytes, encrypted ? crypto : undefined, path, faults), sealed: encrypted });
     }
+    this.options.onForeignPlaintext?.([...downloaded].filter(([path, entry]) => !entry.sealed && entry.bytes !== null && path !== commentsDevicePath(deviceId, false) && path !== COMMENTS_SYNC_PATH).length);
     const ownRemote = downloaded.get(ownPath)!;
     const ownRemoteUnreadable = ownRemote.bytes !== null && ownRemote.bundle === null;
     const saved = await withCommentsWrite(vault, this.options, async () => {

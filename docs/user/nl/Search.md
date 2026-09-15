@@ -1,16 +1,16 @@
 # Zoeken
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-15
 
 Plainva biedt drie manieren om te zoeken: volledige-tekstzoekfunctie over de hele vault, de snelkiezer om bestanden te openen, en zoeken & vervangen binnen een notitie.
 
 ## Volledige-tekstzoekfunctie in de vault
 
-Het zoekveld bovenaan de zijbalk doorzoekt de hele vault — titels *en* inhoud. Daarachter zit een lokale volledige-tekstindex (SQLite FTS5), die wordt opgebouwd bij het openen van de vault en bij elke wijziging actueel wordt gehouden; zoeken werkt daarom ook offline en zonder merkbare vertraging.
+Het veld bovenaan de zijbalk doorzoekt titels en inhoud in de hele vault. Een lokale volledige-tekstindex (SQLite FTS5) wordt bij het openen opgebouwd en bij bestandswijzigingen bijgewerkt. Zoeken werkt offline.
 
 Zoeken reageert terwijl je typt: woordvoorvoegsels leveren al treffers op ("Projec" vindt "Projectplan") — je hoeft niet op Enter te drukken. De **X** rechts in het veld wist de huidige zoekopdracht (of druk op `Esc`); de zijbalk toont dan weer de normale bestandsboom.
 
-De resultatenlijst toont bovenaan het aantal treffers en groepeert de resultaten: eerst treffers op **Bestandsnaam** (de term komt voor in de naam van de notitie), daarna treffers op **Inhoud**. Elke rij toont het documentpictogram, het mappad en — bij inhoudstreffers — een tekstfragment met de vindplaats gemarkeerd. Klikken op een resultaat opent de notitie en springt meteen naar de eerste vindplaats; die wordt daar geselecteerd. Als er niets overeenkomt, toont de lijst **Geen resultaten**.
+De zoeklijst toont afzonderlijke vindplaatsen met een tekstfragment, het pad van koppen en het regelnummer. Een rij opent precies de gekozen vindplaats; meerdere treffers in dezelfde notitie staan apart. De teller telt alleen reeds geladen resultaten. Je kunt meer vindplaatsen laden. Pijltjestoetsen verplaatsen de selectie en Enter opent deze. Laden, lege resultaten en fouten worden vermeld; nieuwe invoer verwerpt verouderde antwoorden. Als een gewijzigde vindplaats niet meer eenduidig te herkennen is, verschijnt een melding. Dezelfde vindplaatsen zijn beschikbaar in de snelkiezer en mobiel zoeken. Teruggaan naar zoeken op de telefoon herstelt de zoekopdracht, geladen resultaten en lijstpositie.
 
 Het zoekveld werkt ook op de andere zijbalkweergaven: in **Tags** filtert het de tagslijst, in **Bladwijzers** de bladwijzers.
 

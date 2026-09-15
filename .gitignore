@@ -8,6 +8,8 @@ coverage/
 .turbo/
 .vite/
 .cache/
+__pycache__/
+*.pyc
 
 # Rust / Tauri outputs
 target/

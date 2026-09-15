@@ -1,8 +1,10 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-07
+Ultimo aggiornamento: 2026-09-15
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
+
+**Pacchetto della comunità per Arch Linux:** [plainva su AUR](https://aur.archlinux.org/packages/plainva) è mantenuto in modo indipendente. Controlla il PKGBUILD prima di compilare; Plainva non verifica queste build della comunità. L’applicazione resta sotto licenza AGPL-3.0-only.
 
 ## Requisiti di sistema
 
@@ -167,7 +169,8 @@ Questa disposizione appartiene al vault e viaggia sui tuoi altri dispositivi tra
 - **Attiva/disattiva le barre laterali** tramite i due pulsanti nella barra del titolo o con `Ctrl+Alt+B` (sinistra) / `Ctrl+Alt+R` (destra) — ideale per scrivere concentrati. Plainva ricorda lo stato.
 - **Palette dei comandi**: `Ctrl+P` apre **Comandi** — digita e premi `Invio` per eseguire (nuova nota, nota giornaliera, dividi, barre laterali, **Esegui backup ora** e altro ancora).
 - **Densità**: in **Impostazioni → App → Aspetto**, scegli tra **Comodo** e **Compatto** — Compatto restringe elenchi, menu e righe di tabella; il contenuto delle note resta invariato.
-- **Tema personalizzato**: la scheda **Il mio tema** in **Impostazioni → App → Aspetto** seleziona il tema e la matita su di essa apre la sua pagina: tono di base (chiaro/scuro), uno sfondo entro un intervallo di luminosità, un accento libero, gli angoli (i caratteri si scelgono nella scheda **Caratteri** della stessa pagina). Plainva deriva i colori del testo perché non sparisca mai nello sfondo; un accento troppo pallido viene corretto ad almeno 3:1 e l'editor lo dice. Sul telefono gli stessi controlli sono nella schermata **Aspetto**.
+- **Tema personalizzato**: la scheda **Il mio tema** in **Impostazioni → App → Aspetto** seleziona il tema e la matita su di essa apre la sua pagina: tono di base (chiaro/scuro), uno sfondo entro un intervallo di luminosità, un accento libero, gli angoli (i caratteri si scelgono nella scheda **Caratteri** della stessa pagina). Plainva deriva i colori del testo perché non sparisca mai nello sfondo; un accento troppo pallido viene corretto ad almeno 3:1 e l'editor lo dice. Sul telefono gli stessi controlli sono nella schermata **Aspetto**. Le atmosfere chiara e scura conservano i propri colori; gli angoli sono comuni. L’atmosfera già salvata viene mantenuta. L’altra è inizialmente una proposta e si salva solo dopo l’adozione esplicita. Con entrambe, **Sistema** segue il dispositivo.
+- **Sincronizzazione personale del design**: nella pagina del tuo tema, attiva esplicitamente **Sincronizza tramite questo vault**. Scegli un vault sbloccato su ogni dispositivo e attiva la sincronizzazione delle impostazioni. Un solo vault fornisce il tuo design; gli altri membri non sono obbligati a usarlo. Viene adottato un design già ricevuto, altrimenti viene condiviso quello locale. Le modifiche simultanee conservano entrambe le varianti tra cui scegliere. Disattivare la sincronizzazione mantiene il design locale. Il comando non sincronizza i caratteri né la scelta di un altro tema.
 - **Caratteri**: in **Impostazioni → App → Aspetto**, la scheda **Caratteri** imposta i caratteri di **Interfaccia**, **Contenuto** e **Codice** (predefinito del tema, serif, sans-serif, monospazio oppure il nome di un carattere installato) e la **Dimensione carattere del contenuto** (12–24 px) — la dimensione scala solo l'editor e la vista di lettura; l'interfaccia resta invariata.
 - **Elenco caratteri**: sotto **Personalizzato…** un elenco mostra i caratteri del tuo sistema, ogni riga nel proprio carattere; quello non installato lo dice e non si può scegliere. Il campo del nome sotto accetta qualsiasi altro carattere installato.
 - **Zoom dell'interfaccia**: scala l'INTERA interfaccia tra l'80 % e il 150 % — in **Impostazioni → App → Aspetto** oppure con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` ripristina).
@@ -194,3 +197,7 @@ La barra laterale destra non può scendere sotto i **200 px** — nessuna sezion
 - [Note e Markdown](Notes_and_Markdown.md) — tutto sulla scrittura
 - [Scorciatoie da tastiera](Keyboard_Shortcuts.md)
 - [FAQ e risoluzione dei problemi](FAQ.md)
+
+## Riportare una scheda
+
+In una finestra separata o in una seconda finestra completa, fai clic destro sulla scheda e scegli **Torna alla finestra principale**. Testo, selezione, vista, scorrimento, cronologia e fissaggio vengono conservati. La scheda di origine si chiude solo dopo la conferma. Senza conferma, scheda e bozza rimangono disponibili. I segnalibri si aggiornano in tutte le finestre.

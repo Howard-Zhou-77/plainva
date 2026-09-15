@@ -11,7 +11,8 @@ import {
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
-import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, type CustomThemeSpec } from "@plainva/ui";
+import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
+import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, type CustomThemeDesign } from "@plainva/ui";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
@@ -84,7 +85,7 @@ const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choic
 export interface AppearancePageProps {
   themeName: string;
   onThemeName: (name: string) => void;
-  customTheme: CustomThemeSpec;
+  customTheme: CustomThemeDesign;
   /** The pencil on the "Mein Design" card: opens its own settings page (A2). */
   onEditCustomTheme: () => void;
   themePref: ThemePref;
@@ -465,12 +466,13 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
  * had no room under the gallery — and its height reflowed the gallery.
  */
 export interface CustomThemePageProps {
-  spec: CustomThemeSpec;
-  onChange: (spec: CustomThemeSpec) => void;
+  spec: CustomThemeDesign;
+  onChange: (spec: CustomThemeDesign) => void | Promise<void>;
   onBack: () => void;
+  designSync: CustomThemeSyncProps;
 }
 
-export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack }) => {
+export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack, designSync }) => {
   const { t } = useTranslation();
   return (
     <div data-testid="custom-theme-page">
@@ -481,6 +483,7 @@ export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange
       </div>
       <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} />
       <CustomThemeEditor spec={spec} onChange={onChange} />
+      <CustomThemeSync {...designSync} />
     </div>
   );
 };

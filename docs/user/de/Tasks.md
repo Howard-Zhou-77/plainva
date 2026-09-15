@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-09-06
+Stand: 2026-09-15
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -131,3 +131,14 @@ Aufgaben vom Anbieter werden anhand ihrer Identität zugeordnet. Verschiedene Wi
 Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei wiederkehrenden Aufgaben nicht dieselbe Instanz. Beide Inhalte bleiben als getrennte Aufgaben erhalten.
 
 **Als getrennte Aufgaben behalten** — Diese Datei bleibt unverändert: Aktuelle Datei  Die Konfliktkopie bleibt als separate Datei erhalten: Konfliktkopie
+
+<!-- tasks-jex-2026-09-14 -->
+## Tasks-Metadaten und Wiederholungen
+
+Desktop, Mobil und Live-Vorschau verstehen ➕ erstellt, ✅ erledigt, 📅 fällig, ⏳ geplant, 🛫 Start, 🆔 ID und 🔁 Wiederholung. Datumswerte haben das Format YYYY-MM-DD. Vorhandene IDs bleiben bestehen; sie identifizieren die Aufgabe auch nach einem Zeilenwechsel. Unbekannte Angaben bleiben im Markdown.
+
+Automatisch unterstützt sind ausschließlich die englischen Regeln `every [N] day/week/month/year[s] [when done]` mit N von 1 bis 999. Ein Abschluss erzeugt genau die nächste Periode, auch wenn sie noch überfällig ist; `when done` zählt ab dem Erledigungstag. Relative Datumsabstände bleiben erhalten, Monatsenden werden begrenzt. Ohne Termin entsteht eine Folge ohne Termin. Komplexe Regeln, Abhängigkeiten, Block-IDs, doppelte IDs, ungültige Daten und eingerückte Inhalte werden nicht automatisch fortgesetzt. Notizen mit einer nativen Plainva-Wiederholung oder Anbieterbindung erhalten keine zweite Wiederholung aus Tasks.
+
+Das Abhaken ergänzt bei Tasks-Metadaten das Erledigt-Datum. Eine unterstützte Wiederholung ergänzt nötigenfalls eine ID; die Folge erhält eine eigene `pv-…`-ID. Checkbox und Folge sind eine Markdown-Änderung. Erneutes Öffnen der alten Aufgabe löscht eine vorhandene Folge nicht; erneutes Abhaken erhält sie einschließlich Deiner Änderungen. Editor-Rückgängig nimmt die gesamte Änderung zurück.
+
+Native Datenbankaufgaben behalten ihr eigenes Verhalten: überfällige Perioden werden übersprungen. Ein dauerhaft gespeicherter Zielplan verhindert doppelte Folgen beim erneuten Abhaken. Meldet Plainva einen unbestätigten Folgeschritt, prüfe den Aufgabenordner. Nach einem Schreibfehler kann erneutes Öffnen und Abhaken den gespeicherten Plan fortsetzen. Wurde die Quelle inzwischen geändert, wird keine abweichende Kopie geschrieben; prüfe dann die vorhandenen Notizen und lege die gewünschte Folge bei Bedarf manuell an. Eine bereits bestätigte und später gelöschte Folge wird nicht wiederhergestellt.

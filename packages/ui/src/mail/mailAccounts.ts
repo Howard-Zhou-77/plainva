@@ -27,7 +27,7 @@ export interface MailAccountConfig {
   /** SMTP submission port (587 STARTTLS by default, 465 implicit TLS). */
   smtpPort?: number;
   /** Backend. Absent = "imap" (backward-compatible with stored accounts). */
-  kind?: "imap" | "microsoft";
+  kind?: "imap" | "microsoft" | "gmail";
   /** OAuth client id used for the Microsoft (Graph) login. */
   clientId?: string;
   /**
@@ -190,7 +190,7 @@ function escapeRegExp(value: string): string {
 }
 
 /** Backend selector: stored accounts without a kind are IMAP. */
-export function mailAccountKind(account: MailAccountConfig): "imap" | "microsoft" {
+export function mailAccountKind(account: MailAccountConfig): "imap" | "microsoft" | "gmail" {
   return account.kind ?? "imap";
 }
 
@@ -310,6 +310,11 @@ export async function getMailPassword(vaultPath: string, accountId: string): Pro
 /** Persists a Microsoft (Graph) mail account + its OAuth refresh token. */
 export async function saveMicrosoftMailAccount(vaultPath: string, account: MailAccountConfig, refreshToken: string): Promise<void> {
   await commitMailAccount(vaultPath, account, { refreshToken });
+}
+
+/** The shared account grant is already confirmed; the mailbox has no own token. */
+export async function saveBrokerMailAccount(vaultPath: string, account: MailAccountConfig): Promise<void> {
+  await commitMailAccount(vaultPath, account, { refreshToken: "" });
 }
 
 export async function getMailRefreshToken(vaultPath: string, accountId: string): Promise<string | null> {

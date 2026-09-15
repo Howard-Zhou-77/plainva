@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-09-10
+Dernière mise à jour : 2026-09-15
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -183,3 +183,26 @@ Ajoute des fichiers, un calendrier ou une messagerie au compte concerné. Plainv
 Ouvre **Comptes cloud**, choisis le compte existant et **Ajouter** pour le service manquant. Les services existants restent connectés. Gmail conserve sa connexion de messagerie ou son mot de passe d’application. Annuler l’assistant ne déconnecte pas les services terminés. Le transfert mobile conserve le vault source et tient compte d’un vault cible correspondant ou prépare un conteneur séparé. Les fichiers en collision sont comparés individuellement et les deux contenus sont conservés. Les destinations chiffrées s’ouvrent par le parcours de jumelage existant.
 
 Lors de l’ajout de fichiers sur mobile, Plainva affiche la source, la destination et les collisions avant le transfert. Les contenus et services existants sont conservés ; un transfert interrompu peut être relancé.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Certificats des serveurs auto-hébergés
+
+Android fait également confiance aux autorités de certification installées dans les paramètres système. Cela concerne toutes les connexions Plainva utilisant cette configuration, pas seulement un serveur WebDAV. Sur ordinateur, les connexions HTTP utilisent les autorités système et les racines publiques ; iOS utilise ses réglages de confiance système. La validité et le nom du serveur restent vérifiés. Corrigez un certificat expiré, pas encore valide ou destiné à un autre serveur. Plainva ne propose jamais d’accepter tous les certificats. Si le système ne précise pas la cause, Plainva indique simplement que la vérification a échoué. L’export de diagnostic des erreurs HTTP mobiles contient la méthode et le code d’erreur, sans identifiants, noms de certificats ni chemins privés.
+
+<!-- workspace-retry-2026-09-14 -->
+## Nouvelles tentatives automatiques et historique manquant
+
+La connexion est temporairement indisponible. Plainva réessaiera automatiquement ; les modifications en attente restent sur cet appareil.
+
+Reconnectez-vous au compte de synchronisation. Les modifications en attente restent sur cet appareil jusqu’au rétablissement de l’accès.
+
+Plainva ne peut pas vérifier le coffre chiffré. La synchronisation est suspendue ; les données locales et les modifications en attente sont conservées. Ouvrez Sécurité et partage, restaurez une copie vérifiable si elle existe, puis vérifiez à nouveau.
+
+Sur un appareil disposant encore de l’historique complet et vérifiable, choisissez Synchroniser maintenant. Plainva peut restaurer les opérations signées manquantes depuis cette copie. Vérifiez ensuite à nouveau sur Plainva. Sans copie valide, conservez ou exportez les données locales ; la vérification n’est jamais réinitialisée pour contourner la lacune.
+
+Les fichiers de remarques non chiffrés d’autres appareils restent sur le serveur. Seul l’appareil d’origine peut terminer leur conversion. Plainva ne supprime pas les fichiers d’autres appareils.
+
+<!-- account-grants-destination-2026-09-14 -->
+Les connexions existantes sont reprises après vérification de l’identité, des autorisations réellement accordées et du stockage sécurisé. Un compte peut conserver plusieurs autorisations distinctes ; ajouter un service préserve les connexions des autres. Le courrier Microsoft peut réutiliser une connexion adaptée aux fichiers ou au calendrier. Un autre appareil nécessite sa propre connexion.
+
+Dans les réglages de synchronisation, le sélecteur Google Drive affiche la destination actuelle et un aperçu du dossier choisi. Ouvrez les dossiers homonymes et comparez fichiers et dates. « Utiliser cette destination » conserve l’identifiant unique du dossier. Si celui-ci devient inaccessible, Plainva signale l’erreur sans créer de remplacement. Les autres dossiers ne sont ni déplacés ni supprimés.

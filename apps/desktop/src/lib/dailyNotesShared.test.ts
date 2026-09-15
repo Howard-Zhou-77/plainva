@@ -19,11 +19,10 @@ describe("dailyNotes (shared)", () => {
     expect([...marked].sort()).toEqual(["2026-08-31", "2026-09-02"]);
   });
 
-  it("an unreadable path counts as absent", async () => {
-    const marked = await existingDailyNoteDays([aug31], { folder: "x", format: "YY.MM.DD" }, async () => {
+  it("an unreadable path is not reported as absent", async () => {
+    await expect(existingDailyNoteDays([aug31], { folder: "x", format: "YY.MM.DD" }, async () => {
       throw new Error("no access");
-    });
-    expect(marked.size).toBe(0);
+    })).rejects.toThrow("no access");
   });
 
   it("the format keeps its dots and loses its slashes (E4)", () => {

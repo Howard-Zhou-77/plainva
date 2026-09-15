@@ -1,12 +1,12 @@
 import { accountServices, type CloudAccountRecord, type CloudServiceId } from "./cloudAccounts";
 import { oauthScopeFor, oauthScopesCover, type OAuthFamily } from "./oauthScopes";
-import type { StoredAccountToken } from "./tokenBroker";
-import { normalizeVerifiedProviderIdentity, verifiedProviderIdentityKey, parseGoogleUserInfo, parseMicrosoftMe } from "./accountProfile";
+import { hasStoredAccountGrant, type StoredAccountToken } from "./tokenBroker";
+import { normalizeVerifiedProviderIdentity, verifiedProviderIdentityKey, parseGoogleUserInfo, parseMicrosoftMe, type VerifiedProviderIdentity } from "./accountProfile";
 import type { FetchFn } from "@plainva/core";
 
-export function accountOAuthServices(record: CloudAccountRecord): CloudServiceId[] {
+export function accountOAuthServices(record: CloudAccountRecord, mailKind?: string): CloudServiceId[] {
   if (record.family !== "google" && record.family !== "microsoft") return [];
-  return accountServices(record).filter((service) => record.family !== "google" || service !== "mail");
+  return accountServices(record).filter((service) => record.family !== "google" || service !== "mail" || mailKind === "gmail");
 }
 
 /** The fields that identify which concrete services a reconnect may change.
@@ -39,7 +39,7 @@ export function reviewAccountGrant(
   grantedScope: unknown,
 ): AccountGrantReview {
   if (typeof token.clientId !== "string" || !token.clientId.trim()
-    || typeof token.refreshToken !== "string" || !token.refreshToken.trim()
+    || typeof token.refreshToken !== "string" || !hasStoredAccountGrant(token)
     || (token.clientSecret !== undefined && typeof token.clientSecret !== "string")) {
     throw new Error("the provider returned an incomplete sign-in");
   }
@@ -47,7 +47,7 @@ export function reviewAccountGrant(
   // Microsoft permits omission when the granted scope equals the request.
   // Google's integration records only an explicit grant from its response.
   const scopes = (grantedScope === undefined ? (family === "microsoft" ? requestedScope : "") : grantedScope).trim();
-  const selected = [...new Set(services)].filter((service) => family !== "google" || service !== "mail");
+  const selected = [...new Set(services)];
   if (selected.length === 0) throw new Error("this account has no OAuth service");
   const missing = selected.filter((service) => {
     const required = oauthScopeFor(family, service);
@@ -76,9 +76,8 @@ export function assertAccountLoginBinding(expected: CloudAccountRecord, current:
 
 /** A known provider subject cannot be replaced by a different browser account.
  * Use the provider API, never an unverified token payload or display label. */
-export async function assertAccountGrantIdentity(record: CloudAccountRecord, accessToken: string | undefined, fetchFn: FetchFn): Promise<void> {
+export async function assertAccountGrantIdentity(record: CloudAccountRecord, accessToken: string | undefined, fetchFn: FetchFn): Promise<VerifiedProviderIdentity> {
   const expected = normalizeVerifiedProviderIdentity(record.verifiedProviderIdentity);
-  if (!expected) return;
   if (!accessToken) throw new Error("The provider account could not be verified. Existing sign-ins were kept.");
   const response = await fetchFn(record.family === "google" ? "https://openidconnect.googleapis.com/v1/userinfo" : "https://graph.microsoft.com/v1.0/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -86,9 +85,11 @@ export async function assertAccountGrantIdentity(record: CloudAccountRecord, acc
   if (!response.ok) throw new Error("The provider account could not be verified. Existing sign-ins were kept.");
   const body = await response.json();
   const profile = record.family === "google" ? parseGoogleUserInfo(body) : parseMicrosoftMe(body);
-  if (!profile || verifiedProviderIdentityKey(profile.identity) !== verifiedProviderIdentityKey(expected)) {
+  if (!profile || (expected && verifiedProviderIdentityKey(profile.identity) !== verifiedProviderIdentityKey(expected))
+    || (!expected && record.label.includes("@") && record.label.trim().toLowerCase() !== profile.label?.trim().toLowerCase())) {
     throw new Error("A different provider account was selected. Existing sign-ins were kept.");
   }
+  return profile.identity;
 }
 
 /** Shared completion boundary. Nothing is saved or detached before every

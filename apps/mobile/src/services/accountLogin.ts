@@ -4,17 +4,20 @@ import {
   GRAPH_CALENDAR_SCOPES,
   ONEDRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { forgetGraphMailRuntime, GRAPH_MAIL_SCOPES, saveMicrosoftMailAccount, listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
-import { getPlatformServices, accountServices, accountOAuthServices, completeAccountGrant, reviewAccountGrant, assertAccountGrantIdentity, AccountGrantMissingPermissionsError, PLAINVA_ONEDRIVE_CLIENT_ID, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
+import { forgetGraphMailRuntime, GRAPH_MAIL_SCOPES, listMailAccounts, mailAccountKind, mailSecretKey, legacyMailSecretKey } from "@plainva/ui/mail";
+import { getPlatformServices, accountOAuthServices, completeAccountGrant, reviewAccountGrant, assertAccountGrantIdentity, AccountGrantMissingPermissionsError, PLAINVA_ONEDRIVE_CLIENT_ID, toast, tokenCoversService, replaceProtectedSlot, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
 import i18n from "@plainva/ui/i18n";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
 import { brokerFamily, getAccountToken, saveAccountToken } from "./accountBroker";
-import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
+import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { listPimAccounts, restartPimAccountAfterLogin } from "./pim/pimService";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { pickOAuthClient } from "./oauthClientChain";
 import { getStoredProvider, switchProviderToAccountBroker } from "./syncService";
+import { accountCredentialStore } from "./accountCredentialStore";
+import { GOOGLE_MAIL_SCOPES, googlePublicClient } from "@plainva/ui";
+import { Capacitor } from "@capacitor/core";
 
 /**
  * One sign-in for a whole account, on the phone (Sammelplan C5).
@@ -36,11 +39,9 @@ export function unionScopeFor(family: "microsoft" | "google", services: readonly
   const parts = new Set<string>();
   for (const service of services) {
     if (family === "google") {
-      // Gmail runs over IMAP with an app password, so it never widens an
-      // OAuth consent — asking for mail scopes here would be asking for
-      // permission we have no use for.
       if (service === "files") for (const s of DRIVE_DEFAULT_SCOPE.split(/\s+/)) parts.add(s);
       if (service === "calendar") for (const s of GOOGLE_CALENDAR_SCOPES.split(/\s+/)) parts.add(s);
+      if (service === "mail") for (const s of GOOGLE_MAIL_SCOPES.split(/\s+/)) parts.add(s);
     } else {
       const scope =
         service === "files" ? ONEDRIVE_DEFAULT_SCOPE : service === "calendar" ? GRAPH_CALENDAR_SCOPES : GRAPH_MAIL_SCOPES;
@@ -51,9 +52,13 @@ export function unionScopeFor(family: "microsoft" | "google", services: readonly
 }
 
 /** Services of this account that an OAuth consent can actually cover. */
-export function oauthServicesOf(record: CloudAccountRecord): CloudServiceId[] {
-  const services = accountServices(record);
-  return record.family === "google" ? services.filter((s) => s !== "mail") : services;
+export function oauthServicesOf(record: CloudAccountRecord, mailKind?: string): CloudServiceId[] {
+  return accountOAuthServices(record, mailKind);
+}
+
+async function oauthServicesInVault(vault: string, record: CloudAccountRecord): Promise<CloudServiceId[]> {
+  const mail = record.services.mail ? (await listMailAccounts(vault)).find(row => row.id === record.services.mail!.mailAccountId) : undefined;
+  return oauthServicesOf(record, mail?.kind);
 }
 
 /**
@@ -71,11 +76,10 @@ export function oauthServicesOf(record: CloudAccountRecord): CloudServiceId[] {
 export async function canUnifyMobileAccount(vaultId: string, record: CloudAccountRecord): Promise<boolean> {
   const family = brokerFamily(record.family);
   if (!family) return false;
-  const services = oauthServicesOf(record);
+  const services = await oauthServicesInVault(vaultId, record);
   if (services.length < 2) return false;
-  const stored = await getAccountToken(vaultId, record.id).catch(() => null);
-  if (!stored?.refreshToken) return true;
-  return services.some((service) => !tokenCoversService(stored, service, family));
+  const covered = await Promise.all(services.map(async (service) => tokenCoversService(await getAccountToken(vaultId, record.id, service, family).catch(() => null), service, family)));
+  return covered.some((hasGrant) => !hasGrant);
 }
 
 /**
@@ -121,9 +125,11 @@ async function clientOf(
     const secret = (fallback?.clientSecret ?? "").trim();
     return { clientId: typed, ...(secret ? { clientSecret: secret } : {}) };
   }
-  // Microsoft ships a central registration; Google is BYO by decision, so it
-  // has nothing to fall back on and the caller has to ask.
+  // Use shipped Microsoft registration or an explicitly configured Google
+  // native test client only after preserving any existing client selection.
   if (provider === "microsoft" && PLAINVA_ONEDRIVE_CLIENT_ID) return { clientId: PLAINVA_ONEDRIVE_CLIENT_ID };
+  const platform = Capacitor.getPlatform();
+  if (provider === "google" && Capacitor.isNativePlatform() && (platform === "android" || platform === "ios")) return googlePublicClient(import.meta.env, platform);
   return null;
 }
 
@@ -131,7 +137,7 @@ async function accountLoginSources(vaultId: string, record: CloudAccountRecord):
   const sources: Partial<Record<CloudServiceId, string>> = {};
   if (record.services.files) sources.files = JSON.stringify(await getStoredProvider(vaultId));
   if (record.services.calendar) sources.calendar = JSON.stringify(await getPimCredentials(vaultId, record.services.calendar.pimAccountId));
-  if (record.family === "microsoft" && record.services.mail) {
+  if (record.services.mail) {
     const id = record.services.mail.mailAccountId;
     sources.mail = JSON.stringify({ account: (await listMailAccounts(vaultId)).find((m) => m.id === id), credential: await getPlatformServices().credentials.readSecret(mailSecretKey(vaultId, id)) });
   }
@@ -172,7 +178,7 @@ export async function beginAccountLogin(
   record = structuredClone(record);
   const family = brokerFamily(record.family);
   if (!family) throw new Error("this account cannot share one login");
-  const services = oauthServicesOf(record);
+  const services = await oauthServicesInVault(vaultId, record);
   if (services.length === 0) throw new Error("this account has no service that signs in with OAuth");
   const client = await clientOf(vaultId, record, family, fallback);
   if (!client) return { kind: "needsClientId", family };
@@ -198,12 +204,12 @@ export async function beginAccountLogin(
  * clearing the old copies leaves the account working either way.
  */
 export function registerAccountLoginHandler(): void {
-  setOAuthPurposeHandler("account", async ({ provider, clientId, clientSecret, refreshToken, accessToken, grantedScope, requestedScope, accountContext }) => {
+  setOAuthPurposeHandler("account", async ({ provider, clientId, clientSecret, refreshToken, accessToken, grantedScope, requestedScope, accountContext, nativeGoogle, providerIdentity }) => {
     if (!accountContext || typeof accountContext.vaultId !== "string" || !accountContext.record?.id || !("expectedToken" in accountContext) || !accountContext.serviceSources) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
     const { vaultId, record, expectedToken, serviceSources } = accountContext;
     const family = brokerFamily(record.family);
     if (!family || provider !== family) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
-    const services = accountOAuthServices(record);
+    const services = await oauthServicesInVault(vaultId, record);
     const status: AccountLoginStatus = { vaultId, accountId: record.id, services: {} };
     const bindingError = () => new Error(i18n.t("cloudAccounts.loginBindingChanged"));
     const checkBindings = async () => {
@@ -215,18 +221,19 @@ export function registerAccountLoginHandler(): void {
         const creds = await getPimCredentials(vaultId, record.services.calendar.pimAccountId);
         if (creds && (creds.kind !== family || !("clientId" in creds) || (!!creds.clientId && creds.clientId !== clientId))) throw bindingError();
       }
-      if (family === "microsoft" && record.services.mail) {
+      if (services.includes("mail") && record.services.mail) {
         const mail = (await listMailAccounts(vaultId)).find((m) => m.id === record.services.mail!.mailAccountId);
-        if (!mail || mailAccountKind(mail) !== "microsoft" || (!!mail.clientId && mail.clientId !== clientId)) throw bindingError();
+        if (!mail || mailAccountKind(mail) !== (family === "google" ? "gmail" : "microsoft") || (!!mail.clientId && mail.clientId !== clientId)) throw bindingError();
       }
     };
     try {
-      const review = reviewAccountGrant(family, services, { clientId, ...(clientSecret !== undefined ? { clientSecret } : {}), refreshToken }, requestedScope ?? unionScopeFor(family, services), grantedScope);
+      const review = reviewAccountGrant(family, services, { clientId, ...(clientSecret !== undefined ? { clientSecret } : {}), refreshToken, ...(nativeGoogle ? { nativeGoogle, providerIdentity } : {}) }, requestedScope ?? unionScopeFor(family, services), grantedScope);
       await completeAccountGrant({
         record, review,
         readRecord: () => loadCloudAccounts(vaultId).then((records) => records.find((r) => r.id === record.id)),
         beforeSave: async () => {
-          await assertAccountGrantIdentity(record, accessToken, webdavFetch);
+          review.token.providerIdentity = await assertAccountGrantIdentity(record, accessToken, webdavFetch);
+          review.token.verifiedAt = Date.now();
           await checkBindings();
           const current = await accountLoginSources(vaultId, record);
           if (services.some((service) => current[service] !== serviceSources[service])) throw bindingError();
@@ -239,16 +246,17 @@ export function registerAccountLoginHandler(): void {
           if (service === "files") await switchProviderToAccountBroker(vaultId, record, clientId);
           else if (service === "calendar") {
             const id = record.services.calendar!.pimAccountId;
-            await savePimCredentials(vaultId, id, family === "google"
-              ? { kind: "google", clientId, clientSecret: clientSecret ?? "", refreshToken: "", loginRevision: crypto.randomUUID() }
-              : { kind: "microsoft", clientId, refreshToken: "", loginRevision: crypto.randomUUID() });
+            const previous = JSON.parse(serviceSources.calendar ?? "null");
+            await replaceProtectedSlot(accountCredentialStore, [pimSecretKey(vaultId, id)], previous,
+              { ...previous, kind: family, clientId, ...(family === "google" ? { clientSecret: clientSecret ?? "", nativeGoogle: undefined } : {}), refreshToken: "", loginRevision: crypto.randomUUID() });
             await restartPimAccountAfterLogin(vaultId, id);
-          } else if (family === "microsoft") {
+          } else if (service === "mail") {
             const id = record.services.mail!.mailAccountId;
             const mail = (await listMailAccounts(vaultId)).find((m) => m.id === id);
             if (!mail) throw bindingError();
             forgetGraphMailRuntime(vaultId, id);
-            await saveMicrosoftMailAccount(vaultId, { ...mail, clientId }, "");
+            const previous = JSON.parse(serviceSources.mail ?? "null")?.credential ?? null;
+            await replaceProtectedSlot(accountCredentialStore, [mailSecretKey(vaultId, id), legacyMailSecretKey(vaultId, id)], previous, { ...previous, refreshToken: "" });
           }
           status.services[service] = i18n.t("cloudAccounts.statusConnected");
           announceLogin(status);

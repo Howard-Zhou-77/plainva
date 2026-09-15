@@ -44,9 +44,13 @@ export function projectCommentRecords(
       const closeTimes = [record.resolvedAt, ...markers.map(commentCreatedAt)].filter((at): at is string => !!at).sort();
       const resolvedAt = closeTimes[closeTimes.length - 1] ?? null;
       if (!record.suggestion) return { ...record, resolvedAt };
-      const facts: SuggestionDecisionFact[] = markers.filter((marker) => marker.suggestionOutcome)
+      const previousDecision = record.suggestionDecision;
+      const frontier = new Set(previousDecision?.decisions.map(fact => fact.id));
+      const facts: SuggestionDecisionFact[] = markers.filter((marker) => marker.suggestionOutcome
+        && (!previousDecision?.knownIds.includes(marker.commentId) || frontier.has(marker.commentId)))
         .map((marker) => ({ id: marker.commentId, outcome: marker.suggestionOutcome!, createdAt: commentCreatedAt(marker),
           by: commentAuthorKey(marker), ...(marker.decisionProof ? { proof: marker.decisionProof } : {}) }));
+      facts.push(...(previousDecision?.decisions ?? []));
       const previous = record.suggestion;
       const addLegacy = (outcome: "applied" | "declined", at: string | null, by: string | null) => {
         if (!at || facts.some((fact) => fact.outcome === outcome && fact.createdAt === at && (!by || by === fact.by))) return;
@@ -59,7 +63,7 @@ export function projectCommentRecords(
       // Old databases retain IDs even where an outcome needs verified recovery.
       // A deliberate review can name these observed facts before recovery;
       // a marker with a genuinely unknown ID still remains independent.
-      decision.knownIds = [...new Set([...decision.knownIds, ...markers.map((marker) => marker.commentId)])].sort();
+      decision.knownIds = [...new Set([...decision.knownIds, ...(previousDecision?.knownIds ?? []), ...markers.map((marker) => marker.commentId)])].sort();
       const chosen = [...decision.decisions].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0];
       return { ...record, suggestionDecision: decision,
         resolvedAt: decision.status === "conflict" ? null : chosen?.createdAt ?? resolvedAt,

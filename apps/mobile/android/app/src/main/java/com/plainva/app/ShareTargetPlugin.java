@@ -1,35 +1,61 @@
 package com.plainva.app;
 
-import com.getcapacitor.JSObject;
-import com.getcapacitor.Plugin;
-import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
+import android.app.Activity;
+import android.content.Intent;
+import android.widget.Toast;
+import com.getcapacitor.*;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import org.json.JSONArray;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-/**
- * Receiving side of the Android share sheet (M3E package J): MainActivity
- * stashes ACTION_SEND / ACTION_SEND_MULTIPLE here — plain text as text+subject,
- * images and arbitrary files as base64 payloads. The JS shell polls on boot and
- * on every resume (a warm share foregrounds the app, so appStateChange covers
- * it — no bridge event needed). Single-consumer: reading clears the slot.
- */
 @CapacitorPlugin(name = "ShareTarget")
 public class ShareTargetPlugin extends Plugin {
-    static String pendingText = null;
-    static String pendingSubject = null;
-    /** Shared file payloads: [{ name, mime, data(base64) }]. */
-    static JSONArray pendingFiles = new JSONArray();
-
-    @PluginMethod
-    public void consumePendingShare(PluginCall call) {
-        JSObject ret = new JSObject();
-        ret.put("text", pendingText);
-        ret.put("subject", pendingSubject);
-        ret.put("files", pendingFiles);
-        pendingText = null;
-        pendingSubject = null;
-        pendingFiles = new JSONArray();
-        call.resolve(ret);
+    // Intent staging and all bridge mutations are serial: a list cannot mark
+    // a currently copying entry interrupted, or race an acknowledgement.
+    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
+    static void stage(Activity activity, Intent intent, String id) {
+        IO.execute(() -> {
+            try {
+                boolean waiting = new ShareQueue(activity).accept(activity, intent, id);
+                if (waiting) activity.runOnUiThread(() -> Toast.makeText(activity, activity.getString(R.string.share_saved), Toast.LENGTH_LONG).show());
+            } catch (Exception error) {
+                String code = ShareQueue.code(error);
+                int message = code.equals("SHARE_LIMIT") ? R.string.share_limit : code.equals("SHARE_QUEUE_FULL") ? R.string.share_full : R.string.share_failed;
+                activity.runOnUiThread(() -> Toast.makeText(activity, activity.getString(message), Toast.LENGTH_LONG).show());
+            }
+            if (activity instanceof MainActivity) {
+                MainActivity main = (MainActivity) activity;
+                if (main.getBridge() != null) main.getBridge().triggerWindowJSEvent("m-poll-share");
+            }
+        });
+    }
+    private interface Work { JSObject run(ShareQueue store) throws Exception; }
+    private void execute(PluginCall call, Work work) {
+        IO.execute(() -> {
+            try { call.resolve(work.run(new ShareQueue(getContext()))); }
+            catch (Exception error) { call.reject(ShareQueue.code(error)); }
+        });
+    }
+    @PluginMethod public void listPendingShares(PluginCall call) {
+        execute(call, store -> { JSObject result = new JSObject(); result.put("entries", store.list()); return result; });
+    }
+    @PluginMethod public void readFileChunk(PluginCall call) {
+        execute(call, store -> {
+            Integer offset = call.getInt("offset"), length = call.getInt("length");
+            if (offset == null || length == null) throw new Exception("SHARE_INVALID");
+            JSObject result = new JSObject(); result.put("data", store.chunk(call.getString("id"), call.getString("fileId"), offset, length)); return result;
+        });
+    }
+    @PluginMethod public void beginImport(PluginCall call) {
+        execute(call, store -> {
+            JSObject plan = call.getObject("plan"); if (plan == null) throw new Exception("SHARE_INVALID");
+            JSObject result = new JSObject(); result.put("entry", store.begin(call.getString("id"), plan)); return result;
+        });
+    }
+    @PluginMethod public void markImported(PluginCall call) {
+        execute(call, store -> { store.mark(call.getString("id"), call.getString("fileId"), Boolean.TRUE.equals(call.getBoolean("note"))); return new JSObject(); });
+    }
+    @PluginMethod public void finishShare(PluginCall call) {
+        execute(call, store -> { store.finish(call.getString("id"), Boolean.TRUE.equals(call.getBoolean("discard"))); return new JSObject(); });
     }
 }

@@ -281,6 +281,10 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const editableExtensions = (on: boolean): Extension => [
     EditorView.editable.of(on),
     EditorState.readOnly.of(!on),
+    // Read-only content must still receive focus: otherwise a native DOM
+    // selection never reaches CodeMirror's range/toolbar listener. Keeping it
+    // non-editable avoids opening the mobile keyboard merely to select text.
+    EditorView.contentAttributes.of({ tabindex: "0" }),
   ];
 
   // Stable container for the embed widgets. `vaultContext` is a getter so a

@@ -60,6 +60,13 @@ describe("runReminderIntent", () => {
     expect(setTaskDone).not.toHaveBeenCalled();
   });
 
+  it("reports a failed successor while retaining the completed task", async () => {
+    setTaskDone.mockResolvedValue({ changed: true, spawnFailed: true });
+    await runReminderIntent(intent({ kind: "task", uid: "Tasks/a.md", action: "done" }), host);
+    expect(toasts.error).toHaveBeenCalledWith("tasks.repeatFailed");
+    expect(toasts.info).not.toHaveBeenCalled();
+  });
+
   it("opens the meeting note of the appointment the reminder belongs to", async () => {
     cache.getEventByUid.mockResolvedValue({ uid: "e1", title: "Jour fixe" });
     meetingNote.mockResolvedValue({ path: "Meetings/2026-08-12 Jour fixe.md", created: true });

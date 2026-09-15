@@ -2313,6 +2313,54 @@ test('the timeline is a row per entry, and dragging an edge writes the end (S21)
     .toContain(expected);
 });
 
+test('database export keeps the current result table and requires an explicit values choice for unsupported columns', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.evaluate(() => {
+    const original = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:dialog|save') return '/exports/Result.base';
+      if (cmd === 'plugin:fs|write_text_file') {
+        const target = options?.headers?.path ? decodeURIComponent(options.headers.path) : args?.path;
+        if (target === '/exports/Result.base') {
+          (window as any).__baseExport = new TextDecoder().decode(new Uint8Array(args)); return null;
+        }
+      }
+      return original(cmd, args, options);
+    };
+  });
+  const openExport = async () => {
+    await page.locator('.base-header-container').getByRole('button', { name: /Menü|Menu/ }).click();
+    await page.getByRole('menuitem', { name: /Tabelle exportieren|Export table/ }).click();
+    return page.getByTestId('base-export-dialog');
+  };
+  const dialog = await openExport();
+  await expect(dialog).toContainText(/Ergebniszeilen: 3|Result rows: 3/);
+  await expect(dialog.getByRole('button', { name: /Formeln|Formulas/ })).toBeEnabled();
+  await dialog.getByRole('button', { name: /Formeln|Formulas/ }).click();
+  await expect(dialog).toBeHidden();
+  const formulaFile = await page.evaluate(() => (window as any).__baseExport);
+  expect(formulaFile).toContain('Projekte/Alpha.md');
+  expect(formulaFile).toContain('Projekte/Beta.md');
+  expect(formulaFile).toContain('Projekte/Gamma.md');
+  await openBase(page, 'Kundenkartei');
+  const unsupported = await openExport();
+  await expect(unsupported.getByRole('button', { name: /Formeln|Formulas/ })).toBeDisabled();
+  await expect(unsupported).toContainText(/Rückbeziehungen|Reverse relations/);
+  await unsupported.evaluate(async el => {
+    await Promise.all([...el.getAnimations({ subtree: true }), ...el.parentElement!.getAnimations()].map(animation => animation.finished.catch(() => {})));
+  });
+  await page.screenshot({ path: testInfo.outputPath('base-export.png') });
+  await unsupported.getByRole('button', { name: /Werte|Values/ }).click();
+  await expect(unsupported).toBeHidden();
+  const csv = await page.evaluate(() => (window as any).__baseExport);
+  expect(csv).toContain('"file.path"');
+  expect(csv).toContain('"1"');
+  expect(csv).toContain('"0"');
+  await expect(page.locator('table').getByText('ACME')).toBeVisible();
+});
+
 test('a rollup column shows the computed value and refuses to be edited', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Kundenkartei');

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Op dit apparaat opgeslagen. Open Plainva om de vault en map te kiezen.</string>
+    <string name="share_failed">Niet volledig opgeslagen. Deel de oorspronkelijke inhoud opnieuw.</string>
+    <string name="share_limit">Maximaal 10 bestanden, 25 MiB per bestand, 50 MiB in totaal en 512 KiB tekst.</string>
+    <string name="share_full">De wachtrij is vol. Importeer of verwijder eerst wachtende inhoud in Plainva.</string>
+</resources>

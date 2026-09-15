@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { test, expect, type Locator } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { DatabaseSync } from 'node:sqlite';
 
 test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -14,6 +15,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Welcome.md': "# Hello\nWelcome to the mock vault!"
     };
+    (window as any).mockFileTimes = {};
 
     (window as any).__TAURI_INTERNALS__ = {
       plugins: {
@@ -120,6 +122,9 @@ test.beforeEach(async ({ page }) => {
            }
            // The tree listing and the index.md generator queries share one
            // row shape (path/title/mode) derived from the mock fs.
+           if (q.includes('SELECT path, mtime_local, ctime FROM files')) {
+             return Object.entries((window as any).mockFileTimes).map(([path, times]: [string, any]) => ({ path, ...times }));
+           }
            if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
              const result = Object.keys(fs)
                .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
@@ -168,7 +173,8 @@ test.beforeEach(async ({ page }) => {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           const file = fs[p];
           if (!file) throw new Error("File not found");
-          return { isDir: !!file.isDir, isFile: !file.isDir, mtime: Date.now(), size: typeof file === 'string' ? file.length : 0 };
+          const times = (window as any).mockFileTimes[p.replace('/test-vault/', '')];
+          return { isDir: !!file.isDir, isFile: !file.isDir, mtime: times?.mtime_local ?? 1750000000000, size: typeof file === 'string' ? file.length : 0 };
         }
         if (cmd === 'plugin:fs|read_dir') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
@@ -279,6 +285,30 @@ test('Note Lifecycle: Edit note and persist via mock fs', async ({ page }) => {
   const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
   // Filter out any known acceptable violations or just assert empty
   expect(accessibilityScanResults.violations).toEqual([]);
+});
+
+test('file tree time sorting uses indexed timestamps and responds to changing the sort', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('plainva-folder-sort', JSON.stringify({ key: 'title', dir: 'asc' }));
+    (window as any).mockFs['/test-vault/Alpha.md'] = '# Alpha\n';
+    (window as any).mockFs['/test-vault/Zeta.md'] = '# Zeta\n';
+    (window as any).mockFileTimes = {
+      'Alpha.md': { mtime_local: 1750000000000, ctime: 1750000002000 },
+      'Welcome.md': { mtime_local: 1750000001000, ctime: 1750000000000 },
+      'Zeta.md': { mtime_local: 1750000002000, ctime: 1750000001000 },
+    };
+  });
+  await page.goto('/');
+  const rows = page.getByTestId('file-tree').locator('[data-tree-path]');
+  await expect(rows).toHaveCount(3);
+  const paths = () => rows.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-tree-path')));
+  await expect.poll(paths).toEqual(['Alpha.md', 'Welcome.md', 'Zeta.md']);
+  await page.getByTestId('sidebar-sort').click();
+  await page.getByRole('menuitem', { name: /Zuletzt geändert|Last modified/ }).click();
+  await expect.poll(paths).toEqual(['Zeta.md', 'Welcome.md', 'Alpha.md']);
+  await page.getByTestId('sidebar-sort').click();
+  await page.getByRole('menuitem', { name: /Zuletzt geändert|Last modified/ }).click();
+  await expect.poll(paths).toEqual(['Alpha.md', 'Welcome.md', 'Zeta.md']);
 });
 
 test('Tabs: the close (X) button closes the tab', async ({ page }) => {
@@ -463,6 +493,28 @@ test('Emoji: typing :name autocompletes to the emoji character', async ({ page }
 
   await expect(editor).toContainText('🚀', { timeout: 10000 });
   await expect(editor).not.toContainText(':rocket');
+});
+
+test('Note embeds: exact sections and blocks, explicit misses and bounded recursion', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Embeds.md'] = '# Embeds\n\n![[Source#Keep]]\n\n![[Source#^item]]\n\n![[Source#Missing]]\n\n![[Loop]]\n';
+    (window as any).mockFs['/test-vault/Source.md'] = '---\r\ntitle: Source\r\n---\r\n# Top\r\n## Keep\r\nIncluded 😀\r\n### Child\r\nNested section\r\n## Exclude\r\nHidden section\r\n\r\n- Selected item\r\n  continuation ^item\r\n- Unselected item\r\n';
+    (window as any).mockFs['/test-vault/Loop.md'] = '# Loop\n\n![[Loop]]';
+  });
+  await page.goto('/');
+  await page.getByText('Embeds', { exact: true }).first().click();
+  await expect(page.locator('.cm-note-embed').first()).toContainText('Included 😀');
+  await expect(page.locator('.cm-note-embed').first()).not.toContainText('Hidden section');
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader).toContainText('Included 😀');
+  await expect(reader).toContainText('Nested section');
+  await expect(reader).toContainText('Selected item');
+  await expect(reader).not.toContainText('Hidden section');
+  await expect(reader).not.toContainText('Unselected item');
+  await expect(reader).toContainText(/Source#Missing.*nicht gefunden|Target.*Source#Missing.*not found/);
+  await expect(reader).toContainText(/maximale Verschachtelung|maximum embed depth/);
+  expect(await reader.locator('.embedded-note').count()).toBeLessThan(10);
 });
 
 test('Code block: language grammar lazy-loads on demand', async ({ page }) => {
@@ -1671,6 +1723,51 @@ test('Creating from another tab switches to Files instead of vanishing', async (
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Aus Tags.md']), { timeout: 8000 })
     .toContain('# Aus Tags');
+});
+
+test('Search occurrences: real SQLite pages, heading context and exact reader jumps', async ({ page }) => {
+  const text = '# Record\n\n## First\nneedle first\n\n## Second\nneedle second\n\n' + Array.from({ length: 53 }, (_, i) => `needle extra ${i}`).join('\n\n');
+  const sql = new DatabaseSync(':memory:');
+  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED)');
+  sql.prepare('INSERT INTO files VALUES (?,?,?,?,?)').run('record', 'Record.md', 'Record', 1, text.length);
+  sql.prepare('INSERT INTO fts_notes VALUES (?,?,?)').run(text, 'Record', 'Record.md');
+  await page.exposeFunction('__occurrenceQuery', (query: string, params: unknown[]) => sql.prepare(query).all(...params as never[]));
+  await page.addInitScript((text) => {
+    (window as any).mockFs['/test-vault/Record.md'] = text;
+    for (let i = 0; i < 300; i++) (window as any).mockFs[`/test-vault/Other_${i}.md`] = '# Other';
+    const previous = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:sql|select' && String(args.query).includes('fts_notes MATCH')) return (window as any).__occurrenceQuery(args.query, args.values ?? []);
+      return previous(cmd, args, options);
+    };
+  }, text);
+  try {
+    await page.goto('/');
+    await page.getByText('Record', { exact: true }).first().click();
+    await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+    const field = page.locator('aside[aria-label="Left Sidebar"] input').first();
+    await page.evaluate(() => {
+      (window as any).__searchRowsMax = 0;
+      new MutationObserver(() => {
+        (window as any).__searchRowsMax = Math.max((window as any).__searchRowsMax, document.querySelectorAll('[data-search-occurrence]').length);
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+    await field.fill('needle');
+    const rows = page.locator('[data-search-occurrence]');
+    await expect(rows).toHaveCount(40);
+    expect(await page.evaluate(() => (window as any).__searchRowsMax)).toBeLessThanOrEqual(40);
+    await expect(rows.nth(0).locator('.pv-search-context')).toContainText('First');
+    await expect(rows.nth(1).locator('.pv-search-context')).toContainText('Second');
+    await rows.first().focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('needle');
+    await expect.poll(() => page.evaluate(() => Number(window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('[data-reader-text]')?.dataset.sourceFrom))).toBe(text.indexOf('needle second'));
+    await page.getByRole('button', { name: /Weitere Fundstellen laden|Load more occurrences/ }).click();
+    await expect(rows).toHaveCount(55);
+    await expect(page.getByRole('button', { name: /Weitere Fundstellen laden|Load more occurrences/ })).toHaveCount(0);
+  } finally { sql.close(); }
 });
 
 test('The search placeholder says what is being searched', async ({ page }) => {

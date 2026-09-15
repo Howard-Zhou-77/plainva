@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-09-06
+Ultimo aggiornamento: 2026-09-15
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -287,3 +287,11 @@ Una barra che va oltre il periodo mostrato viene tagliata al bordo e lì **non p
 Filtra per fascia di colore, icona, tag dell’intera nota o proprietà etichetta scelta per la bacheca. I tag coincidono esattamente: #work non trova #workshop né #work/child. Testo e frontmatter vengono uniti. I valori rimangono disponibili dall’intera sorgente anche senza risultati; i nomi di icone sconosciuti sono conservati.
 
 Il filtro cambia la selezione visibile, non i file. I valori proposti provengono dall’intera sorgente anche senza risultati.
+
+## Esportare una tabella
+
+Apri **Esporta tabella** nel menu del database sul desktop oppure usa l’icona di esportazione nella barra mobile. La finestra mostra il numero di righe del risultato e le colonne della vista.
+
+**Formule (.base)** crea una tabella con una selezione fissa delle righe attuali. Questi calcoli tramite relazioni salvate restano formule: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Apri il file nello stesso vault con le note collegate. La finestra indica i calcoli non supportati e le relazioni inverse; per queste colonne usa l’esportazione dei valori.
+
+**Valori (.csv)** contiene i valori calcolati attuali e i percorsi dei file. I valori non si aggiorneranno; gli elenchi restano in formato JSON. I testi simili a formule vengono protetti come testo per i fogli di calcolo. Nessuna delle due opzioni scrive proprietà calcolate nelle note originali.

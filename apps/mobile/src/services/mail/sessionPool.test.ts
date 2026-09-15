@@ -55,6 +55,21 @@ function harness(ttlMs = 120_000) {
 }
 
 describe("mail session pool (P7.3)", () => {
+  it("does not re-pool a session released while its command is still running", async () => {
+    const h = harness();
+    const key = sessionKey({ host: "mail.example", port: 993, user: "ada", pass: "pw" });
+    let unblock!: () => void;
+    const held = new Promise<void>(resolve => { unblock = resolve; });
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const operation = h.run(key, async conn => { entered(); await held; return conn.id; });
+    await started;
+    await h.pool.release(accountMarker("ada"));
+    unblock(); await operation;
+    expect(h.pool.size).toBe(0);
+    expect(h.log.closed).toEqual([1]);
+    expect(await h.ok(key)).toBe(2);
+  });
   it("five actions on one account produce a single login", async () => {
     const h = harness();
     const ids: number[] = [];

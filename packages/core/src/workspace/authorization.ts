@@ -12,20 +12,20 @@ export type WorkspaceRole = "Owner" | "Admin" | "Editor" | "Commenter" | "Reader
 
 export const WORKSPACE_ROLE_CAPABILITIES: Readonly<Record<WorkspaceRole, readonly WorkspaceCapability[]>> = {
   Owner: [
-    "comment.create", "comment.read", "content.create", "content.delete", "content.read", "content.rename",
+    "comment.create", "comment.read", "comment.suggest", "content.create", "content.delete", "content.read", "content.rename",
     "content.write", "devices.approve", "groups.manage", "history.read", "keys.rotate", "members.invite",
     "members.revoke", "recovery.manage", "slices.manage", "workspace.manage",
   ],
   Admin: [
-    "comment.create", "comment.read", "content.create", "content.delete", "content.read", "content.rename",
+    "comment.create", "comment.read", "comment.suggest", "content.create", "content.delete", "content.read", "content.rename",
     "content.write", "devices.approve", "groups.manage", "history.read", "keys.rotate", "members.invite",
     "members.revoke", "slices.manage", "workspace.manage",
   ],
   Editor: [
-    "comment.create", "comment.read", "content.create", "content.delete", "content.read", "content.rename",
+    "comment.create", "comment.read", "comment.suggest", "content.create", "content.delete", "content.read", "content.rename",
     "content.write", "history.read",
   ],
-  Commenter: ["comment.create", "comment.read", "content.read", "history.read"],
+  Commenter: ["comment.create", "comment.read", "comment.suggest", "content.read", "history.read"],
   Reader: ["comment.read", "content.read", "history.read"],
   Contributor: ["content.create"],
 };
@@ -56,6 +56,17 @@ export interface WorkspaceAccessDecision {
 function isSubjectMatch(policy: WorkspacePolicyPayload, assignment: WorkspacePolicyAssignment, memberId: string): boolean {
   if (assignment.subjectKind === "member") return assignment.subjectId === memberId;
   return policy.groups.some((group) => group.groupId === assignment.subjectId && group.memberIds?.includes(memberId));
+}
+
+function assignmentGrants(assignment: WorkspacePolicyAssignment, capability: WorkspaceCapability): boolean {
+  if (assignment.capabilities.includes(capability)) return true;
+  // Existing signed policies are immutable. Preserve their established proposal
+  // rights without rewriting a vault: ordinary commenting roles, and the old
+  // publication "suggest" grant (Reader + content.create). A publication's
+  // comment-only Reader never obtains this right from comment.create alone.
+  return capability === "comment.suggest" && assignment.capabilities.includes("comment.create")
+    && (["Owner", "Admin", "Editor", "Commenter"].includes(assignment.role)
+      || (assignment.role === "Reader" && assignment.capabilities.includes("content.create")));
 }
 
 function isScopeMatch(policy: WorkspacePolicyPayload, assignment: WorkspacePolicyAssignment, context: WorkspaceAccessContext): boolean {
@@ -105,7 +116,7 @@ export function evaluateWorkspaceAccess(policy: WorkspacePolicyPayload, context:
   }
   const assignments = policy.assignments.filter((assignment) =>
     isSubjectMatch(policy, assignment, context.memberId) &&
-    assignment.capabilities.includes(context.capability) &&
+    assignmentGrants(assignment, context.capability) &&
     isScopeMatch(policy, assignment, context)
   );
   const override = context.objectId ? policy.objectOverrides.some((entry) =>
@@ -196,13 +207,13 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     return this.inner.listDirReport
-      ? this.inner.listDirReport(path, recursive)
-      : { files: await this.inner.listDir(path, recursive), skipped: [] };
+      ? this.inner.listDirReport(path, recursive, options)
+      : { files: await this.inner.listDir(path, recursive, options), skipped: [] };
   }
 
-  listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> { return this.inner.listDir(path, recursive); }
+  listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> { return this.inner.listDir(path, recursive, options); }
   watch?(callback: (events: WatchEvent[]) => void): Promise<() => void> { return this.inner.watch?.(callback) ?? Promise.resolve(() => {}); }
 
   async writeTextFile(path: string, content: string): Promise<void> {

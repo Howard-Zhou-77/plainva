@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">已保存在此设备上。请打开 Plainva，选择 Vault 和文件夹。</string>
+    <string name="share_failed">未完整保存。请重新共享原始内容。</string>
+    <string name="share_limit">最多 10 个文件，每个文件 25 MiB，总计 50 MiB，文本 512 KiB。</string>
+    <string name="share_full">队列已满。请先在 Plainva 中导入或丢弃待处理的内容。</string>
+</resources>

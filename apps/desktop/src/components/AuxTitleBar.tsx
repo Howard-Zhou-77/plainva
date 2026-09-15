@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode, type MouseEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import { ICON, IconButton } from "@plainva/ui";
@@ -17,7 +17,7 @@ import { getWindowBus } from "../services/windowBus";
  * a theme change identically and no new CSS surface appears that the theme
  * matrix would have to cover.
  */
-export function AuxTitleBar({ title, tabs, label, actions }: { title: string; tabs?: ReactNode; label?: string | null; actions?: ReactNode }) {
+export function AuxTitleBar({ title, tabs, label, actions, onTitleContextMenu }: { title: string; tabs?: ReactNode; label?: string | null; actions?: ReactNode; onTitleContextMenu?: MouseEventHandler<HTMLSpanElement> }) {
   const { t } = useTranslation();
   const isMac = detectMac();
   const [pinned, setPinned] = useState(false);
@@ -83,6 +83,7 @@ export function AuxTitleBar({ title, tabs, label, actions }: { title: string; ta
       {tabs ?? (
         <span
           data-tauri-drag-region
+          onContextMenu={onTitleContextMenu}
           style={{
             flex: 1,
             minWidth: 0,

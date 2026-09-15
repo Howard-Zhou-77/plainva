@@ -1,8 +1,8 @@
 # Importar de outro aplicativo
 
-Última revisão: 2026-09-10
+Última revisão: 2026-09-15
 
-O Plainva pode trazer notas de outros aplicativos de notas. A importação sempre grava no vault que você tem aberto no momento, em uma subpasta que você nomeia — assim ela nunca toca no restante do seu vault, e você pode mover ou excluir a pasta importada depois, como qualquer outra pasta.
+O Plainva importa notas de outros aplicativos para um novo vault ou uma subpasta com nome novo do vault aberto. O restante fica intacto; depois você pode mover ou excluir a pasta importada.
 
 **A importação funciona nos dois dispositivos, com as mesmas fontes.** No desktop, a tela de boas-vindas, a paleta de comandos e o menu de contexto de uma pasta levam até ela; no telefone, você a encontra em **Configurações → Manutenção → Importar de outro aplicativo**. As fontes que precisam de acesso a um serviço — o Notion pela API — também estão disponíveis lá.
 
@@ -58,7 +58,7 @@ Um workspace grande pode demorar, por isso uma importação pode ser interrompid
 | **Google Keep (Takeout)** | O ZIP do Takeout ou os arquivos `.json` | Notas, listas de tarefas, marcadores como tags, cor no cabeçalho da nota, notas fixadas como mural |
 | **Simplenote (JSON)** | O arquivo `.json` exportado | Notas ativas e suas tags |
 | **Logseq (grafo de arquivos)** | A pasta do seu grafo | Os arquivos, copiados sem alterações |
-| **Joplin** | A pasta ou o ZIP da exportação Markdown | Notas com seus cadernos, frontmatter, tags e recursos |
+| **Joplin** | JEX/TAR, pasta RAW ou exportação Markdown | Notas, cadernos, tags, recursos, links internos e datas |
 | **Bear (TextBundle)** | As pastas `.textbundle` exportadas | Notas com suas imagens |
 | **Notesnook** | A exportação Markdown | Notas e suas pastas de caderno; uma nota em dois cadernos é importada uma vez |
 | **Capacities** | A pasta ou o ZIP da exportação | Notas com suas propriedades como frontmatter, além das mídias |
@@ -171,3 +171,12 @@ Os arquivos ZIP são processados com limites por arquivo, para o tamanho total e
 ## Nomes de arquivo ocupados
 
 O importador verifica até 1000 variantes do nome. Se nenhuma estiver livre, não for possível verificar o destino ou um nome reservado tiver sido ocupado, essa entrada será ignorada com uma explicação. As demais continuam. No Notion, uma reserva malsucedida mantém os links para a fonte original em vez de atribuir um destino local. Se o relatório também não conseguir um nome livre, a importação exibirá um erro; os arquivos já importados permanecerão na pasta de destino.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX e RAW
+
+Selecione um JEX/TAR descriptografado ou uma pasta RAW. A prévia conta notas, cadernos, tags e anexos. Cadernos vazios são preservados; títulos iguais recebem nomes diferentes e os links seguem os IDs. Notas sem o caderno exportado vão para a raiz da importação.
+
+Os bytes dos recursos são preservados. Registros originais, incluindo campos desconhecidos, também ficam em `_Joplin/Export.json`, contado como um anexo. O relatório indica recursos ausentes e links não resolvidos, mantendo os links originais. Leia antes de excluir a exportação.
+
+JEX exige um destino novo. Arquivos inválidos, caminhos conflitantes, links simbólicos/físicos e extensões TAR como PAX são rejeitados por inteiro. Limites: 20.000 entradas, 32 MiB por arquivo, 2 MiB por texto, 256 MiB no total, 64 MiB de texto e 64 MiB do arquivo complementar. Desktop usa uma cópia privada; celular lê trechos do arquivo. Cancelar a análise não grava no vault. Durante a importação, arquivos já gravados e relatório parcial permanecem; a pasta inteira não é revertida automaticamente.

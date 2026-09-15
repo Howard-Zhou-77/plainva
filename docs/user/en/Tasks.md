@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-09-06
+Last updated: 2026-09-15
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -131,3 +131,14 @@ Provider tasks are matched by identity. Different recurring instances get their 
 These files belong to different tasks. Recurring tasks with the same title can be separate instances. Both contents are kept as separate tasks.
 
 **Keep as separate tasks** — This file stays unchanged: Current file  The conflict copy is kept as a separate file: conflict copy
+
+<!-- tasks-jex-2026-09-14 -->
+## Tasks metadata and recurrence
+
+Desktop, mobile and Live Preview understand ➕ created, ✅ completed, 📅 due, ⏳ scheduled, 🛫 start, 🆔 ID and 🔁 recurrence. Dates use YYYY-MM-DD. Existing IDs survive line moves. Unknown fields stay in the Markdown.
+
+Automatic recurrence supports only English `every [N] day/week/month/year[s] [when done]`, with N from 1 to 999. Completion advances one period, even if still overdue; `when done` counts from completion. Relative date distances survive, with month-end clamping. An undated task stays undated. Complex rules, dependencies, block IDs, duplicate IDs, invalid dates and indented content do not generate a successor. Native Plainva recurrence or provider ownership also disables the Tasks generator.
+
+Checking a task with metadata adds its completion date. Supported recurrence adds an ID if needed and gives the successor a distinct `pv-…` ID. Checkbox and successor form one Markdown edit. Reopening the original keeps the successor; checking again preserves its edits. Editor Undo reverses the entire edit.
+
+Native database tasks still skip missed periods. A saved destination plan prevents duplicate successors on rechecking. If a successor is unconfirmed, inspect the task folder. After a write failure, reopening and checking again can resume the plan. A changed source will not produce a different copy; inspect the notes and create the intended successor manually if needed. A confirmed successor deleted later is not restored.

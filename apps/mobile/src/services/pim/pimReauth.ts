@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+import { googlePublicClient } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
 import { getAccountToken } from "../accountBroker";
 import { loadCloudAccounts } from "../cloudAccountsStore";
@@ -58,7 +60,8 @@ export async function reauthorizeCalendarAccount(
     // Everything this device could sign the account in with, cheapest first.
     const records = await loadCloudAccounts(vault.id).catch(() => []);
     const record = records.find((r) => r.services.calendar?.pimAccountId === account.id);
-    const accountToken = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
+    const accountToken = record ? await getAccountToken(vault.id, record.id, "calendar", provider).catch(() => null)
+      ?? await getAccountToken(vault.id, record.id).catch(() => null) : null;
     const syncProvider = await getStoredProvider(vault.id).catch(() => null);
     const siblings = (
       await Promise.all(
@@ -71,7 +74,9 @@ export async function reauthorizeCalendarAccount(
     const found = pickOAuthClient(provider, { own: stored, accountToken, syncProvider, siblings });
 
     if (provider === "google") {
-      const clientId = found?.clientId || (fallback?.googleClientId ?? "").trim();
+      const platform = Capacitor.getPlatform();
+      const publicClient = platform === "android" || platform === "ios" ? googlePublicClient(import.meta.env, platform) : null;
+      const clientId = found?.clientId || (fallback?.googleClientId ?? "").trim() || publicClient?.clientId;
       if (!clientId) {
         // Nothing on this device to sign in WITH — the form asks, rather than
         // opening a consent page Google would reject. The caller OPENS it.

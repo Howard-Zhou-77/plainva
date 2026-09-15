@@ -1,0 +1,13 @@
+# Mail batch actions
+
+Updated: 2026-09-14
+
+Desktop and mobile use `applyMailBulk` and the existing authenticated session pools. Each IMAP command carries at most 100 explicit UIDs, grouped by account, mailbox and the UIDVALIDITY captured when the envelope was loaded. An old cached row without an epoch requires a fresh listing before a batch mutation. Graph calls remain sequential to respect throttling.
+
+The transport verifies which requested UIDs exist before sending the mutation. Read and flagged state are read back individually, including after a tagged rejection. Missing UIDs and unconfirmed results remain visible per original message; only confirmed changes update the list and counters. Cancellation stops subsequent batches after the current response. Account/folder changes discard stale UI results. Releasing a session pool also retires in-flight sessions when their current operation finishes.
+
+Moves require the server's MOVE capability; permanent deletion requires UIDPLUS and uses UID EXPUNGE for exactly the requested set. Plainva refuses an unsupported action before changing flags. There is no fallback to global EXPUNGE or to COPY after a failed MOVE. Temporarily clearing other clients' deletion flags does not provide isolation from concurrent clients. A missing acknowledgement is uncertain, and is never automatically replayed. After reloading, a removed source UID cannot be copied a second time. These decisions follow [RFC 6851](https://www.rfc-editor.org/rfc/rfc6851.html) and [RFC 4315](https://www.rfc-editor.org/rfc/rfc4315.html).
+
+Envelope pages request BODYSTRUCTURE without setting Seen or downloading complete bodies; Graph requests hasAttachments. Absent or malformed metadata stays unknown. The attachment filter names its loaded scope and known metadata count; it never claims to have searched unloaded pages. Existing cached metadata is not rewritten into a false negative. Mobile hardware arrow keys and Home/End move focus inside the mail list; Enter activates the focused button, Left/Right expand conversations, and Escape clears selection or cancels pending batches. Input fields retain normal editing keys.
+
+Protocol regressions use the scripted socket server in `imapClient.test.ts`; `mailBulk.test.ts` covers chunking, cancellation, unknown results and attachment parsing. Both pool implementations cover release during a pending operation. Desktop browser coverage exercises partial results and conversation navigation. Real mobile-screen fixtures verify keyboard handling, attachment scope and partial results at 320 pixels. Native socket/device behavior requires a configured mail provider; browser fixtures do not prove a provider login.

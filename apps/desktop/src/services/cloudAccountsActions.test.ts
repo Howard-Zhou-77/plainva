@@ -23,6 +23,18 @@ vi.mock("./cloudAccounts", () => ({
 const slots = new Map<string, unknown>();
 /** Endpoints that reject the new password — drives the failure scenarios. */
 const reject = new Set<string>();
+vi.mock("./accountCredentialStore", () => {
+  const name = (key: string) => key.includes(" · Calendar · ") ? "pim" : key.match(/ · Files · (\w+) · /)?.[1] ?? key;
+  return { accountCredentialStore: {
+    read: async (key: string) => slots.has(name(key)) ? JSON.stringify(slots.get(name(key))) : null,
+    compareAndSet: async (key: string, expected: string | null, next: string | null) => {
+      const k = name(key);
+      if ((slots.has(k) ? JSON.stringify(slots.get(k)) : null) !== expected) return false;
+      if (next === null) slots.delete(k); else slots.set(k, JSON.parse(next));
+      return true;
+    },
+  } };
+});
 
 vi.mock("./protectedSecrets", () => ({ protectedSecrets: {
   read: async (key: string) => {
@@ -87,6 +99,9 @@ vi.mock("./syncTargets", () => ({
 
 /** Records every OAuth consent so the union run can be counted. */
 const consents: { scope?: string; via: string; clientId?: string }[] = [];
+vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn(async (url: string) => new Response(JSON.stringify(
+  url.includes("googleapis.com") ? { sub: "google-person", email: "person@example.invalid", email_verified: true } : { id: "microsoft-person", mail: "marco@outlook.com" },
+))) }));
 
 vi.mock("./pim/pimAccounts", () => ({
   checkCalDavLogin: vi.fn(async () => {
@@ -105,13 +120,13 @@ vi.mock("./pim/pimAccounts", () => ({
 vi.mock("./driveAuth", () => ({
   authorizeDrive: vi.fn(async (opts: { clientId: string; clientSecret: string; scope?: string }) => {
     consents.push({ scope: opts.scope, via: "drive", clientId: opts.clientId });
-    return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT", grantedScope: opts.scope ?? oauthScopeFor("google", "files")! };
+    return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT", accessToken: "google-access", grantedScope: opts.scope ?? oauthScopeFor("google", "files")! };
   }),
 }));
 vi.mock("./oneDriveAuth", () => ({
   authorizeOneDrive: vi.fn(async (opts: { clientId: string; scope?: string }) => {
     consents.push({ scope: opts.scope, via: "onedrive" });
-    return { clientId: opts.clientId, refreshToken: "MS-RT" };
+    return { clientId: opts.clientId, refreshToken: "MS-RT", accessToken: "microsoft-access" };
   }),
 }));
 
@@ -128,6 +143,7 @@ vi.mock("./accountBroker", () => ({
   setPendingBrokerAccount: vi.fn(),
   fileBrokerTokenProvider: vi.fn(async () => async () => "access"),
   getAccountToken: vi.fn(async (_v: string, id: string) => accountTokens.get(id) ?? null),
+  getAccountBroker: vi.fn(() => ({ getAccessToken: vi.fn(async () => "verified-access") })),
   brokerFamily: (family: string) => (family === "microsoft" || family === "google" ? family : null),
   googleScopeFor: (a: string) => oauthScopeFor("google", a),
 }));
@@ -344,7 +360,7 @@ describe("Google union consent", () => {
     );
     expect(consents).toHaveLength(1);
     // No union: the per-service flow runs with its own default scope.
-    expect(consents[0].scope).toBeUndefined();
+    expect(consents[0].scope).toBe(oauthScopeFor("google", "files"));
   });
 
   it("does not pull Drive scopes in when only the calendar is selected", async () => {
@@ -355,7 +371,7 @@ describe("Google union consent", () => {
       () => {}
     );
     // The calendar flow ran its own consent; no Drive scope was requested.
-    expect(consents).toEqual([{ via: "pim" }]);
+    expect(consents).toEqual([{ via: "drive", clientId: "cid", scope: oauthScopeFor("google", "calendar") }]);
   });
 
   it("re-authenticates from the local account slot, not the registry client copy", async () => {
@@ -446,10 +462,10 @@ describe("Microsoft union consent", () => {
     expect(records.find((r) => r.id === accountId)).toBeTruthy();
   });
 
-  it("leaves a single-service connect on its own per-service consent", async () => {
+  it("stores a single-service consent in the account with only its requested permissions", async () => {
     await runConnectSequence("/v", runtime, { family: "microsoft", services: ["calendar"] }, () => {});
-    // No union run: nothing was written to an account slot.
-    expect(accountTokens.size).toBe(0);
+    expect(accountTokens.size).toBe(1);
+    expect([...accountTokens.values()][0]).toMatchObject({ scopes: oauthScopeFor("microsoft", "calendar"), providerIdentity: { issuer: "microsoft" } });
   });
 });
 
@@ -531,7 +547,7 @@ describe("repairing one service keeps the others (finding 2026-07-30)", () => {
     expect(consents[0].scope).toContain("auth/drive");
   });
 
-  it("without the wider consent the account token is never even written", async () => {
+  it("stores a narrow calendar grant without requesting Drive access", async () => {
     // The old shape of a single-service repair: no union consent at all, so
     // the calendar took the per-service path and the shared account slot kept
     // whatever it held — which is how a Drive-only token survives a calendar
@@ -542,7 +558,7 @@ describe("repairing one service keeps the others (finding 2026-07-30)", () => {
       { family: "google", services: ["calendar"], byoClientId: "cid", googleClientSecret: "sec" },
       () => undefined
     );
-    expect(consents).toEqual([{ via: "pim" }]);
+    expect(consents).toEqual([{ via: "drive", clientId: "cid", scope: oauthScopeFor("google", "calendar") }]);
   });
 });
 
@@ -690,7 +706,7 @@ describe("account reconnect preserves every existing source until consent is com
     slots.set("pim", { kind: "google", clientId: "client", refreshToken: "old-service" });
     vi.mocked(authorizeDrive).mockImplementationOnce(async () => {
       slots.set("pim", { kind: "google", clientId: "client", refreshToken: "independent" });
-      return { clientId: "client", clientSecret: "secret", refreshToken: "late", grantedScope: oauthScopeFor("google", "calendar")! };
+      return { clientId: "client", clientSecret: "secret", refreshToken: "late", accessToken: "verified-access", grantedScope: oauthScopeFor("google", "calendar")! };
     });
     await expect(unifyAccountLogin("/v", null, card, () => {})).rejects.toThrow(i18n.t("cloudAccounts.loginBindingChanged"));
     expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: "old" });

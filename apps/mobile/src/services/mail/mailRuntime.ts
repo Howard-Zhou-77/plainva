@@ -1,4 +1,4 @@
-import { assertConnectionIdentity, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, classifyAuthError, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import {
   forgetGraphMailRuntime,
@@ -15,6 +15,8 @@ import { webdavFetch } from "../../adapters/webdavHttp";
 import { loadCloudAccounts } from "../cloudAccountsStore";
 import { bindMailToConnection } from "../cloudAccountConnections";
 import { connectionContextFor, recordConnectOutcome } from "../connectQueue";
+import { getAccountBroker, getAccountToken } from "../accountBroker";
+import { registerGmailOAuth } from "./gmailAuth";
 
 /**
  * The mobile mail runtime (mail feinplan G1). Unlike the PIM runtime there is
@@ -58,6 +60,7 @@ export async function removeMobileMailAccount(accountId: string): Promise<void> 
  */
 export function startMobileMail(vault: MobileVault): void {
   vaultId = vault.vaultId;
+  registerGmailOAuth();
   setOAuthPurposeHandler("mail", async ({ provider, clientId, refreshToken, accessToken, serviceContext }) => {
     if (provider !== "microsoft") throw new Error("only Microsoft mail is available on mobile");
     const boundVault = serviceContext?.vaultId;
@@ -116,6 +119,20 @@ export async function bindMicrosoftMailAccount(vault: string, clientId: string, 
 export async function connectMicrosoftMail(clientId?: string): Promise<void> {
   const context = await connectionContextFor("mail") ?? (vaultId ? { vaultId } : undefined);
   if (!context) throw new Error("no vault open");
+  if (context.cloudAccountId) {
+    const record = (await loadCloudAccounts(context.vaultId)).find(row => row.id === context.cloudAccountId);
+    if (!record || record.family !== "microsoft") throw new Error("accountChanged");
+    const token = await getAccountToken(context.vaultId, record.id, "mail", "microsoft", clientId?.trim() ? { clientId: clientId.trim() } : undefined);
+    if (token) {
+      let access: string | undefined;
+      try { access = await getAccountBroker(context.vaultId, record.id, "microsoft").getAccessToken("mail", token); }
+      catch (failure) { if (classifyAuthError(failure instanceof Error ? failure.message : String(failure)) !== "expired") throw failure; }
+      if (access) {
+        await bindMicrosoftMailAccount(context.vaultId, token.clientId, "", access, context);
+        return;
+      }
+    }
+  }
   await beginPimOAuth("microsoft", {
     clientId: clientId ?? "",
     label: "Microsoft",

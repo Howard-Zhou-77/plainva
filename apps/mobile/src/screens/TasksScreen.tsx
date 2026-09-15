@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, taskRowActions, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
-  scanTasks,
+  resolveTaskOrdinal, tasksDescription,
   setFrontmatterPath,
   type TaskRecord,
   deleteFrontmatterPath,
@@ -40,11 +40,7 @@ import { AppBar } from "../components/AppBar";
 
 /** Strips the metadata that already has its own chip, so it is not said twice. */
 function taskLabel(text: string): string {
-  return text
-    .replace(/#[^\s#]+/g, "")
-    .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return tasksDescription(text).replace(/(^|\s)#[\p{L}\p{N}][\p{L}\p{N}_/-]*/gu, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
 /**
@@ -498,11 +494,12 @@ export function TasksScreen({
         const fresh = await vaultOps.read(vault, task.path);
         // The ordinal was taken from a snapshot; if the note changed since, it
         // may point at a different line now. Re-read and check before writing.
-        if (scanTasks(fresh)[task.ordinal]?.text !== task.text) {
+        const ordinal = resolveTaskOrdinal(fresh, task);
+        if (ordinal < 0) {
           setTick((x) => x + 1);
           return;
         }
-        const next = toggleTaskAtIndex(fresh, task.ordinal, !task.done);
+        const next = toggleTaskAtIndex(fresh, ordinal, !task.done);
         if (!next.changed) {
           setTick((x) => x + 1);
           return;
@@ -515,6 +512,7 @@ export function TasksScreen({
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         gate.finish();
+        setTick(value => value + 1);
       }
     },
     [gate, vault]
@@ -557,6 +555,7 @@ export function TasksScreen({
           if (result.changed) syncSoon();
           setTick((x) => x + 1);
           if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
+          if (result.spawnFailed) toast.error(t("tasks.repeatFailed"));
         })
         .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
     },
@@ -944,6 +943,7 @@ export function TasksScreen({
                     }
                     subtitle={
                       <>
+                        <TaskMetadataDetails task={task} />
                         {task.due && <DueText due={task.due} testId="task-due" />}
                         {task.tags.map((tag) => (
                           <Chip key={tag}>#{tag}</Chip>

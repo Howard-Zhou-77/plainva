@@ -480,6 +480,10 @@ function SyncErrorDialog({
         <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
           {encryptionBricked
             ? t("sync.encryptionErrorHint", { defaultValue: "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück." })
+            : error?.workspaceFailure === "integrity"
+              ? t("workspaceSync.integrity")
+            : error?.workspaceFailure === "fatal"
+              ? t("workspaceSync.fatal")
             : authError
               ? t("sync.authErrorHint", { defaultValue: "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her." })
               : t("sync.transientErrorHint", { defaultValue: "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut." })}

@@ -1,0 +1,29 @@
+# Joplin JEX import
+
+Updated: 2026-09-14
+
+The Joplin adapter accepts JEX/TAR and RAW exports in addition to Markdown exports. [Joplin documents JEX as TAR and RAW as the same records without that container](https://joplinapp.org/help/apps/import_export/). Format details follow upstream [BaseItem serialization](https://github.com/laurent22/joplin/blob/dev/packages/lib/models/BaseItem.ts), the [RAW importer](https://github.com/laurent22/joplin/blob/dev/packages/lib/services/interop/InteropService_Importer_Raw.ts), and the [JEX exporter](https://github.com/laurent22/joplin/blob/dev/packages/lib/services/interop/InteropService_Exporter_Jex.ts).
+
+## Container and staging
+
+`packages/core/src/import/tarArchive.ts` is the single strict parser behind both shells. Its port reads bounded byte ranges. Ordinary USTAR/legacy regular files and directories are accepted. Checksums, octal sizes, complete bodies, two zero end blocks and zero-only trailing padding are required. Unsafe portable paths, duplicate/case-folded/NFC-colliding paths, file/ancestor conflicts, symbolic/hard links, devices, sparse files, PAX and long-name extension records are rejected before import. Joplin's portable archive uses short opaque record IDs and does not require those extensions.
+
+Limits are 20,000 entries, 32 MiB per payload, 2 MiB per text record, 256 MiB combined payload and 64 MiB decoded source text. The companion JSON is bounded separately to 64 MiB before joining its encoded records. Container overhead is bounded too. Progress and abort checks occur between bounded reads; binary payloads are lazy and do not all reside in memory. A binary attachment is read only at its validated offset and length, at most 32 MiB at once.
+
+On desktop, `extract_archive` first streams the selected TAR into a private `plainva-import` staging directory. No TAR member path is extracted to the filesystem. A narrowly scoped Tauri file handle scans that snapshot and later reads known resource ranges; it always closes. Parse failure, analysis cancellation and wizard close discard that staging directory. Mobile uses the immutable selected Blob and reads slices; it never calls `arrayBuffer()` on the whole TAR. Cancelling analysis writes no vault content. Cancelling an import keeps completed writes and its partial report; this is not a transaction or an automatic rollback of the folder.
+
+## Record mapping
+
+`adapters/jex.ts` parses the final property block, preserving original serialized records. It validates IDs, parent types, notebook cycles/depth, tag references and encryption before writing. Supported semantic records are notes, notebooks, resources, tags and note/tag joins. Unknown records and properties stay in `_Joplin/Export.json`; the companion counts as one attachment. A decrypted export is required.
+
+Notebook titles become portable directory names, including empty notebooks. Note paths are reserved for all notes before links are rewritten. Equal titles receive distinct stable ID suffixes. A selected-note export may omit its notebook: those notes go to the import root, retain their original parent ID, and preview states the limitation. An occupied target folder is rejected; the user chooses a fresh folder or new vault.
+
+Markdown links, images, reference definitions and HTML `href`/`src` targets using `:/<id>` resolve through the actual reserved paths. Code and ordinary prose are untouched. Resources under `Attachments/Joplin/` preserve bytes, including text-looking resources. Missing/unreadable resources keep unresolved original links and create a degraded report entry; they are never reported as complete. Original metadata is retained under `joplin`, including unknown fields. User timestamps take precedence over server timestamps and populate frontmatter/file times through the normal import writer. Joplin todo epochs remain in metadata; the derived day uses their UTC date because the export has no user timezone.
+
+## Verification
+
+The automated fixtures cover notes, tags, empty/nested notebooks, title collisions, timestamps, byte-identical resources, absent notebooks, unknown properties, Markdown/HTML links, encryption rejection, invalid graphs, occupied targets, resource failure and cancellation. TAR tests cover damaged/truncated archives, unsafe and ambiguous paths, special entry types, size ceilings and aborts. Shell tests exercise staged file handles and Blob slices.
+
+A real fixture was built from Joplin's [RAW importer test records](https://github.com/laurent22/joplin/blob/dev/packages/lib/services/interop/InteropService_Importer_Raw.test.ts) and its test photo using the portable node-tar settings of Joplin's exporter. It contains two notebooks, two notes and one resource. It passed the actual Windows import wizard with native staging/new-vault writes and the normal mobile Settings → Maintenance → Import route using the real web vault adapter at 320 px. Only file selection was substituted in the Windows test; the parser and filesystem writes were native. These manual run artifacts live outside the public source tree; generated fixtures are not committed as Joplin product data.
+
+The two native staging tests also run through the Windows Rust harness. `build.rs` embeds the Common Controls v6 dependency for the library test executable: its dialog dependency imports `TaskDialogIndirect`, which is missing from the legacy `comctl32.dll` selected without a manifest. The normal app keeps Tauri's existing resource manifest and disables a second linker-generated copy. This follows Microsoft's [manifest dependency](https://learn.microsoft.com/en-us/cpp/build/reference/manifestdependency-specify-manifest-dependencies?view=msvc-170) and [embedding](https://learn.microsoft.com/en-us/cpp/build/reference/manifest-create-side-by-side-assembly-manifest?view=msvc-170) rules. All 101 native unit tests and the normal Windows build passed after this correction.

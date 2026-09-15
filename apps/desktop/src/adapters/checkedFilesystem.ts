@@ -5,6 +5,8 @@ export interface CheckedDirEntry {
   isFile: boolean;
   isDirectory: boolean;
   isSymlink: boolean;
+  /** Older native readers omit this; their caller falls back to a file stat. */
+  metadata?: { size: number; mtime: number | null; ctime: number | null } | null;
 }
 
 /** Only the native NotFound result is absence; unknown responses also reject. */
@@ -26,6 +28,9 @@ export async function checkedReadDirectory(rootId: string, relPath: string): Pro
   if (!Array.isArray(value) || value.some((entry) => !entry || typeof entry.name !== "string"
     || !entry.name || entry.name.includes("/") || entry.name.includes("\\")
     || typeof entry.isFile !== "boolean" || typeof entry.isDirectory !== "boolean" || typeof entry.isSymlink !== "boolean"
-    || (!entry.isFile && !entry.isDirectory && !entry.isSymlink))) throw new Error("The directory listing could not be confirmed");
+    || (!entry.isFile && !entry.isDirectory && !entry.isSymlink)
+    || (entry.metadata != null && (!Number.isSafeInteger(entry.metadata.size) || entry.metadata.size < 0
+      || (entry.metadata.mtime !== null && !Number.isSafeInteger(entry.metadata.mtime))
+      || (entry.metadata.ctime !== null && !Number.isSafeInteger(entry.metadata.ctime)))))) throw new Error("The directory listing could not be confirmed");
   return value as CheckedDirEntry[];
 }

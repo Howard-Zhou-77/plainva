@@ -68,6 +68,10 @@ public class WebDavHttpPlugin extends Plugin {
         return origin;
     }
 
+    static void allowConfiguredOrigin(HttpUrl url) {
+        allowedOrigins.add(originOf(url));
+    }
+
     private static boolean isAllowed(HttpUrl url) {
         if (allowedOrigins.contains(originOf(url))) return true;
         if (!"https".equals(url.scheme())) return false; // fixed providers are https-only
@@ -82,7 +86,7 @@ public class WebDavHttpPlugin extends Plugin {
         return false;
     }
 
-    private static final OkHttpClient client = new OkHttpClient.Builder()
+    static final OkHttpClient client = new OkHttpClient.Builder()
         .followRedirects(true)
         // Explicit timeouts: OkHttp's callTimeout defaults to 0 (UNBOUNDED).
         // After a network switch or a Doze transition a call can sit in limbo
@@ -110,7 +114,7 @@ public class WebDavHttpPlugin extends Plugin {
         // is rejected even though followRedirects is on.
         .addNetworkInterceptor(chain -> {
             if (!isAllowed(chain.request().url())) {
-                throw new IOException("blocked by origin policy: " + originOf(chain.request().url()));
+                throw new IOException("blocked by origin policy");
             }
             Response response = chain.proceed(chain.request());
             long len = response.body() != null ? response.body().contentLength() : -1;
@@ -139,7 +143,7 @@ public class WebDavHttpPlugin extends Plugin {
             call.reject("not a valid origin");
             return;
         }
-        allowedOrigins.add(originOf(parsed));
+        allowConfiguredOrigin(parsed);
         call.resolve();
     }
 
@@ -190,7 +194,7 @@ public class WebDavHttpPlugin extends Plugin {
             return;
         }
         if (!isAllowed(parsed)) {
-            call.reject("blocked by origin policy: " + originOf(parsed));
+            call.reject("HTTP_ORIGIN_BLOCKED", "HTTP_ORIGIN_BLOCKED");
             return;
         }
 
@@ -249,25 +253,31 @@ public class WebDavHttpPlugin extends Plugin {
         client.newCall(builder.build()).enqueue(new Callback() {
             @Override
             public void onFailure(Call c, IOException e) {
-                call.reject(e.getMessage() != null ? e.getMessage() : "network error");
+                String code = HttpFailure.code(e);
+                call.reject(code, code);
             }
 
             @Override
-            public void onResponse(Call c, Response response) throws IOException {
-                byte[] bytes = response.body() != null ? response.body().bytes() : new byte[0];
-                if (bytes.length > MAX_RESPONSE_BYTES) {
-                    call.reject("response exceeds the size cap");
-                    return;
+            public void onResponse(Call c, Response response) {
+                try (Response ownedResponse = response) {
+                    byte[] bytes = ownedResponse.body() != null ? ownedResponse.body().bytes() : new byte[0];
+                    if (bytes.length > MAX_RESPONSE_BYTES) {
+                        call.reject("response exceeds the size cap");
+                        return;
+                    }
+                    JSObject responseHeaders = new JSObject();
+                    for (String name : response.headers().names()) {
+                        responseHeaders.put(name.toLowerCase(), response.headers().get(name));
+                    }
+                    JSObject ret = new JSObject();
+                    ret.put("status", response.code());
+                    ret.put("headers", responseHeaders);
+                    ret.put("bodyBase64", Base64.encodeToString(bytes, Base64.NO_WRAP));
+                    call.resolve(ret);
+                } catch (IOException e) {
+                    String code = HttpFailure.code(e);
+                    call.reject(code, code);
                 }
-                JSObject responseHeaders = new JSObject();
-                for (String name : response.headers().names()) {
-                    responseHeaders.put(name.toLowerCase(), response.headers().get(name));
-                }
-                JSObject ret = new JSObject();
-                ret.put("status", response.code());
-                ret.put("headers", responseHeaders);
-                ret.put("bodyBase64", Base64.encodeToString(bytes, Base64.NO_WRAP));
-                call.resolve(ret);
             }
         });
     }

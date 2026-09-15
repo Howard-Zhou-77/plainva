@@ -18,8 +18,12 @@
  * than by whoever remembers.
  */
 
+import { connectionErrorText } from "./connectionErrorText";
+
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
+  const connection = connectionErrorText(err);
+  if (connection) return connection;
   if (typeof err === "string") return err.trim() || "unknown error";
 
   if (err instanceof Error) {

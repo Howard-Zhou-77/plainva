@@ -43,6 +43,7 @@ export function resolveMobileFileAccess(
 
   const creds = stored.creds as {
     refreshToken?: string;
+    nativeGoogle?: { email?: string };
     url?: string;
     accessKeyId?: string;
     secretAccessKey?: string;
@@ -53,7 +54,7 @@ export function resolveMobileFileAccess(
       : stored.provider === "s3"
         ? !!(creds.accessKeyId && creds.secretAccessKey)
         : // Dropbox has no broker family: its token is always its own.
-          !!creds.refreshToken || (stored.provider !== "dropbox" && filesViaBroker);
+          !!creds.refreshToken || (stored.provider === "drive" && !!creds.nativeGoogle?.email) || (stored.provider !== "dropbox" && filesViaBroker);
   return { ready, blocked: !ready };
 }
 

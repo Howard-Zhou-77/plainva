@@ -16,7 +16,7 @@ import {
   customThemeFromSwatch,
   defaultCustomTheme,
   formatRatio,
-  hexToHsl,
+  useCustomThemePair,
   CUSTOM_ACCENT_MIN_CONTRAST,
   CUSTOM_BACKGROUND_LIGHTNESS,
   CUSTOM_TEXT_SECONDARY_MIN_CONTRAST,
@@ -24,6 +24,7 @@ import {
   type CustomThemeMode,
   type CustomThemeRadius,
   type CustomThemeSpec,
+  type CustomThemeDesign,
 } from "@plainva/ui";
 import { Select } from "../Select";
 
@@ -32,16 +33,17 @@ import { Select } from "../Select";
  * A2–A4): the few things a person may choose, and the readout of what the
  * choice resolves to. Text colours are shown, never edited; a pale accent is
  * corrected and the correction is said in a sentence. Every change persists
- * at once — there is no "apply", the preview IS the app. Rendered on its own
+ * at once for an adopted mood; a proposed mood waits for adoption. Rendered on its own
  * settings page (CustomThemePage), the preview first, then three cards.
  */
 export interface CustomThemeEditorProps {
-  spec: CustomThemeSpec;
-  onChange: (spec: CustomThemeSpec) => void;
+  spec: CustomThemeDesign;
+  onChange: (spec: CustomThemeDesign) => void | Promise<void>;
 }
 
-export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onChange }) => {
+export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: design, onChange }) => {
   const { t } = useTranslation();
+  const pair = useCustomThemePair(design, onChange), spec = pair.spec;
   const [lastCorrection, setLastCorrection] = useState<CustomThemeCorrection | null>(null);
   const colors = useMemo(() => customThemeColors(spec), [spec]);
   const ratios = useMemo(() => customThemeContrast(spec), [spec]);
@@ -50,15 +52,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
   const set = (patch: Partial<CustomThemeSpec>) => {
     const { spec: next, corrections } = clampCustomTheme({ ...spec, ...patch });
     setLastCorrection(corrections.find((c) => c.field === "accent") ?? corrections[0] ?? null);
-    onChange(next);
-  };
-  const setMode = (mode: CustomThemeMode) => {
-    // A background outside the new mood's band is replaced, not clamped to
-    // its edge: white clamped into the dark band is a grey nobody chose.
-    const l = hexToHsl(spec.background).l;
-    const [nlo, nhi] = CUSTOM_BACKGROUND_LIGHTNESS[mode];
-    const background = l >= nlo && l <= nhi ? spec.background : defaultCustomTheme(mode).background;
-    set({ mode, background });
+    pair.update(next);
   };
   // "Take from…": the chosen bundled theme's swatch in the current mood —
   // NOT the live tokens, which are this theme's own once the editor is open
@@ -69,7 +63,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
     const sw = def.swatch[spec.mode] ?? def.swatch[def.modes[0]];
     if (!sw) return;
     setLastCorrection(null);
-    onChange(customThemeFromSwatch(sw, spec.mode, spec));
+    pair.update(customThemeFromSwatch(sw, spec.mode, spec));
   };
 
   // The colour rows are the shared SwatchGrid (plan "Farbwahl überall",
@@ -84,6 +78,9 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
 
   return (
     <div data-testid="custom-theme-editor">
+      <p>{t("settings.customThemePairHint")}</p>
+      {pair.pending && <Banner kind="info" rounded><p>{t("settings.customThemeProposal")}</p><Button onClick={pair.adopt} data-testid="custom-theme-adopt-mood">{t("settings.customThemeAdoptMood")}</Button></Banner>}
+      {pair.saveFailed && <Banner kind="error" rounded>{t("settings.customThemeSaveFailed")}</Banner>}
       {/* The preview paints from the resolved colours, not from the live tokens:
           it must show the spec while a bundled theme is still active. */}
       <div aria-hidden="true" style={{ background: colors.background, color: colors.textMain, border: `1px solid ${colors.border}`, borderRadius: "var(--radius-md)", overflow: "hidden", fontSize: "var(--text-xs)", fontFamily: "var(--font-ui)", marginBottom: "var(--space-4)" }}>
@@ -107,8 +104,8 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
             ariaLabel={t("settings.customThemeMode")}
             size="sm"
             value={spec.mode}
-            onChange={(v) => setMode(v as CustomThemeMode)}
-            options={[{ value: "light", label: t("settings.themeLight") }, { value: "dark", label: t("settings.themeDark") }]}
+            onChange={(v) => { setLastCorrection(null); pair.setMode(v as CustomThemeMode); }}
+            options={[{ value: "light", label: t("settings.themeLight"), testId: "custom-theme-mood-light" }, { value: "dark", label: t("settings.themeDark"), testId: "custom-theme-mood-dark" }]}
           />
         </SettingRow>
         <SettingRow label={t("settings.customThemeBackground")} desc={t("settings.customThemeBackgroundHint", { lo: Math.round(lo * 100), hi: Math.round(hi * 100) })}>
@@ -167,7 +164,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
       </SettingCard>
 
       <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", paddingTop: "var(--space-2)" }}>
-        <Button variant="ghost" size="sm" onClick={() => { setLastCorrection(null); onChange(defaultCustomTheme(spec.mode)); }}>
+        <Button variant="ghost" size="sm" onClick={() => { setLastCorrection(null); pair.update(defaultCustomTheme(spec.mode)); }}>
           {t("settings.customThemeReset")}
         </Button>
         <Select

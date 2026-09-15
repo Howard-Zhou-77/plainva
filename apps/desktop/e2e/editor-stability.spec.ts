@@ -261,6 +261,53 @@ const markerAlive = (page: Page) =>
 const scrollTop = (page: Page) =>
   page.evaluate(() => (document.querySelector('.cm-scroller') as HTMLElement).scrollTop);
 
+test('selection formatting stays inside a narrow desktop window and preserves its range', async ({ page }) => {
+  const source = '# Selection\n\nSome words before the selected Zielwort';
+  await page.setViewportSize({ width: 640, height: 720 });
+  await page.addInitScript(raw => { (window as any).mockFs['/test-vault/Selection.md'] = raw; }, source);
+  await page.goto('/');
+  await page.getByText('Selection', { exact: true }).click();
+  const editor = page.locator('.cm-content').first();
+  await editor.focus();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Control+Shift+ArrowLeft');
+  const toolbar = page.locator('.pv-seltoolbar');
+  await expect(toolbar).toBeVisible();
+  expect(await toolbar.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    return rect.x >= 0 && rect.right <= innerWidth && rect.y >= 0 && rect.bottom <= innerHeight
+      && el.scrollWidth <= el.clientWidth;
+  })).toBe(true);
+  await toolbar.getByRole('button').first().click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Selection.md']))
+    .toBe(source.replace('Zielwort', '**Zielwort**'));
+});
+
+test('live Tasks checkbox supports keyboard completion and one-step undo', async ({ page }) => {
+  const source = '# Keyboard\n\n- [ ] Weekly review 🆔 keyboard-1 🔁 every week 📅 2026-09-14\n\nEnd\n';
+  await page.addInitScript(raw => { (window as any).mockFs['/test-vault/Keyboard.md'] = raw; }, source);
+  await page.goto('/');
+  await page.getByText('Keyboard', { exact: true }).click();
+  const editor = page.locator('.cm-content').first();
+  const checkbox = page.locator('input.cm-md-task');
+  await expect(checkbox).toHaveCount(1);
+  await checkbox.focus();
+  await page.keyboard.press('Space');
+  const saved = () => page.evaluate(() => (window as any).mockFs['/test-vault/Keyboard.md'] as string);
+  await expect.poll(saved).toContain('📅 2026-09-21');
+  await expect.poll(saved).toContain('- [x] Weekly review');
+  expect((await saved()).match(/🆔 /g)).toHaveLength(2);
+  await editor.focus();
+  await page.keyboard.press('Control+z');
+  await expect.poll(saved).toBe(source);
+  await editor.click();
+  await page.keyboard.press('Control+Home');
+  await expect(checkbox).toHaveCount(1);
+  await checkbox.click();
+  await expect.poll(saved).toContain('📅 2026-09-21');
+  expect((await saved()).match(/🆔 /g)).toHaveLength(2);
+});
+
 test('live mode renders KaTeX + mermaid in place; clicking flips to source (Nachfass P3.4)', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Math', { exact: true })).toBeVisible({ timeout: 10000 });

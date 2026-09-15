@@ -1,0 +1,168 @@
+{
+  "date": "2026-09-15",
+  "environment": "Windows host; isolated Android 37.1 x86_64 emulator",
+  "reportedApi": 37,
+  "pageBytes": 16384,
+  "compileSdk": 36,
+  "targetSdk": 36,
+  "apkSha256": "3a3c3e09bfd6b754b41a01dacd981fcc5576d869f54d22fe59f0dab69d9ea4dd",
+  "libraries": [
+    {
+      "name": "lib/arm64-v8a/libimage_processing_util_jni.so",
+      "bits": 64,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        12288
+      ]
+    },
+    {
+      "name": "lib/arm64-v8a/libsqlcipher.so",
+      "bits": 64,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    },
+    {
+      "name": "lib/arm64-v8a/libsurface_util_jni.so",
+      "bits": 64,
+      "loadAlignments": [
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    },
+    {
+      "name": "lib/armeabi-v7a/libimage_processing_util_jni.so",
+      "bits": 32,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    },
+    {
+      "name": "lib/armeabi-v7a/libsqlcipher.so",
+      "bits": 32,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        8192
+      ]
+    },
+    {
+      "name": "lib/armeabi-v7a/libsurface_util_jni.so",
+      "bits": 32,
+      "loadAlignments": [
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    },
+    {
+      "name": "lib/x86/libimage_processing_util_jni.so",
+      "bits": 32,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        8192
+      ]
+    },
+    {
+      "name": "lib/x86/libsqlcipher.so",
+      "bits": 32,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        8192
+      ]
+    },
+    {
+      "name": "lib/x86/libsurface_util_jni.so",
+      "bits": 32,
+      "loadAlignments": [
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    },
+    {
+      "name": "lib/x86_64/libimage_processing_util_jni.so",
+      "bits": 64,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        0
+      ]
+    },
+    {
+      "name": "lib/x86_64/libsqlcipher.so",
+      "bits": 64,
+      "loadAlignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    },
+    {
+      "name": "lib/x86_64/libsurface_util_jni.so",
+      "bits": 64,
+      "loadAlignments": [
+        16384,
+        16384
+      ],
+      "relroEndModulo16k": [
+        4096
+      ]
+    }
+  ],
+  "nativeTests": 7,
+  "nativeTestResult": "passed",
+  "zipalign16k": "passed",
+  "webView": "Chrome/149.0.7827.5",
+  "nativeUiMounted": true,
+  "uncaughtPageErrors": [],
+  "activityColdStartMs": 12125,
+  "appProcessMemoryKiB": {
+    "pss": 146213,
+    "rss": 330048,
+    "swap": 0
+  },
+  "limits": [
+    "Activity launch is not time to interactive",
+    "App process snapshot does not sum all renderer processes",
+    "No physical ARM64 run or long-duration leak measurement"
+  ]
+}

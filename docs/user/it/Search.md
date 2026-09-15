@@ -1,16 +1,16 @@
 # Ricerca
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-15
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 
 ## Ricerca full-text in tutto il vault
 
-Il campo di ricerca in alto nella barra laterale cerca in tutto il vault — sia nei titoli *che* nei contenuti. È supportata da un indice full-text locale (SQLite FTS5) che viene costruito all'apertura del vault e tenuto aggiornato a ogni modifica; la ricerca funziona quindi offline e senza ritardi percettibili.
+Il campo in alto nella barra laterale cerca titoli e contenuti nell’intero vault. Un indice full-text locale (SQLite FTS5) viene creato all’apertura del vault e aggiornato quando cambiano i file. La ricerca funziona offline.
 
 La ricerca reagisce mentre digiti: i prefissi delle parole trovano già corrispondenza ("Proget" trova "Progetto piano") — non serve premere Invio. La **X** a destra del campo cancella la ricerca corrente (oppure premi `Esc`); la barra laterale mostra quindi di nuovo il normale albero dei file.
 
-L'elenco dei risultati mostra in alto il conteggio dei risultati e raggruppa i risultati: prima i risultati **Nome del file** (il termine compare nel nome della nota), poi i risultati **Contenuto**. Ogni riga mostra l'icona del documento, il percorso della cartella e — per i risultati nel contenuto — un estratto di testo con la corrispondenza evidenziata. Un clic su un risultato apre la nota e salta direttamente alla prima occorrenza; lì viene selezionata. Se non c'è alcuna corrispondenza, l'elenco mostra **Nessun risultato**.
+La ricerca elenca le singole occorrenze con un estratto, il percorso delle intestazioni e il numero di riga. Aprendo una riga viene selezionata proprio quell’occorrenza; più corrispondenze nella stessa nota compaiono separatamente. Il conteggio comprende solo i risultati già caricati. Puoi caricare altre occorrenze. Le frecce cambiano la selezione e Invio la apre. Caricamento, risultati vuoti ed errori sono indicati; una nuova ricerca scarta le vecchie risposte. Se una modifica impedisce di identificare un’occorrenza senza ambiguità, compare un avviso. Le stesse occorrenze sono disponibili nel selettore rapido e nella ricerca mobile. Tornando alla ricerca sul telefono vengono ripristinati la query, i risultati caricati e la posizione della lista.
 
 Il campo di ricerca si applica anche alle altre viste della barra laterale: in **Tag** filtra l'elenco dei tag, in **Segnalibri** i segnalibri.
 

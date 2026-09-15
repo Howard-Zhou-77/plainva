@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-09-11
+Last reviewed: 2026-09-15
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -144,3 +144,5 @@ The mobile assistant opens the appropriate connection immediately. After signing
 Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
 
 [Google — Your own app registration](Google_Drive_BYO_Guide.md)
+
+Click or tap the period in the calendar header to choose a date. Dots mark existing daily notes using your configured folder and filename format, including names with dots. Select a day, then choose **Jump to date** or **Open daily note** / **Create daily note**. Creation uses the same template as the sidebar and Today view. The marks refresh when you change months or notes change. Multi-day events keep their stable lanes and extend to the right from their start; dates outside the visible range are clipped.

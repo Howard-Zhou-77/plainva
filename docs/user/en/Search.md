@@ -1,16 +1,16 @@
 # Search
 
-Last reviewed: 2026-09-03
+Last reviewed: 2026-09-15
 
 Plainva offers three ways to search: full-text search across the whole vault, the quick switcher for opening files, and find & replace inside a note.
 
 ## Full-text search across the vault
 
-The search field at the top of the sidebar searches the entire vault — titles *and* contents. It is backed by a local full-text index (SQLite FTS5) that is built when the vault opens and kept current on every change; search therefore works offline and without noticeable delay.
+The field at the top of the sidebar searches titles and contents across the vault. A local full-text index (SQLite FTS5) is built when the vault opens and updated as files change. Search works offline.
 
 Search reacts while you type: word prefixes already match ("Projec" finds "Project plan") — no Enter needed. The **X** at the right of the field clears the current search (or press `Esc`); the sidebar then shows the normal file tree again.
 
-The result list shows the hit count at the top and groups the results: **File name** hits first (the term appears in the note's name), then **Content** hits. Every row shows the document icon, the folder path and — for content hits — a text excerpt with the match highlighted. Clicking a result opens the note and jumps straight to the first occurrence; it is selected there. If nothing matches, the list says **No results**.
+Search lists individual occurrences with a text excerpt, heading path and line number. Opening a row selects that exact occurrence; several matches in the same note appear separately. The displayed count includes only results already loaded. You can load more occurrences. Arrow keys move between occurrences and Enter opens the selection. Loading, empty results and errors are shown explicitly; new input discards obsolete answers. If an edited occurrence can no longer be identified uniquely, a message explains this. The same occurrences are available in the quick switcher and mobile search. Returning to search on the phone restores the query, loaded results and list position.
 
 The search field also applies to the other sidebar views: in **Tags** it filters the tag list, in **Bookmarks** the bookmarks.
 

@@ -17,6 +17,7 @@ type Node = { isDirectory: boolean; dev: number | null; ino: number | null; chil
  *  them: readDir's isDirectory is false, stat() resolves and shares the target's
  *  identity. */
 let fs = new Map<string, Node>();
+let nativeMetadata = false;
 
 const readDirMock = vi.fn(async (p: string) => {
   const node = fs.get(p);
@@ -57,6 +58,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: async (command: string, args: {
   if (command === "checked_read_dir") {
     return (await readDirMock(args.relPath ? `/vault/${args.relPath}` : "/vault")).map((entry) => ({
       name: entry.name, isDirectory: entry.isDirectory, isFile: !entry.isDirectory, isSymlink: false,
+      metadata: nativeMetadata && !entry.isDirectory ? { size: 17, mtime: 42, ctime: 13 } : null,
     }));
   }
   throw new Error("Unexpected filesystem command");
@@ -93,6 +95,7 @@ describe("walk identity guard", () => {
   beforeEach(() => {
     readDirMock.mockClear();
     statMock.mockClear();
+    nativeMetadata = false;
   });
 
   it("walks a symlinked directory only once", async () => {
@@ -101,6 +104,25 @@ describe("walk identity guard", () => {
     const notes = report.files.filter((f) => f.name === "X.md").map((f) => f.path);
     expect(notes).toEqual(["Tools/real/X.md"]);
     expect(report.skipped).toContainEqual({ path: "Tools/alias", reason: "cycle" });
+  });
+
+  it("uses native metadata without one IPC stat per regular file", async () => {
+    nativeMetadata = true;
+    fs = new Map([
+      [ROOT, { isDirectory: true, dev: 1, ino: 1, children: Array.from({ length: 250 }, (_, i) => ({ name: `${i}.md`, isDirectory: false })) }],
+    ]);
+    const report = await new TauriVaultAdapter(ROOT).listDirReport("", true);
+    expect(report.files).toHaveLength(250);
+    expect(report.files[0]).toMatchObject({ size: 17, mtime: 42, ctime: 13 });
+    expect(statMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a directory walk without returning a partial empty vault", async () => {
+    seed(true);
+    const controller = new AbortController();
+    readDirMock.mockImplementationOnce(async () => { controller.abort(); return []; });
+    await expect(new TauriVaultAdapter(ROOT).listDirReport("", true, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(readDirMock).toHaveBeenCalledTimes(1);
   });
 
   it("still walks a symlinked directory where the platform reports no identity", async () => {

@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-11
+Stan na: 2026-09-15
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -28,6 +28,8 @@ To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie dzia�
 
 Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w prawym górnym rogu przełącza na edycję (z paskiem narzędzi nad klawiaturą: formatowanie, listy, link wiki, polecenia slash, wstawianie zdjęcia). Osadzenia `![[Notatka]]` pojawiają się jako klikalne karty podglądu.
 
+Przytrzymaj słowo, aby zaznaczyć tekst. Pasek zaznaczenia oferuje **Kopiuj** i **Zaznacz wszystko**, także do kopiowania całego tekstu długiej notatki. Ukryte właściwości YAML i znaczniki formatowania Markdown nie są kopiowane. **Edytuj** przełącza do pisania w zaznaczonym miejscu, jeśli masz uprawnienia do edycji notatki.
+
 Foldery można **przeszukiwać** i **sortować** z paska narzędzi nad listą — według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór odwraca kierunek, a sortowanie jest zapamiętywane na urządzeniu. Przy zimnym starcie aplikacja otwiera to, co było ostatnio otwarte — notatkę, folder lub widok bazy danych wraz z kartą — a każda notatka otwiera się tam, gdzie ją zostawiono; asystenci konfiguracji i nieukończona wiadomość nie są przywracane. Listy z podelementami zwija się i rozwija dotknięciem ich punktora.
 
 Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
@@ -48,7 +50,7 @@ Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, g
 
 **Kilka wpisów naraz**: przytrzymaj wiersz i wybierz **Zaznacz kilka** — pierwszą pozycję tego arkusza. Odtąd dotknięcie zaznacza zamiast otwierać, a pasek na dole pokazuje, ile ich jest. Stamtąd możesz **usunąć** zaznaczenie (jedno pytanie, nie dwanaście — z takim samym przeglądem powiązań, jaki daje pojedyncze usuwanie) albo użyć **Ustaw wartość…**, aby ustawić jedną właściwość dla wszystkich naraz: najpierw wybierz właściwość, potem wartość. Tam, gdzie przy właściwości widnieje **obecnie różne**, zaznaczone wpisy mają różne wartości. Pusta wartość usuwa właściwość. Podczas działania widzisz postęp i możesz anulować; to, co już zostało zapisane, pozostaje. Tagi, listy, wielokrotny wybór i relacje celowo nie są uwzględnione — tam „ustaw wszystkim X” oznaczałoby, że każda istniejąca wartość znika.
 
-Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek samoprzylepnych: dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność, a pola wyboru odhaczasz bezpośrednio na karcie. Pole wprowadzania na górze tworzy nową notatkę. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Treść i struktura**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę.
+Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek samoprzylepnych: dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność, a pola wyboru odhaczasz bezpośrednio na karcie. Pole wprowadzania na górze tworzy nową notatkę. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Treść i struktura**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę. Dla udostępnionej zawartości najpierw wybierz ten folder i potwierdź import.
 
 ## Zadania
 
@@ -205,7 +207,9 @@ Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje 
 
 ## Udostępnianie i skróty
 
-Na Androidzie i iOS udostępniony tekst i adresy URL stają się nową notatką w folderze skrzynki; udostępnione obrazy i pliki są przejmowane jako załączniki (do 25 MB na plik). Na Androidzie przytrzymanie ikony aplikacji dodatkowo udostępnia skróty **Nowa notatka** i **Dzisiaj**.
+Udostępnij Plainva tekst, linki, obrazy lub pliki z innej aplikacji. Plainva najpierw zachowuje prywatną kopię lokalną. Otwórz Plainva, przejrzyj udostępnioną zawartość, wybierz vault i folder, a następnie potwierdź import. Odłożenie importu, zamknięcie panelu, zablokowanie vaultu lub ponowne uruchomienie aplikacji zachowuje oczekującą zawartość. Ponowna próba rozpoczętego importu zachowuje pierwotne miejsce docelowe. Niepełny transfer ze źródła trzeba udostępnić ponownie; odrzuć jego oczekujący wpis, gdy nie jest już potrzebny.
+
+Limity transferu: 10 plików, 25 MiB na plik, 50 MiB łącznie oraz 512 KiB tekstu wraz z tematem. Kolejka mieści maksymalnie 20 oczekujących transferów i rezerwuje miejsce w budżecie załączników 200 MiB. Kopia tymczasowa jest usuwana dopiero po zapisaniu i sprawdzeniu notatki oraz załączników albo po wyraźnym odrzuceniu wpisu. Odrzucenie nie usuwa plików już zaimportowanych do vaultu. Na Androidzie przytrzymaj ikonę aplikacji, aby wybrać **Nowa notatka** lub **Dzisiaj**. Na komputerze użyj istniejących działań wklejania i importowania plików.
 
 ## Foldery, zdjęcia i kalendarz
 

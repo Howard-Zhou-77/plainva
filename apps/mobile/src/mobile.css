@@ -109,7 +109,12 @@ textarea {
   /* How far the surface stays clear of the bottom bar — the block below
      derives the variants from this base. */
   --m-page-bottom: var(--m-bar-space);
+  --m-header-safe-top: env(safe-area-inset-top);
 }
+
+/* A waiting share is the first visible strip and owns the status-bar inset. */
+.m-app:has(.m-share-notice) { --m-header-safe-top: 0px; }
+.m-share-notice { flex-shrink: 0; padding-top: calc(var(--space-2) + env(safe-area-inset-top)); }
 
 .m-screen {
   flex: 1;
@@ -223,7 +228,7 @@ textarea {
   top: 0;
   z-index: 1;
   background: var(--surface);
-  padding: calc(6px + env(safe-area-inset-top)) max(var(--m-edge), env(safe-area-inset-right)) 6px
+  padding: calc(6px + var(--m-header-safe-top, env(safe-area-inset-top))) max(var(--m-edge), env(safe-area-inset-right)) 6px
     max(var(--m-edge), env(safe-area-inset-left));
   margin: 0 calc(-1 * var(--m-edge));
   transition:
@@ -973,6 +978,25 @@ textarea {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-1);
+  min-width: 0;
+  width: 100%;
+}
+/* These are actions, not a truncatable trailing value. Give them a full row
+   beneath the person/device so every label remains readable on a phone. The
+   desktop uses the wrapping SettingRow controls and a separate rekey dialog. */
+.pv-grouprow:has(.m-revoke) {
+  flex-wrap: wrap;
+}
+.pv-grouprow:has(.m-revoke) > .pv-grouprow-end {
+  flex: 1 0 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+.m-revoke button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Vault detail (S36): state first, then named groups, danger last.
@@ -2964,6 +2988,12 @@ textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.m-embed-body--fragment {
+  display: block;
+  -webkit-line-clamp: unset;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 /* Rows of an embedded database (S23): the project note listing its tasks. Each
    is its own tap target — the card header opens the database, a row its note. */
 .m-embed-row {
@@ -3089,6 +3119,16 @@ textarea {
   box-shadow: var(--shadow-2);
   font-size: var(--text-ui);
   font-weight: 600;
+}
+
+/* Mail carries five actions; wrap before a long count label can push the last
+   touch target outside the viewport. */
+.m-selectbar--mail { flex-wrap: wrap; gap: var(--space-1); }
+.m-share-preview { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.m-selectbar--mail > .m-headactions { margin-right: 0; flex-wrap: wrap; min-width: 0; justify-content: flex-end; }
+.m-page--mail-list {
+  --m-selection-space: 0px;
+  padding-bottom: calc(max(var(--m-page-bottom, var(--m-bar-space)), var(--m-selection-space) + var(--space-4)) + env(safe-area-inset-bottom));
 }
 
 /* Hailing sheet: collected LCARS frequency chips (D5 switcher). */
@@ -4556,14 +4596,14 @@ textarea {
   overflow-y: auto;
 }
 
-/* Read-mode selection bar (C26): the format toolbar's surface, two verbs with a
-   label — a reader cannot format, so the six icons stay out. Touch floor kept
-   by the toolbar's own button height; the label widens the target. */
+/* Read-mode actions use labels and keep the toolbar's touch target size. */
 .m-selverb {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   width: auto;
+  max-width: 100%;
+  white-space: normal;
   padding: 0 var(--space-3);
   font-size: var(--text-ui);
   font-weight: 500;

@@ -146,6 +146,11 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
 export async function mailAccessTokenFor(vaultPath: string, accountId: string, force = false): Promise<string> {
   const account = (await listMailAccounts(vaultPath)).find((a) => a.id === accountId);
   if (!account) throw new Error(`no mail account ${accountId} in this vault`);
+  if (account.kind === "gmail") {
+    const provider = await mailTokenResolver?.(vaultPath, accountId);
+    if (!provider) throw new Error(`${NO_STORED_SIGN_IN}: this Gmail account needs sign-in on this device`);
+    return provider(force);
+  }
   const rt = await runtimeFor(vaultPath, account);
   return rt.getAccessToken(force);
 }
@@ -393,6 +398,7 @@ export async function graphMailAddress(vaultPath: string, account: MailAccountCo
 }
 
 interface GraphMessageEnvelope {
+  hasAttachments?: boolean;
   id: string;
   subject?: string;
   from?: { emailAddress?: { name?: string; address?: string } };
@@ -430,7 +436,7 @@ export async function graphListEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview,conversationId&$orderby=receivedDateTime desc` +
+    `?$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview,conversationId,hasAttachments&$orderby=receivedDateTime desc` +
     `&$top=${limit}&$skip=${offset}&$count=true`;
   const data = await graphJson<{ value: GraphMessageEnvelope[]; "@odata.count"?: number }>(rt, "GET", q);
   const messages = (data.value ?? []).map((m) => ({
@@ -442,6 +448,7 @@ export async function graphListEnvelopes(
     flagged: m.flag?.flagStatus === "flagged",
     preview: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim(),
     threadId: m.conversationId ?? undefined,
+    hasAttachments: m.hasAttachments,
   }));
   // The folder carries its own unread count (no need to page every message).
   const folder = await graphJson<{ unreadItemCount?: number }>(rt, "GET", `/me/mailFolders/${encodeURIComponent(folderId)}?$select=unreadItemCount`);
@@ -552,7 +559,7 @@ export async function graphSearchEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview,conversationId&$top=50`;
+    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview,conversationId,hasAttachments&$top=50`;
   const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
   return (data.value ?? [])
     .map((m) => ({
@@ -564,6 +571,7 @@ export async function graphSearchEnvelopes(
       flagged: m.flag?.flagStatus === "flagged",
       preview: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim(),
     threadId: m.conversationId ?? undefined,
+    hasAttachments: m.hasAttachments,
     }))
     .sort((a, b) => b.dateTs - a.dateTs);
 }
@@ -579,7 +587,7 @@ export async function graphListFlaggedEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$filter=flag/flagStatus eq 'flagged'&$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview,conversationId&$top=${Math.min(limit, 500)}`;
+    `?$filter=flag/flagStatus eq 'flagged'&$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview,conversationId,hasAttachments&$top=${Math.min(limit, 500)}`;
   const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
   return (data.value ?? [])
     .map((m) => ({
@@ -591,6 +599,7 @@ export async function graphListFlaggedEnvelopes(
       flagged: m.flag?.flagStatus === "flagged",
       preview: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim(),
     threadId: m.conversationId ?? undefined,
+    hasAttachments: m.hasAttachments,
     }))
     .sort((a, b) => b.dateTs - a.dateTs);
 }

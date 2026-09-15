@@ -18,6 +18,12 @@
   outline-offset: 1px;
 }
 
+.pv-search-context {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
 /* ---------------------------------------------------------------- buttons */
 .pv-btn {
   display: inline-flex;
@@ -220,6 +226,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-banner-ic { display: inline-flex; flex-shrink: 0; }
 .pv-banner-msg { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .pv-banner-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex-shrink: 0; margin-left: auto; }
+
+.pv-taskmeta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); min-width: 0; overflow-wrap: anywhere; font-size: var(--text-sm); color: var(--text-muted); }
+.pv-taskmeta-unsupported { color: var(--warning-text); }
 
 /* Select (new primitive, sweep 2026-07-19, E11): trigger in exact field look
    + chevron; the open panel follows the popover contract (radius-md, shadow-2,
@@ -2835,7 +2844,14 @@ button.pv-acct:hover { background: var(--state-hover); }
    density widens its buttons through the shared icon-button role, so the same
    markup is reachable with a finger. */
 .pv-seltoolbar {
+  --selection-safe-top: env(safe-area-inset-top, 0px);
+  --selection-safe-right: env(safe-area-inset-right, 0px);
+  --selection-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --selection-safe-left: env(safe-area-inset-left, 0px);
   display: flex;
+  flex-wrap: wrap;
+  width: max-content;
+  overflow-y: auto;
   gap: var(--space-1);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -2843,9 +2859,6 @@ button.pv-acct:hover { background: var(--state-hover); }
   box-shadow: var(--shadow-2);
   padding: var(--space-1);
   visibility: visible;
-}
-.pv-seltoolbar.is-above {
-  transform: translateY(-100%);
 }
 
 /* ── Selection bar + selection column (plan Mehrfachauswahl, 2026-08-19) ────
@@ -3302,6 +3315,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump-day:focus-visible, .pv-datejump-month:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
 .pv-datejump-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-1); border-top: 1px solid var(--border-color-light); }
 .pv-datejump-hint { font-size: var(--text-xs); color: var(--text-faint); min-width: 0; overflow-wrap: anywhere; }
+.pv-datejump-daily { display: grid; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-color-light); min-width: 0; }
+.pv-datejump-daily-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
+.pv-datejump-daily-actions > button { flex: 1 1 120px; white-space: normal; overflow-wrap: anywhere; height: auto; min-height: var(--control-sm); }
 /* Touch variant (the phone's sheet): rows at touch height, one type step up. */
 .pv-datejump--sheet { gap: var(--space-3); }
 .pv-datejump--sheet .pv-datejump-day { height: var(--touch-sm); font-size: var(--text-md); }
@@ -3324,6 +3340,10 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-cal-title { min-width: 170px; }
 
 /* File comparison metadata uses GroupCard for its themed surfaces. */
+.pv-mail-bulk-report { min-width: 0; flex-shrink: 0; }
+.pv-mail-bulk-problems { list-style: none; margin: 0; padding: var(--space-2) var(--space-3); max-height: 25vh; overflow: auto; }
+.pv-mail-bulk-problems li { display: flex; flex-direction: column; gap: var(--space-1); padding-block: var(--space-2); overflow-wrap: anywhere; font-size: var(--text-sm); }
+.pv-mail-bulk-problems li span { color: var(--text-muted); }
 .pv-comparison-context { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); min-width: 0; flex-shrink: 0; overflow-wrap: anywhere; }
 .pv-comparison-files { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .pv-comparison-file { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2); font-size: var(--text-sm); overflow-wrap: anywhere; min-width: 0; }

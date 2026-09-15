@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-09-15T07:54:32.987Z",
+  "obsidian": "1.12.7 (installer 1.12.7)",
+  "node": "v25.7.0",
+  "platform": "win32 10.0.26200",
+  "cpu": "12th Gen Intel(R) Core(TM) i7-1265U",
+  "logicalCpus": 12,
+  "ramGiB": 32,
+  "indexMs": 3279.9123,
+  "results": [
+    {
+      "rows": 10,
+      "comparisons": 50,
+      "coreQueryMs": [
+        6.015599999999722,
+        4.608000000000175,
+        4.186499999999796
+      ],
+      "obsidianCliMs": [
+        177.08759999999984,
+        169.9925000000003,
+        175.8104000000003
+      ],
+      "baseBytes": 3092,
+      "roundtripRows": 10
+    },
+    {
+      "rows": 100,
+      "comparisons": 500,
+      "coreQueryMs": [
+        6.469300000000658,
+        6.208999999999833,
+        7.123399999999492
+      ],
+      "obsidianCliMs": [
+        397.89879999999994,
+        439.15989999999965,
+        338.21730000000025
+      ],
+      "baseBytes": 8772,
+      "roundtripRows": 100
+    },
+    {
+      "rows": 1000,
+      "comparisons": 5000,
+      "coreQueryMs": [
+        26.262000000000626,
+        24.359199999999873,
+        27.560899999999492
+      ],
+      "obsidianCliMs": [
+        2901.8680999999997,
+        2122.2757,
+        2589.927300000001
+      ],
+      "baseBytes": 66472,
+      "roundtripRows": 1000
+    }
+  ],
+  "timingScope": "Warm Core query including linked-note loads vs Obsidian CLI including process/IPC/JSON. No comparative speed claim; index/file creation/watcher readiness excluded."
+}

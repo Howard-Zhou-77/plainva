@@ -3,9 +3,22 @@ import type { FilesystemPlugin } from "@capacitor/filesystem";
 
 export type MobileTestGlobals = typeof globalThis & { Capacitor: { Plugins: { Filesystem: FilesystemPlugin } } };
 
+/** Wait for the real first-start directory before test code writes into it. */
+export async function waitForVaultDirectory(page: Page) {
+  await page.waitForFunction(() => Boolean((globalThis as MobileTestGlobals).Capacitor?.Plugins?.Filesystem));
+  // The bridge is available before the first vault directory has been created.
+  // Wait for that real startup result so recursive fixture writes cannot race
+  // the web filesystem's non-idempotent mkdir with application initialization.
+  await expect.poll(() => page.evaluate(async () => {
+    try {
+      return (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.stat({ path: "vault", directory: "DATA" })).type;
+    } catch { return null; }
+  }), { timeout: 20_000 }).toBe("directory");
+}
+
 /** Explicit test data. Reopening an empty user vault must never seed notes. */
 export async function seedExampleNote(page: Page) {
-  await page.waitForFunction(() => Boolean((globalThis as MobileTestGlobals).Capacitor?.Plugins?.Filesystem));
+  await waitForVaultDirectory(page);
   await page.evaluate(async () => {
     await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({
       path: "vault/Example.md", data: "---\ntype: Note\n---\n# Example\n\nA sentence to review.\n",

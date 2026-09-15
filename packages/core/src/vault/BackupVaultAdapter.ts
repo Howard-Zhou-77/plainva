@@ -418,14 +418,14 @@ export class BackupVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     return this.inner.listDirReport
-      ? this.inner.listDirReport(path, recursive)
-      : { files: await this.inner.listDir(path, recursive), skipped: [] };
+      ? this.inner.listDirReport(path, recursive, options)
+      : { files: await this.inner.listDir(path, recursive, options), skipped: [] };
   }
 
-  async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {
-    return this.inner.listDir(path, recursive);
+  async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
+    return this.inner.listDir(path, recursive, options);
   }
 
   async createDir(path: string): Promise<void> {

@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-09-10
+Laatst bijgewerkt: 2026-09-15
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -183,3 +183,26 @@ Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva cont
 Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
 
 Bij het toevoegen van bestanden op mobiel toont Plainva eerst de bron, bestemming en botsingen. Bestaande inhoud en diensten blijven behouden; een onderbroken overdracht kan opnieuw worden geprobeerd.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Certificaten voor eigen servers
+
+Android vertrouwt ook certificeringsinstanties die je in de systeeminstellingen installeert. Dit geldt voor alle Plainva-verbindingen die deze configuratie gebruiken, niet alleen voor één WebDAV-server. Op desktop gebruikt HTTP systeeminstanties naast publieke roots; iOS gebruikt de eigen vertrouwensinstellingen. Geldigheid en servernaam blijven gecontroleerd. Herstel verlopen, nog niet geldige of voor een andere server bedoelde certificaten. Plainva biedt nooit een optie om alle certificaten te accepteren. Als het systeem de precieze oorzaak niet meldt, geeft Plainva alleen aan dat de verificatie is mislukt. De mobiele HTTP-diagnose bevat methode en foutcode, zonder inloggegevens, certificaatnamen of privé-serverpaden.
+
+<!-- workspace-retry-2026-09-14 -->
+## Automatische herhaling en ontbrekende synchronisatiegeschiedenis
+
+De verbinding is tijdelijk niet beschikbaar. Plainva probeert het automatisch opnieuw; openstaande wijzigingen blijven op dit apparaat.
+
+Meld je opnieuw aan bij het synchronisatieaccount. Openstaande wijzigingen blijven op dit apparaat totdat de toegang is hersteld.
+
+Plainva kan de versleutelde kluis niet verifiëren. De synchronisatie is gepauzeerd; lokale gegevens en openstaande wijzigingen blijven behouden. Open Beveiliging en delen, herstel indien mogelijk een verifieerbare kopie en controleer opnieuw.
+
+Kies Nu synchroniseren op een apparaat dat de volledige verifieerbare geschiedenis nog heeft. Plainva kan ontbrekende ondertekende wijzigingen uit die kopie herstellen. Controleer daarna opnieuw op Plainva. Bewaar of exporteer de lokale gegevens als er geen geldige kopie is; de verificatie wordt nooit teruggezet om het ontbrekende deel over te slaan.
+
+Onversleutelde opmerkingsbestanden van andere apparaten blijven op de server staan. Alleen het oorspronkelijke apparaat kan de omzetting voltooien. Plainva verwijdert geen bestanden van andere apparaten.
+
+<!-- account-grants-destination-2026-09-14 -->
+Bestaande aanmeldingen worden overgenomen nadat identiteit, werkelijk verleende rechten en veilige opslag zijn gecontroleerd. Een account kan afzonderlijke toestemmingen behouden; een dienst toevoegen bewaart de aanmeldingen van andere diensten. Microsoft-mail kan een geschikte aanmelding voor bestanden of agenda hergebruiken. Een ander apparaat heeft een eigen aanmelding nodig.
+
+In de synchronisatie-instellingen toont de Google Drive-kiezer het huidige doel en een voorbeeld van de gekozen map. Open gelijknamige mappen en vergelijk bestanden en wijzigingsdatums. “Dit doel gebruiken” bewaart de unieke map-ID. Als die map onbereikbaar wordt, meldt Plainva de fout zonder een vervangende map te maken. Andere mappen worden niet verplaatst of verwijderd.

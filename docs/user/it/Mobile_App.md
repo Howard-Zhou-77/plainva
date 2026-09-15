@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-09-11
+Ultimo aggiornamento: 2026-09-15
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -28,6 +28,8 @@ L’app mobile è in **test aperto** su Google Play. Su **Android** si entra dir
 
 Le note si aprono **renderizzate e in sola lettura**; la penna in alto a destra passa alla modifica (con una barra degli strumenti sopra la tastiera: formattazione, elenchi, wiki-link, comandi slash, inserisci foto). Gli incorporamenti `![[Nota]]` appaiono come schede di anteprima toccabili.
 
+Tieni premuta una parola per selezionare il testo. La barra di selezione offre **Copia** e **Seleziona tutto**, anche per copiare l’intero testo di una nota lunga. Le proprietà YAML nascoste e i marcatori di formattazione Markdown non vengono copiati. **Modifica** passa alla scrittura nel punto selezionato se puoi modificare la nota.
+
 Le cartelle si possono **cercare** e **ordinare** dalla barra sopra l’elenco: per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo inverte la direzione, e l’ordinamento viene ricordato sul dispositivo. All’avvio a freddo l’app riapre ciò che avevi aperto per ultimo — nota, cartella o vista del database, scheda compresa — e ogni nota si apre dove l’avevi lasciata; le procedure guidate di configurazione e un’e-mail non terminata non vengono ripristinate. Gli elenchi con sottovoci si ripiegano e riaprono con un tocco sul loro punto.
 
 Il pulsante **Dettagli della nota** nell'intestazione (tra il segnalibro e il menu ⋮) apre il pannello di contesto della nota: proprietà (modificabili direttamente), backlink, struttura, grafo e la **cronologia delle versioni** — ogni modifica crea automaticamente snapshot che puoi ispezionare, confrontare e ripristinare. Il sorgente Markdown e la ricerca nella nota si trovano nel menu ⋮.
@@ -48,7 +50,7 @@ La **vista calendario** ha tre periodi: **mese**, **settimana**, **giorno**. Il 
 
 **Più elementi alla volta**: tieni premuta una riga e scegli **Seleziona più elementi** — la prima voce di quel foglio. Da quel momento un tocco seleziona invece di aprire, e una barra in basso indica quanti sono. Da lì puoi **eliminare** la selezione (una sola domanda, non dodici — con la stessa panoramica dei collegamenti che offre un'eliminazione singola) oppure usare **Imposta valore…** per impostare una proprietà su tutti insieme: scegli prima la proprietà, poi il valore. Dove una proprietà indica **attualmente misto**, gli elementi selezionati portano valori diversi. Un valore vuoto rimuove la proprietà. Mentre è in corso vedi l'avanzamento e puoi annullare; ciò che è già stato scritto resta. Tag, elenchi, selezione multipla e relazioni non sono inclusi di proposito — lì «impostarli tutti su X» significherebbe far sparire ogni valore esistente.
 
-Una vista **Bacheca appunti** mostra le note come una bacheca a due colonne di schede adesive: il tocco apre la nota, la pressione prolungata mostra le azioni (fissa, etichette, colore, elimina), trascinare dopo una pressione prolungata riordina, e le caselle di controllo si spuntano direttamente sulla scheda. Il campo in alto cattura una nuova nota. Suggerimento: punta il database sulla tua cartella Inbox (**Impostazioni** → **Contenuto e struttura**) e sia le note rapide del ＋ sia i testi condivisi da altre app finiscono direttamente sulla bacheca.
+Una vista **Bacheca appunti** mostra le note come una bacheca a due colonne di schede adesive: il tocco apre la nota, la pressione prolungata mostra le azioni (fissa, etichette, colore, elimina), trascinare dopo una pressione prolungata riordina, e le caselle di controllo si spuntano direttamente sulla scheda. Il campo in alto cattura una nuova nota. Suggerimento: punta il database sulla tua cartella Inbox (**Impostazioni** → **Contenuto e struttura**) e sia le note rapide del ＋ sia i testi condivisi da altre app finiscono direttamente sulla bacheca. Per i contenuti condivisi, seleziona prima questa cartella e conferma l’importazione.
 
 ## Attività
 
@@ -205,7 +207,9 @@ Gli snapshot (cronologia delle versioni), un diario delle bozze (dopo un arresto
 
 ## Condivisione e scorciatoie
 
-Su Android e iOS, il testo e gli URL condivisi diventano una nuova nota nella cartella Inbox; le immagini e i file condivisi vengono importati come allegati (massimo 25 MB per file). Su Android, tieni premuta l'icona dell'app per le scorciatoie aggiuntive **Nuova nota** e **Oggi**.
+Condividi testo, link, immagini o file con Plainva da un’altra app. Plainva conserva prima una copia locale privata. Apri Plainva, controlla i contenuti condivisi, scegli vault e cartella e conferma l’importazione. Rimandare l’importazione, chiudere il pannello, bloccare il vault o riavviare l’app conserva i contenuti in attesa. Un’importazione già iniziata mantiene la destinazione originale quando riprovi. Un trasferimento dalla sorgente incompleto deve essere condiviso di nuovo; elimina la sua voce in attesa quando non serve più.
+
+Limiti per trasferimento: 10 file, 25 MiB per file, 50 MiB complessivi e 512 KiB di testo, oggetto incluso. La coda accetta al massimo 20 trasferimenti in attesa e riserva spazio entro un budget di allegati di 200 MiB. La copia temporanea viene eliminata solo dopo la scrittura e la verifica della nota e degli allegati, oppure dopo aver scartato esplicitamente la voce. Scartare non elimina i file già importati nel vault. Su Android, tieni premuta l’icona dell’app per **Nuova nota** e **Oggi**. Sul desktop usa le azioni esistenti per incollare e importare file.
 
 ## Cartelle, foto e calendario
 

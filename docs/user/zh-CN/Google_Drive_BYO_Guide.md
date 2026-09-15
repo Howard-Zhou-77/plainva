@@ -1,6 +1,6 @@
 # 配置Google Drive同步（自备凭据）
 
-更新日期：2026-07-28
+更新日期：2026-09-15
 
 要在Plainva中把本地仓库与你的Google Drive同步，你可以使用自己的Google API凭据。由于Plainva尚未通过Google的中心化CASA验证，这种**自备凭据（BYO）**方式为同步你的私人文件提供了一种安全的途径。
 
@@ -66,10 +66,14 @@
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-以上桌面客户端步骤适用于桌面应用。移动端需要与设备匹配的注册：**iOS** 客户端使用 bundle ID `com.plainva.app`；**Android** 客户端使用包名 `com.plainva.app` 和已安装版本的 SHA-1 签名证书。移动客户端通常不需要客户端密钥。Plainva 的浏览器返回地址为 `com.plainva.app:/oauth2redirect`。Google 默认禁止新的 Android 客户端使用此返回方式。Google 文档说明的例外是在 Android 客户端的高级设置中明确启用自定义 URI；如果你的客户端没有此选项，就无法使用当前的浏览器流程。桌面客户端 ID 不能替代它。日历还需要启用 **Google Calendar API** 和 **Google Tasks API**。缺少权限时必须重新授权，仅有可用的 Drive 登录并不足够。
+上面的桌面步骤需要桌面客户端 ID 及对应的客户端密钥。Android 使用 Google Identity Services：注册包名 `com.plainva.app` 和实际安装版本的 SHA-1 签名证书。Play 版本使用应用签名证书，本地签名版本可能不同。Android 不使用浏览器重定向或客户端密钥。iOS 请使用包标识为 `com.plainva.app` 的 iOS 客户端，返回地址为 `com.plainva.app:/oauth2redirect`。桌面客户端不能代替移动端注册。如需日历，还要启用 Google Calendar API 和 Google Tasks API。
 
-[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+[Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
+
 
 直接为相应账户添加文件、日历或邮箱。Plainva 会检查所选登录并请求缺少的权限。
 
 Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。
+
+<!-- account-grants-destination-2026-09-14 -->
+一般登录错误无法说明 Google 项目的发布状态或测试用户列表。请在 Google Cloud 中检查这些设置，并阅读服务商的具体消息。桌面客户端需要 ID 和对应密钥值；移动端注册取决于平台和已安装的构建版本。

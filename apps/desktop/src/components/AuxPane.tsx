@@ -1,6 +1,8 @@
 import { Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@plainva/ui";
+import { COMPARISON_PREFIX } from "../services/comparisonWindow";
+const ComparisonWindow = lazy(() => import("./ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
 import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 
 const Editor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
@@ -13,12 +15,14 @@ const CommentsOverview = lazy(() => import("./comments/CommentsOverview").then((
 
 interface Props {
   path: string;
+  onCloseTab: () => void;
   /** True for the pane the user last worked in — drives the status channel. */
   isActivePane: boolean;
   onOpenPath: (path: string) => void;
   /** Open in the OTHER pane of this window (graph "open in split"). */
   onOpenInSplit?: (path: string) => void;
   onToggleBookmark?: (path: string) => void;
+  isBookmarked?: boolean;
   /** Split this window's editor area; absent when the window is already split. */
   onSplit?: (direction: "vertical" | "horizontal") => void;
   activeSplitDirection?: "vertical" | "horizontal";
@@ -32,13 +36,13 @@ interface Props {
  * cascade delete, no peek. Extracted from `AuxApp` so the shell stays about
  * panes, tabs and the bus, and the content mapping lives in one place.
  */
-export function AuxPane({ path, isActivePane, onOpenPath, onOpenInSplit, onToggleBookmark, onSplit, activeSplitDirection }: Props) {
+export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSplit, onToggleBookmark, isBookmarked, onSplit, activeSplitDirection }: Props) {
   const { t } = useTranslation();
   const fallback = <EmptyState>{t("common.loading")}</EmptyState>;
 
   return (
     <Suspense fallback={fallback}>
-      {path === GRAPH_TAB_PATH ? (
+      {path.startsWith(COMPARISON_PREFIX) ? <ComparisonWindow key={path} path={path} onClose={onCloseTab} /> : path === GRAPH_TAB_PATH ? (
         <VaultGraphView
           onOpenPath={(p) => onOpenPath(p)}
           onOpenInSplit={(p) => (onOpenInSplit ?? onOpenPath)(p)}
@@ -58,6 +62,8 @@ export function AuxPane({ path, isActivePane, onOpenPath, onOpenInSplit, onToggl
         <Editor
           key={path}
           activePath={path}
+          isBookmarked={isBookmarked}
+          onToggleBookmark={onToggleBookmark ? () => onToggleBookmark(path) : undefined}
           onOpenPath={(p) => onOpenPath(p)}
           onSplit={onSplit}
           activeSplitDirection={activeSplitDirection}

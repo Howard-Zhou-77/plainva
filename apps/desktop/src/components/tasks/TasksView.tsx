@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
-import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { errorText, TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { resolveTaskOrdinal, tasksDescription, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
+import { errorText, TaskMetadataDetails, TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -59,11 +59,7 @@ function renderInlineNodes(nodes: InlineNode[], keyPrefix = ""): React.ReactNode
 /** Task line without the `#tags` and `📅 date` — those already render as chips
  * and a due pill, so they must not appear twice in the text. */
 function stripTaskMeta(text: string): string {
-  return text
-    .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "")
-    .replace(/(^|\s)#[\p{L}\p{N}][\p{L}\p{N}_/-]*/gu, "$1")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return tasksDescription(text).replace(/(^|\s)#[\p{L}\p{N}][\p{L}\p{N}_/-]*/gu, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
 /** Task text rendered as inline markdown (bold/italic/code/==highlight==/links),
@@ -545,12 +541,14 @@ export function TasksView({ onOpenPath }: Props) {
         const fresh = await vaultAdapter.readTextFile(task.path);
         // Guard against a stale ordinal (the note changed since it was listed):
         // only flip when the ordinal still points at the same task text.
-        if (scanTasks(fresh)[task.ordinal]?.text !== task.text) {
+        const ordinal = resolveTaskOrdinal(fresh, task);
+        if (ordinal < 0) {
+          taskMutationGate.finish();
           setRefreshTick((x) => x + 1);
           return;
         }
-        const res = toggleTaskAtIndex(fresh, task.ordinal, !task.done);
-        if (!res.changed) return;
+        const res = toggleTaskAtIndex(fresh, ordinal, !task.done);
+        if (!res.changed) { taskMutationGate.finish(); return; }
         await vaultAdapter.writeTextFile(task.path, res.content);
         setTasks((prev) =>
           prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? { ...t2, done: !t2.done } : t2))
@@ -967,9 +965,10 @@ export function TasksView({ onOpenPath }: Props) {
                     <button
                       type="button"
                       onClick={() => open(task)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: task.done ? "line-through" : "none", fontSize: "var(--text-md)", lineHeight: 1.4 }}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-md)", lineHeight: 1.4 }}
                     >
-                      {renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}
+                      <span style={{ textDecoration: task.done ? "line-through" : "none" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
+                      <TaskMetadataDetails task={task} />
                       {task.due ? (
                         <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
                           <CalendarClock size={ICON.meta} /> <DueLabel due={task.due} />

@@ -7,9 +7,11 @@
  * lock-step with the toggle; an alignment test cross-checks both.
  */
 
-const TASK_LINE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s|\]$)/;
-const FENCE = /^\s*(?:```|~~~)/;
-const DUE = /📅\s*(\d{4}-\d{2}-\d{2})/;
+export const GFM_TASK_LINE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s|\]$)/;
+export const GFM_TASK_FENCE = /^\s*(?:```|~~~)/;
+const TASK_LINE = GFM_TASK_LINE, FENCE = GFM_TASK_FENCE;
+import { readTasksMetadata } from "./taskMetadata.js";
+import { readFrontmatterPath } from "../frontmatter-surgical.js";
 const INLINE_TAG = /(?:^|\s)#([\p{L}\p{N}][\p{L}\p{N}_/-]*)/gu;
 
 export interface ScannedTask {
@@ -24,6 +26,13 @@ export interface ScannedTask {
   tags: string[];
   /** ISO date (YYYY-MM-DD) from a `📅` marker in the task text, or null. */
   due: string | null;
+  created?: string;
+  completed?: string;
+  scheduled?: string;
+  start?: string;
+  taskId?: string;
+  recurrence?: string;
+  recurrenceSupported?: boolean;
 }
 
 /** Extracts every GFM task checkbox from a note's raw markdown, in order. */
@@ -32,6 +41,7 @@ export function scanTasks(content: string): ScannedTask[] {
   const out: ScannedTask[] = [];
   let inFence = false;
   let ordinal = 0;
+  let nativeRecurrenceOwner: boolean | undefined;
   for (let i = 0; i < lines.length; i++) {
     if (FENCE.test(lines[i])) {
       inFence = !inFence;
@@ -41,6 +51,11 @@ export function scanTasks(content: string): ScannedTask[] {
     const m = lines[i].match(TASK_LINE);
     if (!m) continue;
     const text = lines[i].slice(m[0].length).trim();
+    const metadata = readTasksMetadata(text);
+    if (metadata.recurrence !== null && nativeRecurrenceOwner === undefined) nativeRecurrenceOwner = readFrontmatterPath(content, ["plainva", "repeat"]) != null || readFrontmatterPath(content, ["plainva", "pim", "uid"]) != null;
+    let following = i + 1;
+    while (following < lines.length && !lines[following].trim()) following++;
+    const continuation = following < lines.length && (lines[following].match(/^\s*/)?.[0].length ?? 0) > (lines[i].match(/^\s*/)?.[0].length ?? 0);
     const tags: string[] = [];
     for (const tm of text.matchAll(INLINE_TAG)) tags.push(tm[1]);
     out.push({
@@ -49,10 +64,19 @@ export function scanTasks(content: string): ScannedTask[] {
       done: m[2].toLowerCase() === "x",
       text,
       tags,
-      due: text.match(DUE)?.[1] ?? null,
+      due: metadata.due,
+      ...(metadata.created ? { created: metadata.created } : {}),
+      ...(metadata.completed ? { completed: metadata.completed } : {}),
+      ...(metadata.scheduled ? { scheduled: metadata.scheduled } : {}),
+      ...(metadata.start ? { start: metadata.start } : {}),
+      ...(metadata.taskId ? { taskId: metadata.taskId } : {}),
+      ...(metadata.recurrence !== null ? { recurrence: metadata.recurrence, recurrenceSupported: !!metadata.repeatRule && !nativeRecurrenceOwner && !continuation } : {}),
     });
     ordinal++;
   }
+  const ids = new Map<string, number>();
+  for (const task of out) if (task.taskId) ids.set(task.taskId, (ids.get(task.taskId) ?? 0) + 1);
+  for (const task of out) if (task.taskId && ids.get(task.taskId)! > 1 && task.recurrence !== undefined) task.recurrenceSupported = false;
   return out;
 }
 

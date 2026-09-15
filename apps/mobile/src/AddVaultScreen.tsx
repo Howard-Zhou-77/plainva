@@ -103,7 +103,7 @@ export function AddVaultScreen({
       if (!alive || !q) return;
       const record = q.context.cloudAccountId ? (await loadCloudAccounts(q.context.vaultId)).find(r => r.id === q.context.cloudAccountId) : undefined;
       if (!alive) return;
-      setRunScope(runConsentScope(q.family, [...new Set([...runServices(q), ...Object.keys(record?.services ?? {}) as Array<"files" | "calendar" | "mail">])]));
+      setRunScope(runConsentScope(q.family, runServices(q)));
       if (q.family === "google" || q.family === "microsoft") {
         const client = await lookupOAuthClientForNewAccount(q.family, q.context);
         if (alive && client) { if (q.family === "google") { setDriveClientId(client.clientId); setDriveClientSecret(client.clientSecret ?? ""); } else setOwnAppId(client.clientId); }

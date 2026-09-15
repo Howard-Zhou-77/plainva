@@ -160,7 +160,6 @@ const BUDGET: Record<string, Counts> = {
   "components/NoteCardBody.tsx": {nakedInput:1,rawSpacing:9},
   "components/NoteDatabaseBar.tsx": {nakedButton:2,rawSpacing:1},
   "components/NoteDatabasesSection.tsx": {nakedButton:7,rawSpacing:6},
-  "components/NoteEmbedPlugin.tsx": {rawSpacing:3},
   "components/OkfConversionModal.tsx": {nakedInput:2,rawSpacing:15},
   "components/OkfMigrationModal.tsx": {rawSpacing:6},
   "components/OnlineVaultSetup.tsx": {nakedInput:13,nakedButton:5,rawSpacing:13},

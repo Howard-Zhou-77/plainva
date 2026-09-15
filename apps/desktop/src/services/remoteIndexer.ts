@@ -29,6 +29,7 @@ export interface IndexerApi {
   indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan">;
   removePathFromIndex(path: string): Promise<void>;
   indexVaultFull(): Promise<IndexScanReport>;
+  whenIdle?(): Promise<void>;
 }
 
 const EMPTY_REPORT: IndexScanReport = {

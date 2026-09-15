@@ -1,3 +1,4 @@
+import { syncHttpError } from "./errorKind.js";
 import { fetchWithTransferTimeout } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
@@ -195,11 +196,11 @@ export class WebDavSyncTarget implements ISyncTarget {
         if (res.status === 409 || res.status === 404) {
             await this.ensureDir(op.file_path);
             const retryRes = await this.put(op, url);
-            if (!retryRes.ok) throw new Error(`WebDAV PUT failed: ${retryRes.status} ${retryRes.statusText}`);
+            if (!retryRes.ok) throw syncHttpError(`WebDAV PUT failed: ${retryRes.status} ${retryRes.statusText}`, retryRes);
             const etag = retryRes.headers.get("ETag") || undefined;
             return { etag: etag?.replace(/"/g, "") };
         }
-        throw new Error(`WebDAV PUT failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`WebDAV PUT failed: ${res.status} ${res.statusText}`, res);
       }
 
       const etag = res.headers.get("ETag") || undefined;
@@ -210,7 +211,7 @@ export class WebDavSyncTarget implements ISyncTarget {
         headers: this.headers
       });
       if (!res.ok && res.status !== 404) {
-        throw new Error(`WebDAV DELETE failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`WebDAV DELETE failed: ${res.status} ${res.statusText}`, res);
       }
     } else if (op.operation === "rename" && op.new_path) {
       if (op.new_path.includes(".CONFLICT")) return;
@@ -225,7 +226,7 @@ export class WebDavSyncTarget implements ISyncTarget {
       });
       if (res.status === 404) return { renameSourceMissing: true };
       if (!res.ok && res.status !== 404) {
-        throw new Error(`WebDAV MOVE failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`WebDAV MOVE failed: ${res.status} ${res.statusText}`, res);
       } else if (res.ok) {
         const etag = res.headers.get("ETag") || undefined;
         return { etag: etag?.replace(/"/g, "") };
@@ -244,7 +245,7 @@ export class WebDavSyncTarget implements ISyncTarget {
               headers: this.headers
           });
           if (!res.ok && res.status !== 405) {
-              throw new Error(`WebDAV MKCOL failed: ${res.status} ${res.statusText}`);
+              throw syncHttpError(`WebDAV MKCOL failed: ${res.status} ${res.statusText}`, res);
           }
       }
   }
@@ -264,7 +265,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     // reveals a redirect without having to subtract `rel` again.
     if (!rel) this.rememberEffectiveBase(res);
     if (res.status === 404) return [];
-    if (!res.ok) throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
     const names: string[] = [];
     for (const resp of this.parseListing(await res.text())) {
       if (!resp.href || !resp.isCollection) continue;
@@ -293,7 +294,7 @@ export class WebDavSyncTarget implements ISyncTarget {
         headers: this.headers
       });
       if (!res.ok && res.status !== 405) {
-        throw new Error(`WebDAV MKCOL failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`WebDAV MKCOL failed: ${res.status} ${res.statusText}`, res);
       }
     }
   }
@@ -324,7 +325,7 @@ export class WebDavSyncTarget implements ISyncTarget {
       // collection.
       responses = await this.listByDepthOne();
     } else {
-      throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+      throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
     }
 
     const etagMap = new Map<string, string>();
@@ -452,7 +453,7 @@ export class WebDavSyncTarget implements ISyncTarget {
       });
       if (!res.ok) {
         if (res.status === 404) continue;
-        throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
       }
       for (const resp of this.parseListing(await res.text())) {
         if (!resp.href) continue;
@@ -485,7 +486,7 @@ export class WebDavSyncTarget implements ISyncTarget {
       headers: { ...this.headers, "Depth": "0" }
     });
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
     const entry = this.parseListing(await res.text()).find((r) => r.href && !r.isCollection);
     if (!entry) return null;
     return {
@@ -504,9 +505,19 @@ export class WebDavSyncTarget implements ISyncTarget {
     });
 
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`WebDAV GET failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`WebDAV GET failed: ${res.status} ${res.statusText}`, res);
 
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
+  }
+
+  public async downloadConditional(filePath: string, etag?: string) {
+    const res = await this.request("GET", this.urlForPath(filePath), {
+      headers: { ...this.headers, ...(etag ? { "If-None-Match": etag } : {}) },
+    });
+    if (res.status === 304 && etag) return { notModified: true as const, etag: res.headers.get("ETag") ?? etag };
+    if (res.status === 404) return { notModified: false as const, bytes: null };
+    if (!res.ok) throw syncHttpError(`WebDAV GET failed: ${res.status} ${res.statusText}`, res);
+    return { notModified: false as const, bytes: new Uint8Array(await res.arrayBuffer()), etag: res.headers.get("ETag") ?? undefined };
   }
 }

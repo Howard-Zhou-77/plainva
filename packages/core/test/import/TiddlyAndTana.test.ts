@@ -19,7 +19,7 @@ function fakeVault() {
       files.set(path, content);
     },
     async writeBinaryFile() {},
-    async createFolder() {},
+    async createDir() {},
   };
 }
 

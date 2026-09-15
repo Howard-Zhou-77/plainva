@@ -1,31 +1,51 @@
 import Foundation
 import Capacitor
 
-/** Reads the one-shot payload written by the Share Extension. The JSON shape is
- * intentionally identical to Android's ShareTargetPlugin contract. */
 @objc(ShareTargetPlugin)
 public class ShareTargetPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "ShareTargetPlugin"
     public let jsName = "ShareTarget"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "consumePendingShare", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "listPendingShares", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readFileChunk", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "beginImport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "markImported", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "finishShare", returnType: CAPPluginReturnPromise)
     ]
-
-    private let appGroup = "group.com.plainva.app"
-    private let payloadName = "pending-share.json"
-
-    @objc func consumePendingShare(_ call: CAPPluginCall) {
-        guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else {
-            call.resolve(["text": NSNull(), "subject": NSNull(), "files": []])
-            return
+    private let io = DispatchQueue(label: "com.plainva.share-inbox")
+    private func run(_ call: CAPPluginCall, action: @escaping (ShareQueueStore) throws -> [String: Any]) {
+        io.async {
+            do { call.resolve(try action(ShareQueueStore())) }
+            catch { call.reject((error as? ShareQueueFailure)?.rawValue ?? "SHARE_STORAGE") }
         }
-        let url = root.appendingPathComponent(payloadName)
-        guard let data = try? Data(contentsOf: url),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            call.resolve(["text": NSNull(), "subject": NSNull(), "files": []])
-            return
+    }
+    @objc func listPendingShares(_ call: CAPPluginCall) {
+        run(call) { store in ["entries": try store.list()] }
+    }
+    @objc func readFileChunk(_ call: CAPPluginCall) {
+        run(call) { store in
+            guard let id = call.getString("id"), let fileId = call.getString("fileId"), let offset = call.getInt("offset"), let length = call.getInt("length") else { throw ShareQueueFailure.invalid }
+            return ["data": try store.chunk(id, fileId: fileId, offset: offset, length: length)]
         }
-        try? FileManager.default.removeItem(at: url)
-        call.resolve(object)
+    }
+    @objc func beginImport(_ call: CAPPluginCall) {
+        run(call) { store in
+            guard let id = call.getString("id"), let plan = call.getObject("plan") else { throw ShareQueueFailure.invalid }
+            return ["entry": try store.beginImport(id, plan: plan)]
+        }
+    }
+    @objc func markImported(_ call: CAPPluginCall) {
+        run(call) { store in
+            guard let id = call.getString("id") else { throw ShareQueueFailure.invalid }
+            try store.mark(id, fileId: call.getString("fileId"), note: call.getBool("note") ?? false)
+            return [:]
+        }
+    }
+    @objc func finishShare(_ call: CAPPluginCall) {
+        run(call) { store in
+            guard let id = call.getString("id") else { throw ShareQueueFailure.invalid }
+            try store.finish(id, discard: call.getBool("discard") ?? false)
+            return [:]
+        }
     }
 }

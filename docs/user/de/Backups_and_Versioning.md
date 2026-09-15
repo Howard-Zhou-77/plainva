@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-09-07
+Stand: 2026-09-15
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -90,3 +90,7 @@ Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei
 Eine Datei hat sich seit dem Öffnen verändert. Der Vergleich wurde neu geladen. Prüfe die aktuellen Inhalte und wähle erneut.
 
 Zeilenweises Zusammenführen ist ein Werkzeug für den Rechner; hier übernimmst Du eine Fassung ganz oder behältst beide.
+
+## Die ausgewählte Sicherung vergleichen
+
+Zur ausgewählten Version erscheinen hinzugefügte und entfernte Zeilen gegenüber der aktuellen Notiz, auch bei ausgeblendetem Diff. **In neuem Fenster öffnen** behält am Desktop genau diese Sicherung ausgewählt. Verschwindet sie, zeigt Plainva einen entsprechenden Hinweis. Für große Dateien fehlen gegebenenfalls Zeilenzahlen; Binärdateien haben keinen Textvergleich. Mobil stehen dieselben Zahlen im vollständigen Vergleich.

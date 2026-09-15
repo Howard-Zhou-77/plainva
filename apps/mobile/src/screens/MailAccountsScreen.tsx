@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { GmailSignInButton } from "@plainva/ui";
+import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
@@ -136,7 +138,8 @@ export function MailAccountsScreen({
     if (!loaded || autoOpened.current || (!mailRun && !accountId && (!family || accounts.length > 0))) return;
     autoOpened.current = true;
     const existing = accounts.find(a => a.id === accountId);
-    setKind(existing ? mailAccountKind(existing) : mailPreset?.backend ?? "microsoft");
+    if (existing?.kind === "gmail") { setFormOpen(false); return; }
+    setKind(existing ? existing.kind ?? "imap" : mailPreset?.backend ?? "microsoft");
     setEditing(existing ?? null);
     setFormOpen(true);
   }, [accounts, family, loaded, mailPreset?.backend, mailRun, accountId]);
@@ -382,6 +385,11 @@ export function MailAccountsScreen({
       <div className="m-settings">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
         <p className="m-hint">{t("pim.perDeviceHint")}</p>
+        {mobileGmailClient() && (!mailRun || family === "google") && <GmailSignInButton onSignIn={async () => {
+          const records = await loadCloudAccounts(vault.vaultId);
+          const expected = records.find(row => (!!mailRun?.context.cloudAccountId && row.id === mailRun.context.cloudAccountId) || (!!accountId && row.services.mail?.mailAccountId === accountId));
+          await signInGmail(vault.vaultId, expected, mailRun?.context); reload();
+        }} />}
 
         {/* Where captured mail lands. The setting has always travelled with the
             profile and the mail screens have always read it — the phone simply
@@ -418,7 +426,7 @@ export function MailAccountsScreen({
                   data-testid={`mail-account-${a.id}`}
                   end={<>
                     <DeviceSignInBadge state={state} />
-                    <span className="m-prop-val">{imap ? "IMAP" : "Microsoft"}</span>
+                    <span className="m-prop-val">{a.kind === "gmail" ? "Gmail" : imap ? "IMAP" : "Microsoft"}</span>
                     {imap && (
                       /* Editing an existing mailbox (B4) — a server move used
                          to mean removing the account and adding it again. */

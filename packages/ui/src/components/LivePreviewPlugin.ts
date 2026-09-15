@@ -10,6 +10,8 @@ import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorH
 import i18n from "../i18n";
 import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt } from "./listIndent";
+import { scanTasks, setChecklistTaskDone } from "@plainva/core";
+import { minimalDocChange } from "../lib/textDiff";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
 
 const HIDE = Decoration.replace({});
@@ -181,9 +183,15 @@ class TaskWidget extends WidgetType {
     box.type = "checkbox";
     box.checked = this.checked;
     box.className = "cm-md-task";
-    box.addEventListener("mousedown", (e) => {
+    box.addEventListener("mousedown", (e) => e.preventDefault());
+    box.addEventListener("click", (e) => {
       e.preventDefault();
-      view.dispatch({ changes: { from: this.pos, to: this.pos + 1, insert: this.checked ? " " : "x" } });
+      const raw = view.state.doc.toString(), line = view.state.doc.lineAt(this.pos);
+      const task = scanTasks(raw).find(value => value.line === line.number - 1);
+      if (!task) return;
+      const result = setChecklistTaskDone(raw, task.ordinal, !this.checked);
+      const change = minimalDocChange(raw, result.content);
+      if (change) view.dispatch({ changes: change, userEvent: "input.task" });
     });
     return box;
   }

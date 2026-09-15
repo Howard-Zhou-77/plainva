@@ -116,7 +116,7 @@ describe("the closing window drains its vault", () => {
 
   it("makes the next open of that vault wait for the drain", () => {
     const source = read("contexts/VaultContext.tsx");
-    const wait = source.indexOf("await awaitVaultTeardown(path)");
+    const wait = source.indexOf("() => awaitVaultTeardown(path)");
     expect(wait).toBeGreaterThan(-1);
     // Inside loadVault, not somewhere else: draining without this wait would
     // create the race it prevents.

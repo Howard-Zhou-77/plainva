@@ -140,4 +140,47 @@ describe("DateJumpPicker", () => {
     expect(s.host.querySelector('[data-testid="datejump-today"]')).toBeNull();
     await unmount(s);
   });
+
+  it("reloads visible-month marks, ignores late results, and refreshes after rename", async () => {
+    const { DateJumpPicker } = await import("@plainva/ui");
+    const requests: Array<{ dates: Date[]; resolve: (days: Set<string>) => void }> = [];
+    const load = (dates: Date[]) => new Promise<Set<string>>((resolve) => requests.push({ dates, resolve }));
+    const picked = vi.fn();
+    const opened = vi.fn();
+    const props = { value: "2026-09-10", weekStart: 1 as const, loadMarkedDays: load, onPick: picked, onOpenDailyNote: opened };
+    const m = await mount(<DateJumpPicker {...props} marksRevision={0} />);
+    expect(requests[requests.length - 1].dates).toHaveLength(42);
+    const old = requests.slice();
+    await act(async () => { (m.host.querySelector('[data-testid="datejump-month-9"]') as HTMLButtonElement).click(); });
+    const october = requests[requests.length - 1];
+    expect(october.dates.some((date) => date.getMonth() === 9 && date.getDate() === 20)).toBe(true);
+    await act(async () => { october.resolve(new Set(["2026-10-20"])); });
+    await act(async () => { for (const request of old) request.resolve(new Set(["2026-09-10"])); });
+    const cell = m.host.querySelector('[data-day="2026-10-20"]') as HTMLButtonElement;
+    expect(cell.className).toContain("has-mark");
+    expect(cell.getAttribute("aria-label")).toContain("Daily note exists");
+    await act(async () => { cell.click(); });
+    expect(picked).not.toHaveBeenCalled();
+    const daily = m.host.querySelector('[data-testid="datejump-daily-note"]') as HTMLButtonElement;
+    expect(daily.textContent).toBe("Open daily note");
+    await act(async () => { daily.click(); });
+    expect(opened).toHaveBeenCalledWith("2026-10-20");
+    await act(async () => { m.root.render(<DateJumpPicker {...props} marksRevision={1} />); });
+    expect(m.host.querySelector(".has-mark")).toBeNull();
+    await act(async () => { requests[requests.length - 1].resolve(new Set()); });
+    expect(daily.textContent).toBe("Create daily note");
+    await act(async () => { (m.host.querySelector('[data-testid="datejump-go"]') as HTMLButtonElement).click(); });
+    expect(picked).toHaveBeenCalledWith("2026-10-20");
+    await unmount(m);
+  });
+
+  it("does not offer creation as if a failed existence scan proved absence", async () => {
+    const { DateJumpPicker } = await import("@plainva/ui");
+    const m = await mount(<DateJumpPicker value="2026-09-10" weekStart={1} onPick={() => {}} onOpenDailyNote={() => {}}
+      loadMarkedDays={async () => { throw new Error("permission denied"); }} />);
+    expect(m.host.querySelector('[role="status"]')?.textContent).toContain("could not be loaded");
+    expect(m.host.querySelector('[data-testid="datejump-daily-note"]')?.textContent).toBe("Open daily note");
+    expect(m.host.querySelector(".has-mark")).toBeNull();
+    await unmount(m);
+  });
 });

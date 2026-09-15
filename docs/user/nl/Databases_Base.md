@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-06
+Laatst bijgewerkt: 2026-09-15
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -287,3 +287,11 @@ Een balk die buiten de getoonde periode reikt, wordt aan de rand afgesneden en h
 Filter op kleurstrook, pictogram, tags van de hele notitie of de labeleigenschap van de prikbordweergave. Tags komen exact overeen: #work vindt niet #workshop of #work/child. Tekst en frontmatter worden samengevoegd. Waarden blijven uit de hele bron beschikbaar, ook zonder resultaten; onbekende pictogramnamen blijven bewaard.
 
 Het filter verandert de zichtbare selectie, niet de bestanden. Keuzewaarden komen uit de hele bron, ook zonder resultaten.
+
+## Een tabel exporteren
+
+Open **Tabel exporteren** in het databasemenu op de desktop of via het exportpictogram in de mobiele appbalk. Het venster toont het huidige aantal resultaatrijen en de kolommen van de weergave.
+
+**Formules (.base)** maakt een tabel met een vaste selectie van de huidige rijen. Deze berekeningen via opgeslagen relaties blijven formules: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open het bestand in dezelfde kluis met de gekoppelde notities. Niet-ondersteunde berekeningen en omgekeerde relaties staan in het venster; gebruik daarvoor de waardenexport.
+
+**Waarden (.csv)** bevat de huidige berekende waarden en bestandspaden. Waarden worden later niet bijgewerkt; lijsten blijven JSON. Formuleachtige tekst wordt als tekst beschermd voor spreadsheets. Geen van beide opties schrijft berekende eigenschappen in de oorspronkelijke notities.

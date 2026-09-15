@@ -185,7 +185,8 @@
       "logseq": "Logseq",
       "notion_file": "Notion (ZIP)",
       "notion_api": "Notion (API)",
-      "obsidian": "Obsidian"
+      "obsidian": "Obsidian",
+      "joplin": "Joplin (JEX / Markdown)"
     },
     "hints": {
       "generic_markdown": "Markdown（.md）ファイルを含むフォルダーまたはファイルを選択してください。",
@@ -194,7 +195,8 @@
       "evernote": "Evernoteからエクスポートした.enexファイルを選択してください（ノートブック → ENEXとしてエクスポート）。",
       "logseq": "Logseqのグラフフォルダーを選択してください（/journals と /pages を含むフォルダーです）。",
       "notion_file": "NotionのZIPエクスポート、または展開済みのフォルダーを選択してください。ページは取り込まれますが、データベースの内容にはAPIインポートが必要です。",
-      "notion_api": "Notionのインテグレーショントークンを入力すると、共有されているページやデータベースを、行やリレーションを含めて直接インポートできます。"
+      "notion_api": "Notionのインテグレーショントークンを入力すると、共有されているページやデータベースを、行やリレーションを含めて直接インポートできます。",
+      "joplin": "JoplinのJEXファイル、RAWフォルダー、またはフロントマター付きMarkdownエクスポートを選びます。ノートブック、タグ、添付ファイル、元の日時を保持します。"
     },
     "report": {
       "title": "インポートレポート",
@@ -310,7 +312,19 @@
     "targetNewVaultHintMobile": "この端末に新しい空の Vault を作成し、そこにインポートします。",
     "undoVaultMobile": "このインポートを取り消すには、「その他 → Vault」でその Vault を削除します。",
     "syncUploadHintMobile": "この Vault は同期されています。インポートした {{n}} 件のノートはすべてアップロードされます。",
-    "obsidianConnectMobile": "スマートフォンでは「その他 → Vault」で Obsidian Vault と同じクラウドに接続してください。ノートは同期を通じて届きます。"
+    "obsidianConnectMobile": "スマートフォンでは「その他 → Vault」で Obsidian Vault と同じクラウドに接続してください。ノートは同期を通じて届きます。",
+    "archiveInvalid": "アーカイブが破損しているか、未対応、安全でない、または重複した項目が含まれています。何もインポートされていません。",
+    "archiveTooLarge": "JEXの上限：20,000項目、1ファイル32 MiB、合計256 MiB、テキスト64 MiB。 テキストファイルは1ファイル2 MiBまで。",
+    "jexInvalid": "読み取れるJoplinエクスポートではありません。JoplinからJEXまたはRAWで書き出してください。",
+    "jexEncrypted": "暗号化されたデータが残っています。Joplinで復号が完了してから再度書き出してください。",
+    "jexFreshTarget": "まだ存在しない保存先フォルダーを選んでください。",
+    "jexOriginals": "元のレコードは追加ファイルに保存され、添付ファイル数に含まれます。",
+    "jexIncomplete": "一部のリンク先または添付ファイルが見つかりません。未解決のリンクと元データは保持されます。",
+    "jexExtraRecords": "その他のJoplinレコード形式は元データとして保持されます。",
+    "jexNoNotes": "このエクスポートにはノートがありません。",
+    "jexMissingFolders": "一部のノートブックは書き出されていません。そのノートはインポートフォルダーに直接保存されます。",
+    "statFolders": "ノートブック",
+    "statTags": "タグ"
   },
   "settings": {
     "about": "情報と診断",
@@ -517,7 +531,7 @@
     "fontSearch": "フォントを検索…",
     "fontFieldEmpty": "フォントを選択…",
     "customThemeAdoptFrom": "他のテーマから取り込む…",
-    "customThemePageDesc": "あなた自身のテーマ：基調・背景・アクセントを選ぶと、文字色は Plainva が導出し、背景に埋もれることはありません。",
+    "customThemePageDesc": "明るい雰囲気と暗い雰囲気、それぞれの色を選べます。",
     "customThemeEdit": "編集",
     "groupColors": "色",
     "groupShape": "形",
@@ -609,12 +623,23 @@
     "fontContentDesc": "エディターと閲覧ビュー。",
     "fontCode": "コード",
     "fontCodeDesc": "コードブロック、インラインコード、コードモード。",
-    "fontsDeviceHint": "この端末に適用されます — インストール済みのフォントは端末ごとに異なります。"
+    "fontsDeviceHint": "この端末に適用されます — インストール済みのフォントは端末ごとに異なります。",
+    "customThemePairHint": "明るい配色と暗い配色は別々に保存されます。両方を採用すると「システム」が端末の設定に従います。",
+    "customThemeProposal": "この配色は提案です。採用するまで保存済みのデザインは変わりません。",
+    "customThemeAdoptMood": "この配色を採用",
+    "customThemeSaveFailed": "デザインを保存できませんでした。再試行してください。",
+    "customThemeSyncTitle": "個人用の同期",
+    "customThemeSyncEnabled": "この保管庫を使って同期",
+    "customThemeSyncHint": "色と角の形は自分だけに同期されます。各デバイスで同期元の保管庫を一つ選んでください。設定の同期を有効にする必要があります。",
+    "customThemeSyncSource": "選択した同期元：{{name}}",
+    "customThemeSyncLocal": "デザインはこのデバイスに保存されます。同期を有効にするにはロック解除済みの保管庫を開いてください。",
+    "customThemeSyncFailed": "デザインの同期を完全に保存または読み込めませんでした。接続を確認し、保管庫のロックを解除してから、このページを開き直してください。",
+    "customThemeSyncConflict": "二つのデバイスが同時にデザインを変更しました。いずれかを選ぶかデザインを編集するまで、すべての候補が保存されます。",
+    "customThemeSyncChoose": "候補 {{number}} を使用"
   },
   "editor": {
     "completionHeadings": "見出し",
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
-    "fileNotFound": "ファイルが見つかりません",
     "loading": "読み込み中...",
     "menu": "メニュー",
     "time": "時刻",
@@ -906,7 +931,6 @@
     "searchTags": "タグを絞り込む…",
     "searchDatabases": "データベースを絞り込む…",
     "noResults": "結果がありません",
-    "resultCount_other": "{{count}}件の結果",
     "matchesName": "ファイル名",
     "matchesContent": "内容",
     "resize": "サイドバーの幅を調整",
@@ -1207,7 +1231,18 @@
     "filterTags": "タグ · ノート全体",
     "filterLabelsFrom": "ラベル · {{property}}",
     "filterPropertyTags": "{{property}} · プロパティ",
-    "filterSearchValues": "値を検索…"
+    "filterSearchValues": "値を検索…",
+    "exportTitle": "テーブルをエクスポート",
+    "exportValues": "値 (.csv)",
+    "exportFormulas": "数式 (.base)",
+    "exportScope": "結果の行数：{{count}}。このビューの列がエクスポートされます。",
+    "exportFormulaHint": ".base ファイルには現在の行が固定の選択として保存されます。対応する計算は数式のままです。リンク先のノートがある同じ保管庫で開いてください。",
+    "exportUnsupported": "次の列は、同じ結果を返す数式としてまだエクスポートできません：",
+    "exportIssue_operation": "この計算の同等性は確認されていません。",
+    "exportIssue_relation": "逆方向のリレーションや別のリレーションキーは変換されません。",
+    "exportIssue_property": "このファイルプロパティは変換されません。",
+    "exportValuesHint": "CSV には現在の計算結果とファイルパスが含まれます。値は後から更新されません。リストは JSON として保持されます。",
+    "exportFailed": "エクスポートに失敗しました。データは変更されていません。もう一度お試しください。"
   },
   "fileTree": {
     "unsynced": "未同期",
@@ -1603,7 +1638,11 @@
     "prevYear": "前年",
     "nextYear": "翌年",
     "showWeeks": "週番号を表示",
-    "weekShort": "週"
+    "weekShort": "週",
+    "dailyNoteExists": "デイリーノートあり",
+    "openDailyNote": "デイリーノートを開く",
+    "createDailyNote": "デイリーノートを作成",
+    "dailyNotesUnavailable": "デイリーノートのマークを読み込めませんでした。"
   },
   "titlebar": {
     "openTabs": "開いているファイル",
@@ -2285,7 +2324,11 @@
     "differentTasks": "異なる2つのタスク",
     "differentTasksHint": "これらのファイルは異なるタスクに属します。同じ名前の繰り返しタスクでも、個々のタスクは別です。両方の内容を別々のタスクとして保持します。",
     "keepSeparateTasks": "別々のタスクとして保持",
-    "comparisonChanged": "表示後にファイルが変更されたため、比較を再読み込みしました。現在の内容を確認して、もう一度選択してください。"
+    "comparisonChanged": "表示後にファイルが変更されたため、比較を再読み込みしました。現在の内容を確認して、もう一度選択してください。",
+    "versionUnavailable": "選択したバージョンは利用できなくなりました。",
+    "countsUnavailable": "このファイルサイズでは行数を計算できません。",
+    "windowFailed": "比較ウィンドウを開けませんでした。",
+    "lineChanges": "+{{added}} / −{{removed}} 行"
   },
   "conflict": {
     "resolveFailed": "競合を解決できませんでした: {{error}}",
@@ -2572,7 +2615,7 @@
     "repeatEvery_monthly": "{{n}} か月ごと",
     "repeatEvery_yearly": "{{n}} 年ごと",
     "repeatSpawned": "次の期日: {{date}}",
-    "repeatFailed": "次のタスクを作成できませんでした。",
+    "repeatFailed": "タスクは完了しました。次のタスクを確認できませんでした。再試行する前にタスクのフォルダーを確認してください。",
     "repeatRemote": "このタスクは提供元のもので、繰り返しはそちらで管理されます。",
     "repeatPreview": "次の期日: {{date}}",
     "repeatPreviewFromToday": "完了日を起点にしているため、今日から数えます。",
@@ -2587,7 +2630,16 @@
     "providerCreateFailed": "タスクはローカルで作成されましたが、プロバイダーでは作成されませんでした。",
     "providerAnchorFailed": "タスクはプロバイダーで作成されましたが、ノートに関連付けられませんでした — それ以外は、次回の同期でこのタスク用に2件目のノートが作成されます。",
     "deletingWithUndo_other": "{{count}} 件のタスクを削除しました。{{seconds}} 秒後にプロバイダーからも削除します。",
-    "deleteCancelled_other": "削除を取り消しました — {{count}} 件のノートが戻りました。"
+    "deleteCancelled_other": "削除を取り消しました — {{count}} 件のノートが戻りました。",
+    "metadata": {
+      "created": "作成日",
+      "start": "開始日",
+      "scheduled": "予定日",
+      "completed": "完了日",
+      "taskId": "ID",
+      "recurrence": "繰り返し",
+      "unsupported": "ルールは保持されますが、ここでは自動的に次回を作成しません。"
+    }
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
@@ -2674,7 +2726,7 @@
     "authConfig": "このアカウントのアプリ登録が一致しません。プロバイダーでクライアント ID、シークレット、リダイレクト URI を確認してください。",
     "authApiDisabled": "サインインは有効ですが、呼び出している Google API がご自身の Google Cloud プロジェクトで有効になっていません。そちらで有効にしてから（カレンダー: 「Google Calendar API」、タスク: 「Google Tasks API」）、もう一度お試しください。",
     "authExpired": "このアカウントのサインインは期限切れまたは取り消されました。再度サインインして復旧してください。",
-    "authExpiredGoogle": "このアカウントのサインインは期限切れまたは取り消されました。再度サインインしてください。独自の Google クライアントを使い、同意画面が「テスト」のままの場合、Google は 7 日ですべてのサインインを失効させます — プロジェクトを公開すれば解消されます。",
+    "authExpiredGoogle": "Google がこのログインを拒否しました。再度ログインしてください。独自アプリでは、テスト用アクセスの期限切れや同意の撤回などが原因となります。このエラーだけではプロジェクトの公開状態を判断できません。",
     "authNetwork": "このアカウントに接続できませんでした。接続の問題のようです — もう一度お試しください。",
     "openVaultFirst": "開いている保管庫でのみ利用できます。",
     "noAccounts": "まだカレンダーアカウントが接続されていません。",
@@ -2715,7 +2767,7 @@
     "retrying": "再試行中…",
     "retrySameError": "再試行しても同じエラーでした。",
     "davPass": "アプリパスワード",
-    "googleByoHint": "Google では独自の OAuth クライアント ID が必要です（Drive 同期と同様）。スコープ: カレンダー + タスク。",
+    "googleByoHint": "この端末に対応する Google クライアント ID を使用してください。デスクトップ用クライアントには対応するクライアントシークレット値も必要です。モバイルの登録方法はガイドを参照してください。権限はカレンダーとタスクです。",
     "clientFromDevice": "この端末のクライアント ID を使用しました。",
     "googleClientSecret": "クライアントシークレット（デスクトップクライアントでは省略可）",
     "googleClientIdRequired": "Google には独自のクライアント ID が必要です（BYO）。",
@@ -3000,7 +3052,6 @@
     "noSearchResults": "このフォルダーに一致するものはありません。",
     "markRead": "既読にする",
     "markUnread": "未読にする",
-    "bulkPartial": "すべてのメールを変更できませんでした（{{n}} 件が失敗）: {{error}}",
     "moveTo": "移動先…",
     "moved": "{{folder}} に移動しました",
     "delete": "削除",
@@ -3103,7 +3154,24 @@
     "unsubscribeFailed": "配信停止のページを開けませんでした。",
     "sendingWithUndo": "{{seconds}} 秒後に送信します",
     "sendCancelled": "送信を取り消しました——メッセージは送られていません。",
-    "emlAdded": "「{{name}}」に元データを追加しました。"
+    "emlAdded": "「{{name}}」に元データを追加しました。",
+    "googleSignInTest": "Google でログイン · テスト",
+    "googleTestHint": "承認済みの Google テストアカウント向けです。メールの閲覧、管理、送信を Plainva に許可します。保存したメールは Vault の一部となり、その同期設定に従います。",
+    "filterAttachments": "添付ファイルあり",
+    "attachmentsLoaded": "読み込み済みの{{loaded}}通中{{known}}通のメタデータを確認済みです。他のメールにも添付ファイルがある場合があります。",
+    "bulkWorking": "一括操作中です。キャンセルすると現在の処理単位の後で停止します。",
+    "bulkReport": "{{done}}件完了、{{failed}}件未確認。",
+    "bulkUncertain": "結果が不明です。再実行する前にフォルダーを再読み込みしてください。",
+    "bulkReason": {
+      "missing": "メールは元のフォルダーにありません。",
+      "changed": "フォルダーが変更されたか、キャッシュから読み込まれました。再読み込みしてください。",
+      "unsupported": "サーバーはこの対象限定操作（MOVE/UIDPLUS）に対応していません。",
+      "rejected": "サーバーによる変更の確認がありません。",
+      "connection": "接続が中断されました。",
+      "cancelled": "未実行：キャンセルされました。"
+    },
+    "noAttachmentMatches": "読み込み済みのメールには確認済みの添付ファイルがありません。",
+    "cacheUpdateFailed": "サーバーでの変更を確認しました。ローカルのメールキャッシュを更新できませんでした。フォルダーを再読み込みしてください。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",
@@ -3302,7 +3370,7 @@
     "suggestDiscard": "破棄",
     "suggestDiscardConfirm": "{{n}} 件の変更を破棄しますか？ノートは元のままです。",
     "suggestSend": "提案を送信（{{n}}）",
-    "suggestSent": "{{n}} 件の提案を送信しました。",
+    "suggestSent": "送信した提案：{{n}}件。",
     "suggestNothing": "まだ変更はありません。",
     "suggestParkedTitle": "未送信の提案が見つかりました",
     "suggestParkedResume": "編集を続ける",
@@ -3381,7 +3449,9 @@
     "decisionConflict": "矛盾する判断",
     "decisionConfirmDeclined": "却下として確定",
     "decisionConfirmApplied": "適用済みとして確定",
-    "decisionReviewHelp": "提案と現在のテキストを比較してください。この判断は現在のテキストを確認し、ここで把握している判断だけを置き換えます。提案を再度挿入することはありません。"
+    "decisionReviewHelp": "提案と現在のテキストを比較してください。この判断は現在のテキストを確認し、ここで把握している判断だけを置き換えます。提案を再度挿入することはありません。",
+    "publicationReviewLocal": "この判断は自分の保管庫の原本に記録されます。",
+    "suggestionNotPermitted": "現在の権限ではここで提案できません。"
   },
   "workspaceSecurity": {
     "experimentalNotice": "暗号化ワークスペースは実験的な機能で、第三者による監査はまだ受けていません。リカバリーファイルとコードは安全な場所に保管してください。これらがないと暗号化されたノートは復元できません。",
@@ -3830,7 +3900,7 @@
       "chainGap": {
         "title": "あるデバイスの変更が待機中：チェーンが途切れています",
         "explain": "このデバイスは {{device}} からの変更 No. {{expected}} を待っていますが、クラウドには No. {{found}} があります。その間に欠けたか置き換えられたものが、それ以降のすべてをブロックしています。このグループには {{count}} 件の変更が含まれます。",
-        "hint": "多くの場合、同じデバイスの二つ目の状態（独自のストレージを持つ開発用インスタンスなど）や、再接続して 1 から数え直しているデバイスが原因です。{{device}} を一度同期させてから、ここで再確認してください。グループを無視すると、これらの変更は失われます。"
+        "hint": "完全で検証可能な履歴が残っているデバイスで「今すぐ同期」を選択してください。Plainva はそのコピーから欠落した署名済み操作を復元できます。その後、{{device}} で再度確認してください。有効なコピーがない場合はローカルデータを保持またはエクスポートしてください。欠落部分を回避するために検証のチェックポイントをリセットすることはありません。"
       },
       "chainBlocked": {
         "title": "欠落の後ろで待機中",
@@ -4023,18 +4093,18 @@
     "title": "Plainva {{version}} の新機能",
     "lead": "最大の変更点",
     "experimental": "実験的",
-    "highlight1Title": "既存のアカウントにサービスを追加",
-    "highlight1": "適切なアカウントにファイル、カレンダー、メールを追加できます。選択したログインを確認し、不足している権限をリクエストします。",
-    "highlight2Title": "手順が明確なセットアップ",
-    "highlight2": "モバイルのアシスタントが必要な接続画面を直接開きます。ログイン後にカレンダーとタスクリストを選び、結果を確認できます。",
-    "highlight3Title": "プレビューで確認してファイルを移行",
-    "highlight3": "モバイルでファイルを追加すると、移行前に元の場所、保存先、同名ファイルの衝突を確認できます。既存の内容とサービスを保持し、中断した移行を再試行できます。",
-    "highlight4Title": "同名タスクを別々に保持",
-    "highlight4": "プロバイダーのタスクを識別情報で対応付けます。繰り返しの各タスクに個別のファイルを作成し、誤って競合したタスクも別々に保持できます。",
-    "highlight5Title": "ファイル比較で明確に選択",
-    "highlight5": "両方のファイル名と保存先を表示します。置き換える前の確認画面に取得元と書き込み先を示し、その間にファイルが変更された場合は比較を再読み込みします。",
-    "highlight6Title": "モバイルナビゲーションの余白を改善",
-    "highlight6": "コンパクトなバーでも選択中のアイコンの周囲に余白を保ちます。タップ領域を十分に確保し、文字サイズに合わせて必要なスペースを調整します。",
+    "highlight1Title": "接続と同期の信頼性を向上",
+    "highlight1": "中断された操作を必要に応じて再試行します。ログインの問題やデータの不確かな状態をわかりやすく示し、ローカルの変更を保持します。",
+    "highlight2Title": "正確な検索結果・埋め込み・履歴",
+    "highlight2": "一致した箇所に移動し、特定のセクションやブロックを埋め込み、バージョン間の実際の行の変更を比較できます。",
+    "highlight3Title": "JEXのインポートとデータベースのエクスポート",
+    "highlight3": "添付ファイルを含むJoplinアーカイブを新しいフォルダーに取り込めます。対応するロールアップはObsidianの数式として、または明示的に値として出力できます。タスクのメタデータも保持します。",
+    "highlight4Title": "メール操作の結果を明確に表示",
+    "highlight4": "一括操作の成功と失敗をメッセージごとに表示します。添付ファイルのフィルターは未取得のメタデータを説明し、アカウントへのサービス追加時も既存のログインを保持します。",
+    "highlight5Title": "自分のデザインと日々の操作",
+    "highlight5": "ライトとダークを別々に設定し、希望すれば個人のデザインを同期できます。デイリーノート、ウィンドウ間の引き継ぎ、待機中の共有コンテンツの扱いを改善しました。",
+    "highlight6Title": "公開資料へのフィードバック",
+    "highlight6": "権限のある受信者がコメントや変更の提案を送れます。所有者は内容を確認でき、受信者のアクセスを取り消した後もフィードバックを保持します。",
     "readBlog": "ブログ記事を読む",
     "understand": "了解"
   },
@@ -4229,7 +4299,12 @@
     "noVaultTitle": "Vault が開かれていません",
     "noVaultBody": "このウィンドウは現在どの Vault も表示していません。最近使ったものを選ぶか、フォルダーを指定してください。",
     "revealNoTree": "ファイルツリーのあるウィンドウでこの Vault を表示しているものはありません。",
-    "ownerUnreachable": "メインウィンドウが応答しません。"
+    "ownerUnreachable": "メインウィンドウが応答しません。",
+    "returnToMain": "メインウィンドウに戻す",
+    "transferFailed": "移動は完了しませんでした。元のタブと下書きは保持されています。",
+    "transferUnknown": "メインウィンドウからまだ確認がありません。下書きはここに保持されます。状態を再確認してください。",
+    "transferPending": "タブを移動しています。メインウィンドウが受け取りを確認するまで、ここで開いたままになります。",
+    "transferCheck": "状態を再確認"
   },
   "commentNotify": {
     "actionOpen": "開く",
@@ -4287,5 +4362,72 @@
     "retrySaved": "接続を完了",
     "clientSecret": "クライアントシークレット（提供されている場合）",
     "googleClientUnsupported": "Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。"
+  },
+  "connectionFailure": {
+    "TLS_CERTIFICATE_EXPIRED": "サーバー証明書の有効期限が切れています。サーバーで更新してください。",
+    "TLS_CERTIFICATE_NOT_YET_VALID": "サーバー証明書はまだ有効ではありません。端末の時計と証明書の有効期間を確認してください。",
+    "TLS_HOSTNAME_MISMATCH": "証明書がサーバーのアドレスと一致しません。アドレスと証明書を確認してください。",
+    "TLS_CERTIFICATE_UNTRUSTED": "この端末は証明書の認証局を信頼していません。サーバーの証明書チェーンとインストール済みの認証局を確認してください。",
+    "TLS_HANDSHAKE_FAILED": "安全な接続を検証できませんでした。サーバー証明書と TLS 設定を確認してください。",
+    "HTTP_ORIGIN_BLOCKED": "許可されていない接続先への接続または転送をブロックしました。設定されたサーバーアドレスを確認してください。",
+    "HTTP_TIMEOUT": "サーバーが時間内に応答しませんでした。Plainva は再試行します。",
+    "HTTP_NETWORK_ERROR": "ネットワーク接続に失敗しました。接続が利用可能になったら Plainva が再試行します。",
+    "HTTP_REQUEST_FAILED": "リクエストを完了できませんでした。接続設定と診断エクスポートを確認してください。"
+  },
+  "workspaceSync": {
+    "transient": "接続が一時的に利用できません。Plainva は自動的に再試行します。保留中の変更はこのデバイスに保持されます。",
+    "authentication": "同期アカウントに再度サインインしてください。アクセスが復旧するまで、保留中の変更はこのデバイスに保持されます。",
+    "integrity": "Plainva は暗号化された保管庫を検証できません。同期は一時停止され、ローカルデータと保留中の変更は保持されます。「セキュリティと共有」を開き、検証可能なコピーがあれば復元して、再度確認してください。",
+    "fatal": "接続の問題が解決するまで同期は一時停止されます。ローカルデータと保留中の変更は保持されます。接続を確認してから再試行してください。",
+    "foreignLegacy": "他のデバイスの暗号化されていない注釈ファイルはサーバーに残っています。変換を完了できるのは元のデバイスだけです。Plainva は他のデバイスのファイルを削除しません。"
+  },
+  "noteEmbed": {
+    "openSource": "参照元を開く",
+    "depth": "埋め込みの最大階層に達しました。",
+    "unreadable": "「{{target}}」を読み取れませんでした。",
+    "missing": "「{{target}}」が見つかりませんでした。",
+    "ambiguous": "「{{target}}」に一致するノートが複数あります。Vaultからの相対パスを指定してください。"
+  },
+  "searchResults": {
+    "loading": "検索中…",
+    "loaded": "表示中の一致箇所：{{count}}",
+    "more": "一致箇所をさらに読み込む",
+    "line": "{{line}} 行目",
+    "failed": "検索に失敗しました。再試行",
+    "empty": "一致する箇所はありません。",
+    "changed": "変更後のテキストにこの一致箇所はありません。"
+  },
+  "driveDestination": {
+    "title": "ドライブの同期先",
+    "current": "現在の同期先",
+    "selected": "選択した同期先",
+    "folderId": "フォルダ ID: {{id}}",
+    "review": "プレビューを確認",
+    "apply": "この同期先を使用",
+    "more": "さらに読み込む",
+    "effect": "確認後、Plainva はこの保管庫を選択したフォルダと同期します。既存のファイルを確認してください。他のクラウドフォルダは移動も削除もされません。"
+  },
+  "shareInbox": {
+    "title": "共有された内容",
+    "waiting": "待機中の転送：{{count}}",
+    "review": "確認",
+    "destination": "保存先",
+    "chooseVault": "Vaultを選択",
+    "chooseFolder": "フォルダーを選択",
+    "locked": "このVaultはロックされています。内容はこの端末で待機しています。",
+    "otherVault": "この転送は別のVaultに属しています。そのVaultを開いて続行してください。",
+    "targetChanged": "保存先の内容が変更されています。待機中のコピーは保持され、上書きはしていません。",
+    "writeFailed": "転送を完了できませんでした。待機中の内容は保持されています。",
+    "indexIssue": "保存しました。検索インデックスはまだ更新できていません。",
+    "saved": "共有された内容を保存しました。",
+    "incomplete": "転送が不完全です。元の内容をもう一度共有してください。受信済みの部分は破棄するまで保持されます。",
+    "receiving": "共有された内容を準備しています…",
+    "progress": "{{total}}件中{{done}}件を保存",
+    "later": "後で取り込む",
+    "import": "取り込む",
+    "discard": "待機中の項目を破棄",
+    "discardHint": "この待機中の項目だけを端末から削除しますか？Vaultに書き込み済みのファイルは残ります。",
+    "readFailed": "待機中の内容を読み込めませんでした。内容は削除されていません。",
+    "retry": "再試行"
   }
 }

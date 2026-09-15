@@ -18,6 +18,7 @@
  * standard bundle.
  */
 import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
+import { projectCommentRecords } from "../comments/commentProjection.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
 import { openWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
 import {
@@ -994,6 +995,26 @@ export async function collectPublicationComments(input: {
   const policy = input.runtime.policy.payload;
   const members = new Map(policy.members.map((member) => [member.memberId, member]));
   const collected: PublicationComment[] = [];
+  // Walk backwards from the locally trusted policy. Each predecessor is bound
+  // by its successor's hash; unrelated provider files cannot grant rights.
+  const history = new Map([[workspaceDocumentHash(input.runtime.policy), policy]]);
+  let oldest = policy;
+  const historicalPolicy = async (hash: string): Promise<WorkspacePolicyPayload | null> => {
+    while (!history.has(hash) && oldest.previousPolicyHash && history.size < 4096) {
+      const previousHash = oldest.previousPolicyHash;
+      const bytes = await input.store.get(`.pvws/policies/${previousHash}.pvpol`, { signal: input.signal });
+      if (!bytes) break;
+      try {
+        const previous = parseWorkspaceDocument(bytes);
+        if (previous.kind !== "policy" || previous.workspaceId !== input.runtime.workspaceId || workspaceDocumentHash(previous) !== previousHash) break;
+        const payload = previous.payload as WorkspacePolicyPayload;
+        if (payload.policyVersion !== oldest.policyVersion - 1 || history.has(previousHash)) break;
+        history.set(previousHash, payload); oldest = payload;
+      } catch { break; }
+    }
+    return history.get(hash) ?? null;
+  };
+  const moderators = new Set<string>();
 
   for (const key of await listPublicationKeys(input.store, ".pvws/operations/", input.signal)) {
     const bytes = await input.store.get(key, { signal: input.signal });
@@ -1008,7 +1029,7 @@ export async function collectPublicationComments(input: {
     const document = parsed as WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>;
     const operation = document.payload;
     // Object writes in here are the publisher's own projections coming back.
-    if (operation.operation !== "comment" || operation.memberId === input.runtime.memberId) continue;
+    if (operation.operation !== "comment") continue;
     if (!key.endsWith(`-${workspaceDocumentHash(document)}.pvop`)) continue;
 
     const device = policy.devices.find((entry) => entry.deviceId === operation.deviceId && entry.memberId === operation.memberId);
@@ -1046,15 +1067,28 @@ export async function collectPublicationComments(input: {
       }).allowed;
 
     const record = workspaceCommentRecord(body, document, workspaceDocumentHash(document));
+    const accepted = await historicalPolicy(operation.policyHash);
+    const may = (capability: "comment.create" | "comment.suggest" | "workspace.manage") => !!accepted && evaluateWorkspaceAccess(accepted,
+      { memberId: operation.memberId, deviceId: operation.deviceId, capability, objectId: body.targetObjectId, sliceIds: [] }).allowed;
+    if ((record.resolvedCommentId || record.retractsCommentId) && !may("comment.create")) continue;
+    if (record.legacyOrigin && !may("workspace.manage")) continue;
+    if (record.retractsCommentId && may("comment.create") && may("workspace.manage")) moderators.add(record.commentId);
     collected.push({
       comment: { ...record, targetObjectId: source.sourceObjectId },
       publicationId: input.publicationId,
       path: source.path,
       authorDisplayName: member?.displayName ?? null,
       authorActive: !!active,
-      suggestionApplicable: !!record.suggestion && input.mode === "exact",
+      suggestionApplicable: !!record.suggestion && input.mode === "exact" && may("comment.create") && may("comment.suggest"),
     });
   }
 
-  return collected.sort((a, b) => a.comment.createdAt.localeCompare(b.comment.createdAt) || a.comment.commentId.localeCompare(b.comment.commentId));
+  const byId = new Map(collected.map(entry => [entry.comment.commentId, entry]));
+  for (const id of moderators) {
+    const marker = byId.get(id)!.comment, target = byId.get(marker.retractsCommentId!)?.comment;
+    if (target && target.targetObjectId === marker.targetObjectId) target.retractedAt = marker.createdAt;
+  }
+  return projectCommentRecords(collected.map(entry => entry.comment))
+    .filter(comment => comment.authorMemberId !== input.runtime.memberId)
+    .map(comment => ({ ...byId.get(comment.commentId)!, comment }));
 }

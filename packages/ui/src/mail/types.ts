@@ -19,6 +19,10 @@ export interface MailboxInfo {
 
 export interface MailEnvelope {
   id: string;
+  /** Unknown on an old cached row; refresh before changing an IMAP UID. */
+  uidValidity?: number;
+  /** Undefined means metadata is missing, never "no attachment". */
+  hasAttachments?: boolean;
   subject: string;
   from: string;
   dateTs: number;
@@ -86,6 +90,8 @@ export interface MailMessage {
 
 export interface RawImapEnvelope {
   uid: number;
+  uidValidity?: number;
+  hasAttachments?: boolean;
   subject: string;
   from: string;
   dateTs: number;

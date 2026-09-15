@@ -5,9 +5,11 @@ import {
   nextDueDate,
   parseBaseConfig,
   readRepeatRule,
+  readRepeatCompletionDay,
   resolveTaskCompletionModel,
   taskDbDueKey,
   writeNextOccurrenceNote,
+  withTaskCompletion,
   type TaskCompletionModel,
 } from "@plainva/ui";
 import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
@@ -28,6 +30,7 @@ export interface TaskCompletionResult {
   changed: boolean;
   /** Due date of the occurrence this completion created, when it created one. */
   spawnedDue?: string;
+  spawnFailed?: boolean;
 }
 
 /** Reads the task database's schema — the same source the list reads. */
@@ -52,6 +55,10 @@ async function loadModel(
  */
 export async function setTaskDone(path: string, done: boolean): Promise<TaskCompletionResult> {
   const vault = await getMobileVault();
+  return withTaskCompletion(vault.files, path, () => setTaskDoneLocked(vault, path, done));
+}
+
+async function setTaskDoneLocked(vault: MobileVault, path: string, done: boolean): Promise<TaskCompletionResult> {
   const model = await loadModel(vault);
   if (!model) return { changed: false };
 
@@ -73,7 +80,8 @@ export async function setTaskDone(path: string, done: boolean): Promise<TaskComp
   const rule = readRepeatRule(raw);
   if (!rule || !canRepeat(raw)) return { changed };
   const currentDue = model.dueKey ? String(readFrontmatterPath(raw, [model.dueKey]) ?? "").slice(0, 10) : null;
-  const spawnedDue = nextDueDate(rule, currentDue || null, localIsoKey(new Date()));
+  const completedOn = readRepeatCompletionDay(raw) ?? localIsoKey(new Date());
+  const spawnedDue = nextDueDate(rule, currentDue || null, completedOn);
   if (!spawnedDue) return { changed };
 
   let content = applyTaskCompletion(
@@ -84,10 +92,13 @@ export async function setTaskDone(path: string, done: boolean): Promise<TaskComp
     (c, p, v) => setFrontmatterPath(c, p, v)
   );
   if (model.dueKey) content = setFrontmatterPath(content, [model.dueKey], spawnedDue);
-  const created = await writeNextOccurrenceNote(
-    { exists: (p) => vault.files.exists(p), writeTextFile: (p, c) => vaultOps.save(vault, p, c) },
-    path,
-    content
-  );
-  return created ? { changed: true, spawnedDue } : { changed };
+  try {
+    const created = await writeNextOccurrenceNote(
+      { exists: (p) => vault.files.exists(p), readTextFile: (p) => vaultOps.read(vault, p), writeTextFile: (p, c) => vaultOps.save(vault, p, c) },
+      path,
+      content,
+      completedOn
+    );
+    return created ? { changed: true, spawnedDue } : { changed };
+  } catch { return { changed, spawnFailed: true }; }
 }

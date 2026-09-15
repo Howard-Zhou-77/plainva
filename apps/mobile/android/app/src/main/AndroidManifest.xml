@@ -9,7 +9,7 @@
 
          This does NOT weaken https: the flag only decides whether the platform
          rejects an http URL on its own. TLS, certificate validation against the
-         system trust store and failure on an invalid certificate are unchanged.
+         system/user trust stores and failure on an invalid certificate remain.
 
          The real boundary is ours and stays where it was: WebDavHttpPlugin
          admits only origins the user configured plus fixed https-only provider
@@ -19,6 +19,7 @@
     <application
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/full_backup_content"
         android:icon="@mipmap/ic_launcher"

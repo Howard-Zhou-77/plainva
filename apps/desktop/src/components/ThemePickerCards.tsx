@@ -12,11 +12,11 @@ import {
   setStoredThemeVariant,
   visibleThemes,
 } from "../services/theme";
-import { ICON, CUSTOM_THEME_ID, type CustomThemeSpec, IconButton } from "@plainva/ui";
+import { ICON, CUSTOM_THEME_ID, type CustomThemeSpec, type CustomThemeDesign, IconButton } from "@plainva/ui";
 
 interface ThemePickerCardsProps {
   /** The user's own theme, for the custom card's preview (plan 2026-09-04, P2). */
-  customTheme?: CustomThemeSpec | null;
+  customTheme?: CustomThemeSpec | CustomThemeDesign | null;
   /** The pencil on the custom card (A2): opens the theme's own page. */
   onEdit?: () => void;
   value: string;

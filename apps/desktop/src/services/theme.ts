@@ -1,6 +1,7 @@
 import { getSettingsStore } from "./settingsStore";
 import { notifyAppearanceChanged } from "./appearanceSync";
-import { applyResolved, defaultCustomTheme, parseCustomTheme, setCustomTheme, themesWithCustom, type CustomThemeSpec } from "@plainva/ui";
+import { recoverPersonalDesign } from "@plainva/ui";
+import { applyResolved, defaultCustomThemeDesign, parseCustomThemeDesign, customThemeSpecForMode, withCustomThemeMood, setCustomTheme, themesWithCustom, type CustomThemeSpec, type CustomThemeDesign } from "@plainva/ui";
 
 // The theme registry and resolvers live in @plainva/ui (mobile M3E package D2)
 // so both shells share ONE catalog. This module keeps the desktop persistence
@@ -44,26 +45,32 @@ export async function applyStoredTheme(): Promise<void> {
     getStoredThemePref(),
     getStoredThemeName(),
     getStoredThemeVariants(),
-    getStoredCustomTheme(),
+    getStoredCustomThemeDesign(),
   ]);
   setCustomTheme(custom);
   applyResolved(pref, name, variants[name]);
 }
 
-/** The user's own theme (plan 2026-09-04, P2) — device-local like every
- * other appearance setting (decision E3). */
+/** Local appearance mirror. The optional personal profile register is owned
+ * by personalDesign.ts; applying an arrival here never creates a new revision. */
 export async function getStoredCustomTheme(): Promise<CustomThemeSpec> {
+  return customThemeSpecForMode(await getStoredCustomThemeDesign(), "light");
+}
+
+export async function getStoredCustomThemeDesign(): Promise<CustomThemeDesign> {
   try {
     const store = await getSettingsStore();
-    return parseCustomTheme(await store.get<unknown>("customTheme")) ?? defaultCustomTheme();
+    return parseCustomThemeDesign(await store.get<unknown>("customTheme")) ?? defaultCustomThemeDesign();
   } catch {
-    return defaultCustomTheme();
+    return defaultCustomThemeDesign();
   }
 }
 
-export async function setStoredCustomTheme(spec: CustomThemeSpec): Promise<void> {
+export async function setStoredCustomTheme(spec: CustomThemeSpec | CustomThemeDesign): Promise<void> {
   const store = await getSettingsStore();
-  await store.set("customTheme", spec);
+  const design = "mode" in spec ? withCustomThemeMood(await getStoredCustomThemeDesign(), spec) : parseCustomThemeDesign(spec);
+  if (!design) throw new Error("custom_theme_invalid");
+  await store.set("customTheme", design);
   await store.save();
   await applyStoredTheme();
   notifyAppearanceChanged();
@@ -239,6 +246,10 @@ export function initTheme(): void {
   applyResolved("system", DEFAULT_THEME_NAME);
   applyStoredTheme()
     .then(async () => {
+      await getSettingsStore().then(store => recoverPersonalDesign(store, getStoredCustomThemeDesign, setStoredCustomTheme)).catch(() => {
+        // Preserve the last confirmed appearance and keep the System listener
+        // alive. The settings page reports/retries the pending mirror.
+      });
       // Grandfathering: a gated theme that is already ACTIVE counts as
       // discovered (win95 shipped ungated on 2026-07-05 and became an easter
       // egg on 2026-07-06 — existing users keep their picker card).
@@ -262,6 +273,6 @@ export function initTheme(): void {
 /** The picker's list: the bundled themes this installation may show, plus the
  * custom card (always last). `custom` overrides the registry's current spec
  * so an editor can preview a spec that is not applied yet. */
-export function visibleThemes(unlocked: string[], custom?: CustomThemeSpec | null): ThemeDef[] {
+export function visibleThemes(unlocked: string[], custom?: CustomThemeSpec | CustomThemeDesign | null): ThemeDef[] {
   return themesWithCustom(visibleBundledThemes(unlocked), custom);
 }

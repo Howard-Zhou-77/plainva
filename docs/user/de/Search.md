@@ -1,16 +1,16 @@
 # Suche
 
-Stand: 2026-09-03
+Stand: 2026-09-15
 
 Plainva bietet drei Suchwege: die Volltextsuche über den ganzen Vault, den Schnellwechsel zum Datei-Öffnen und Suchen & Ersetzen innerhalb einer Notiz.
 
 ## Volltextsuche im Vault
 
-Das Suchfeld oben in der Seitenleiste durchsucht den gesamten Vault — Titel *und* Inhalte. Dahinter steht ein lokaler Volltextindex (SQLite FTS5), der beim Öffnen des Vaults aufgebaut und bei jeder Änderung aktuell gehalten wird; die Suche funktioniert deshalb auch offline und ohne spürbare Wartezeit.
+Das Suchfeld oben in der Seitenleiste durchsucht Titel und Inhalte im gesamten Vault. Der lokale Volltextindex (SQLite FTS5) wird beim Öffnen aufgebaut und bei Änderungen aktualisiert. Die Suche funktioniert offline.
 
 Die Suche reagiert sofort beim Tippen: Schon Wortanfänge liefern Treffer („Projek" findet „Projektplan"), ohne dass Du Enter drücken musst. Das **X** rechts im Suchfeld löscht die aktuelle Suche (alternativ `Esc`); danach zeigt die Seitenleiste wieder den normalen Dateibaum.
 
-Die Trefferliste zeigt oben die Trefferzahl und gruppiert die Ergebnisse: zuerst **Dateiname** (der Suchbegriff kommt im Namen der Notiz vor), darunter **Inhalt**. Jede Zeile zeigt das Dokument-Icon, den Ordnerpfad und bei Inhaltstreffern einen Textausschnitt mit hervorgehobener Fundstelle. Ein Klick öffnet die Notiz und springt direkt zur ersten Fundstelle; sie ist dort markiert. Gibt es nichts zu finden, meldet die Liste **Keine Treffer**.
+Die Suche zeigt einzelne Fundstellen mit Textausschnitt, Überschriftenpfad und Zeilennummer. Ein Klick öffnet genau die gewählte Stelle; auch mehrere Treffer derselben Notiz erscheinen einzeln. Die angezeigte Zahl zählt nur bereits geladene Ergebnisse. Weitere Fundstellen lassen sich nachladen. Pfeiltasten wechseln zwischen Fundstellen, Enter öffnet die Auswahl. Ladezustand, leere Suche und Fehler werden ausdrücklich angezeigt; eine neue Eingabe verwirft alte Antworten. Ist die Stelle inzwischen verändert und nicht mehr eindeutig auffindbar, erscheint ein Hinweis. Diese Fundstellen stehen auch im Quick Switcher und in der mobilen Suche zur Verfügung. Beim Zurückgehen auf Mobil werden Suchtext, nachgeladene Ergebnisse und Listenposition wiederhergestellt.
 
 Das Suchfeld wirkt auch auf die anderen Seitenleisten-Ansichten: In **Tags** filtert es die Tag-Liste, in **Lesezeichen** die Lesezeichen.
 

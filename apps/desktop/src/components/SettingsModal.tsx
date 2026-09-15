@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
@@ -35,8 +35,9 @@ import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfMigrationModal } from "./OkfMigrationModal";
 import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
-import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getStoredCustomTheme, setStoredCustomTheme } from "../services/theme";
-import { defaultCustomTheme, type CustomThemeSpec } from "@plainva/ui";
+import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getStoredCustomThemeDesign, setStoredCustomTheme } from "../services/theme";
+import { defaultCustomThemeDesign, usePersonalDesignSync, type CustomThemeDesign } from "@plainva/ui";
+import { desktopPersonalDesignForEditor } from "../services/personalDesign";
 import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
@@ -129,9 +130,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
   const [themeName, setThemeName] = useState<string>(() => document.documentElement.getAttribute("data-theme-name") || "petrol");
-  const [customTheme, setCustomThemeSpec] = useState<CustomThemeSpec>(() => defaultCustomTheme());
+  const [customTheme, setCustomThemeSpec] = useState<CustomThemeDesign>(() => defaultCustomThemeDesign());
+  const refreshCustomTheme = useCallback(() => { void getStoredCustomThemeDesign().then(setCustomThemeSpec); }, []);
+  const loadDesignSync = useMemo(() => vaultPath ? () => desktopPersonalDesignForEditor(vaultPath) : null, [vaultPath]);
+  const designSync = usePersonalDesignSync(loadDesignSync, refreshCustomTheme);
   useEffect(() => {
-    void getStoredCustomTheme().then(setCustomThemeSpec);
+    void getStoredCustomThemeDesign().then(setCustomThemeSpec);
   }, []);
   const [intervalSec, setIntervalSec] = useState(String(defaultSyncIntervalSeconds()));
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(true);
@@ -806,7 +810,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <SettingsPage active={inAppWorld && appPage === "customTheme"}>
                     <CustomThemePage
                       spec={customTheme}
-                      onChange={(spec) => { setCustomThemeSpec(spec); void setStoredCustomTheme(spec); }}
+                      onChange={async (spec) => { await designSync.save(spec, () => setStoredCustomTheme(spec)); setCustomThemeSpec(spec); }}
+                      designSync={designSync}
                       onBack={() => setAppPage("appearance")}
                     />
                   </SettingsPage>

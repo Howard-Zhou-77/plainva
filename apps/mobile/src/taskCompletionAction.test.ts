@@ -26,14 +26,16 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
-const { files, settings } = vi.hoisted(() => ({
+const { files, settings, adapter, saveFault } = vi.hoisted(() => ({
   files: new Map<string, string>(),
   settings: { taskDatabase: "Tasks.base" },
+  adapter: {},
+  saveFault: { after: null as null | ((path: string, content: string) => void) },
 }));
 
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
 vi.mock("./services/vaultService", () => ({
-  getMobileVault: async () => ({ files: { exists: async (p: string) => files.has(p) } }),
+  getMobileVault: async () => ({ files: Object.assign(adapter, { exists: async (p: string) => files.has(p) }) }),
   vaultOps: {
     read: async (_v: unknown, p: string) => {
       const c = files.get(p);
@@ -42,6 +44,7 @@ vi.mock("./services/vaultService", () => ({
     },
     save: async (_v: unknown, p: string, c: string) => {
       files.set(p, c);
+      saveFault.after?.(p, c);
     },
   },
 }));
@@ -62,6 +65,7 @@ beforeEach(() => {
   files.clear();
   files.set("Tasks.base", BASE);
   settings.taskDatabase = "Tasks.base";
+  saveFault.after = null;
 });
 
 describe("setTaskDone", () => {
@@ -113,6 +117,23 @@ describe("setTaskDone", () => {
     const result = await setTaskDone("Tasks/a.md", true);
     expect(result.changed).toBe(false);
     expect(files.get("Tasks/a.md")).not.toContain("done");
+  });
+
+  it("serializes notification and screen completion and retries a saved copy once", async () => {
+    files.set("Tasks/a.md", note("done: false\ndue: 2026-08-12\nblockedBy: old-task\nplainva:\n  repeat:\n    freq: weekly"));
+    let interrupted = false;
+    saveFault.after = p => {
+      if (!interrupted && p === "Tasks/a 2.md") { interrupted = true; throw new Error("interrupted"); }
+    };
+    const results = await Promise.all([setTaskDone("Tasks/a.md", true), setTaskDone("Tasks/a.md", true)]);
+    expect(results[0]?.spawnFailed).toBe(true);
+    expect(results[1]?.spawnFailed).toBeUndefined();
+    expect(files.size).toBe(3);
+    expect(files.get("Tasks/a 2.md")).not.toContain("blockedBy");
+    expect(files.get("Tasks/a.md")).toContain("blockedBy");
+    await setTaskDone("Tasks/a.md", false);
+    await setTaskDone("Tasks/a.md", true);
+    expect(files.size).toBe(3);
   });
 
   it("does nothing when no task database is configured", async () => {

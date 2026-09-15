@@ -25,6 +25,7 @@ import { decodeBase64Exact, toBase64 } from "./encoding.js";
 export const PERSONAL_WORKSPACE_OWNER_CAPABILITIES: readonly WorkspaceCapability[] = [
   "comment.create",
   "comment.read",
+  "comment.suggest",
   "content.create",
   "content.delete",
   "content.read",

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, ChevronRight, CircleAlert, Clock, Plus, RotateCw, Trash2, Users } from "lucide-react";
 import {
   AccountPasswordChangePanel,
+  GmailSignInButton,
   Banner,
   Button,
   IconButton,
@@ -54,7 +55,6 @@ import {
   type ConnectRequest,
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
-import { brokerFamily } from "../../services/accountBroker";
 import {
   guideDesktopAccountRepair,
   loadDesktopAccountRepairNeeds,
@@ -63,6 +63,7 @@ import { getSettingsStore } from "../../services/settingsStore";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
+import { desktopGmailClient, signInGmail } from "../../services/mail/gmailAuth";
 import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
 
 /**
@@ -205,22 +206,21 @@ export const CloudAccountsPage: React.FC<{
 
   /** Headless service enable from the detail toggles, where slots allow it. */
   const enableService = async (record: CloudAccountRecord, service: CloudServiceId) => {
-    // Consent for everything this card carries, connect only what is being
-    // repaired: the two families that share one account token would otherwise
-    // lose the other services' access on every single-service repair
-    // (finding 2026-07-30). Gmail is never part of it — it is IMAP.
-    const carried = (["files", "calendar", "mail"] as CloudServiceId[]).filter(
-      (s) => (s === service || record.services[s]) && !(record.family === "google" && s === "mail"),
-    );
+    // Independent grants preserve the other services while this one is added.
     const req: ConnectRequest = {
       context: { vaultId: selectedVault, cloudAccountId: record.id, expectedIdentity: record.verifiedProviderIdentity },
       family: record.family,
       flavor: record.flavor,
       services: [service],
-      consentServices: brokerFamily(record.family) ? carried : [service],
+      consentServices: [service],
       byoClientId: record.byoClientId,
     };
     if (record.family === "google") {
+      if (service === "mail" && desktopGmailClient()) {
+        await signInGmail(selectedVault, record);
+        await reload();
+        return;
+      }
       const byo = await googleByoFromSlots(selectedVault, record);
       if (!byo || service === "mail") {
         toast.info(t("cloudAccounts.useWizardHint"));
@@ -644,7 +644,7 @@ export const CloudAccountsPage: React.FC<{
 
         {hasByo && (
           <SettingCard label={t("cloudAccounts.appRegGroup")}>
-            {/* Google has NO central Plainva app — BYO is required, not optional. */}
+            {/* This connection form supports the user's own Google project. */}
             <SettingRow
               label={t("settings.useOwnAppId")}
               desc={detail.family === "google" ? t("cloudAccounts.byoAccountHintGoogle") : t("cloudAccounts.byoAccountHint")}
@@ -667,6 +667,9 @@ export const CloudAccountsPage: React.FC<{
   return (
     <div>
       <AreaHead areaId="cloudAccounts" />
+      {isActiveVault && desktopGmailClient() && <SettingCard label="Gmail">
+        <GmailSignInButton onSignIn={async () => { await signInGmail(selectedVault); await reload(); }} />
+      </SettingCard>}
       {!isActiveVault && <SettingCardNote className="pv-setrow--note">{t("pim.openVaultFirst")}</SettingCardNote>}
       {repairNeeds.length > 0 && (
         <SettingCard label={t("cloudAccounts.repairTitle")}>

@@ -16,6 +16,7 @@ import { isMailCredentialsMissing } from "./credentialsError";
  * friendly sentence that says less.
  */
 export function mailErrorText(err: unknown, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (errorText(err).includes("MAIL_BULK_UNSUPPORTED")) return t("mail.bulkReason.unsupported");
   if (isMailCredentialsMissing(err)) {
     return t("mail.credentialsMissing", {
       defaultValue: "No password is stored for this mailbox on this device.",

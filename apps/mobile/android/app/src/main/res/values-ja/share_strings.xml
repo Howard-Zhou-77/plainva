@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">この端末に保存しました。Plainvaを開いてVaultとフォルダーを選択してください。</string>
+    <string name="share_failed">保存が完了していません。元の内容をもう一度共有してください。</string>
+    <string name="share_limit">最大10ファイル、1ファイル25 MiB、合計50 MiB、テキスト512 KiBまでです。</string>
+    <string name="share_full">待機領域がいっぱいです。先にPlainvaで待機中の内容を取り込むか破棄してください。</string>
+</resources>

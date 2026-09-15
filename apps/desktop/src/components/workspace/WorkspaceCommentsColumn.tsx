@@ -1,8 +1,8 @@
 import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
-import { CommentLegacyLock } from "@plainva/ui";
+import { PublicationFeedback, publicationFeedbackCounts, CommentLegacyLock } from "@plainva/ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Share2, Trash2, X } from "lucide-react";
+import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
@@ -94,9 +94,8 @@ export interface WorkspaceCommentsColumnProps {
    * Its own list rather than mixed into `comments`, because these differ in
    * three ways at once that a reader has to be able to see: they come from
    * outside this vault, their names come from the publication's policy and not
-   * this one's, and nothing here can be replied to, resolved or applied from
-   * this side - answering means writing into the publication, which is a
-   * different act than writing in the note.
+   * this one's. A proposal may be reviewed in the original; that durable
+   * decision belongs to this vault, while recipient feedback stays remote.
    */
   publicationComments?: readonly PublicationCommentEntry[];
   /**
@@ -186,17 +185,18 @@ export function WorkspaceCommentsColumn({
   const grouped = useMemo(() => groupSuggestionRounds(shownThreads), [shownThreads]);
   const openByKind = useMemo(() => {
     const all = groupSuggestionRounds(threads);
+    const incoming = publicationFeedbackCounts(publicationComments);
     return {
-      comments: all.threads.filter((thread) => isCommentThreadOpen(thread.root)).length,
-      suggestions: all.rounds.reduce((n, round) => n + round.open, 0),
+      comments: all.threads.filter((thread) => isCommentThreadOpen(thread.root)).length + incoming.comments,
+      suggestions: all.rounds.reduce((n, round) => n + round.open, 0) + incoming.suggestions,
     };
-  }, [threads]);
+  }, [threads, publicationComments]);
   // A note that carries proposals and no remarks opens on the proposals -
   // until the reader picks a tab by hand.
   useEffect(() => {
     if (kindTouched.current) return;
-    if (openByKind.comments === 0 && grouped.rounds.length > 0) setKind("suggestions");
-  }, [openByKind, grouped]);
+    if (openByKind.comments === 0 && (grouped.rounds.length > 0 || publicationComments.some(entry => entry.comment.suggestion))) setKind("suggestions");
+  }, [openByKind, grouped, publicationComments]);
   // A card picked from the text shows on ITS tab (finding 2026-09-03): a click
   // on a proposal's struck passage set the id, but the column stayed on
   // "Comments" and nothing visibly answered. The pick is explicit intent and
@@ -221,39 +221,6 @@ export function WorkspaceCommentsColumn({
   /** A round is named by its first block: the record knows which store it came from. */
   const roundAuthor = (round: { authorMemberId: string; blocks: Array<{ root: WorkspaceCommentRecord }> }): string =>
     commentAuthorLabel(round.blocks[0].root, memberNames, selfMemberId, t);
-
-  /**
-   * The returns, grouped by the publication they arrived through.
-   *
-   * Grouped rather than merged, because a comment id is only unique INSIDE its
-   * publication - threading across two of them could staple a reply from one
-   * recipient under a root from another. The names come from the records
-   * themselves: core resolved them against the publication's own policy, and
-   * this vault's member list does not contain these people at all.
-   */
-  const publicationGroups = useMemo(() => {
-    const groups = new Map<string, { name: string; names: Map<string, string>; entries: PublicationCommentEntry[] }>();
-    for (const entry of publicationComments) {
-      let group = groups.get(entry.publicationId);
-      if (!group) {
-        group = { name: entry.publicationName, names: new Map(), entries: [] };
-        groups.set(entry.publicationId, group);
-      }
-      // No name in the publication's policy either: the id stays on the card,
-      // so an unnamed recipient is still attributable.
-      if (entry.authorDisplayName) group.names.set(entry.comment.authorMemberId, entry.authorDisplayName);
-      group.entries.push(entry);
-    }
-    return [...groups.values()].map((group) => ({
-      name: group.name,
-      names: group.names,
-      // No self here on purpose: the publisher is a different member inside the
-      // publication than in this vault, so a mention check against this vault's
-      // id would answer a question nobody asked.
-      threads: buildCommentThreads(group.entries.map((entry) => entry.comment), null, group.names),
-      byId: new Map(group.entries.map((entry) => [entry.comment.commentId, entry])),
-    }));
-  }, [publicationComments]);
 
   const post = async (body: string, parent: string | null, suggestion: { replacement: string } | null = null) => {
     setBusy(true);
@@ -509,8 +476,8 @@ export function WorkspaceCommentsColumn({
           {t(locked.workspace ? "comments.workspaceLocked" : "comments.commentsLocked")}
         </EmptyState>
       )}
-      {!locked && kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
-      {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("comments.suggestionsNone")}</p>}
+      {!locked && kind === "comments" && grouped.threads.length === 0 && !publicationComments.some(entry => !entry.comment.suggestion) && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
+      {!locked && kind === "suggestions" && grouped.rounds.length === 0 && !publicationComments.some(entry => entry.comment.suggestion) && <p className="pv-comment-column__empty">{t("comments.suggestionsNone")}</p>}
       {kind === "suggestions" && grouped.rounds.map((round) => {
         const open = round.blocks.filter((block) => isCommentThreadOpen(block.root));
         return (
@@ -543,6 +510,9 @@ export function WorkspaceCommentsColumn({
         );
       })}
       {kind === "comments" && grouped.threads.map(renderThread)}
+      {!locked && <PublicationFeedback entries={publicationComments} kind={kind} canWrite={canWrite} canComment={canComment}
+        onApplySuggestion={onApplySuggestion} onDeclineSuggestion={onDeclineSuggestion} onReviewDecision={onReviewDecision}
+        onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
       </div>
       {canComment && !locked && (
         <div className="pv-comment-column__foot">
@@ -570,42 +540,6 @@ export function WorkspaceCommentsColumn({
         </div>
         </div>
       )}
-      {/* What came back from the people this note was published to (D7).
-          Read-only by construction: answering means writing into the
-          publication, which is a different act than writing in this note - and
-          a button that looked like the ones above would promise otherwise. */}
-      {publicationGroups.map((group) => (
-        <section key={group.name} className="pv-comment-returns" aria-label={t("workspaceSecurity.publicationCommentsFrom", { name: group.name })}>
-          <h4 className="pv-comment-returns__heading">
-            <Share2 size={ICON.meta} /> {t("workspaceSecurity.publicationCommentsFrom", { name: group.name })}
-          </h4>
-          {group.threads.map(({ root, replies }) => {
-            const entry = group.byId.get(root.commentId);
-            return (
-              <div key={root.commentId} className="pv-comment-card pv-comment-card--incoming">
-                {root.suggestion
-                  ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
-                  : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
-                <CommentBody comment={root} author={group.names.get(commentAuthorKey(root)) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
-                {replies.map((reply) => (
-                  <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentBody comment={reply} author={group.names.get(commentAuthorKey(reply)) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
-                  </div>
-                ))}
-                {/* Both lines state a fact about the record, not a failure: the
-                    remark stands either way, and hiding it would rewrite what
-                    was actually said. */}
-                {entry?.authorActive === false && (
-                  <span className="pv-comment-card__state">{t("workspaceSecurity.publicationCommentAuthorGone")}</span>
-                )}
-                {root.suggestion && entry?.suggestionApplicable === false && (
-                  <span className="pv-comment-card__state">{t("workspaceSecurity.publicationSuggestionStale")}</span>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      ))}
     </aside>
   );
 }

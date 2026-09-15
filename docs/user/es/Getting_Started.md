@@ -1,8 +1,10 @@
 # Primeros pasos
 
-Última actualización: 2026-09-07
+Última actualización: 2026-09-15
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
+
+**Paquete comunitario para Arch Linux:** [plainva en AUR](https://aur.archlinux.org/packages/plainva) se mantiene de forma independiente. Revisa el PKGBUILD antes de compilar; Plainva no verifica estas compilaciones comunitarias. La aplicación sigue bajo la licencia AGPL-3.0-only.
 
 ## Requisitos del sistema
 
@@ -167,7 +169,8 @@ Esta disposición pertenece al vault y viaja a tus otros dispositivos mediante [
 - **Alternar las barras laterales** con los dos botones de la barra de título o con `Ctrl+Alt+B` (izquierda) / `Ctrl+Alt+R` (derecha) — ideal para escribir concentrado. Plainva recuerda el estado.
 - **Paleta de comandos**: `Ctrl+P` abre **Comandos** — escribe y pulsa `Intro` para ejecutar (nueva nota, nota diaria, dividir, barras laterales, **Crear copia de seguridad ahora** y mucho más).
 - **Densidad**: en **Configuración → App → Apariencia**, elige entre **Cómodo** y **Compacto** — Compacto reduce listas, menús y filas de tabla; el contenido de las notas no se ve afectado.
-- **Tema personalizado**: la tarjeta **Mi tema** en **Configuración → App → Apariencia** selecciona el tema y el lápiz sobre ella abre su página: tono base (claro/oscuro), un fondo dentro de un rango de luminosidad, cualquier acento y las esquinas (las fuentes se eligen en la tarjeta **Fuentes** de la misma página). Plainva deriva los colores del texto para que nunca se pierda en el fondo; un acento demasiado pálido se corrige a al menos 3:1 y el editor lo indica. En el teléfono, los mismos controles están en la pantalla **Apariencia**.
+- **Tema personalizado**: la tarjeta **Mi tema** en **Configuración → App → Apariencia** selecciona el tema y el lápiz sobre ella abre su página: tono base (claro/oscuro), un fondo dentro de un rango de luminosidad, cualquier acento y las esquinas (las fuentes se eligen en la tarjeta **Fuentes** de la misma página). Plainva deriva los colores del texto para que nunca se pierda en el fondo; un acento demasiado pálido se corrige a al menos 3:1 y el editor lo indica. En el teléfono, los mismos controles están en la pantalla **Apariencia**. Los ambientes claro y oscuro conservan sus propios colores; las esquinas son comunes. Se conserva el ambiente guardado. El opuesto empieza como una propuesta y solo se guarda al adoptarlo. Con ambos, **Sistema** sigue al dispositivo.
+- **Sincronización personal del diseño**: En la página de tu diseño, activa expresamente **Sincronizar mediante esta bóveda**. Elige una bóveda desbloqueada en cada dispositivo y activa la sincronización de ajustes. Solo una bóveda proporciona tu diseño personal; los demás miembros no tienen que usarlo. Se adopta un diseño ya recibido o, si no existe, se comparte el local. Los cambios simultáneos conservan ambas variantes para elegir. Desactivar la sincronización mantiene el diseño local. Este interruptor no sincroniza las fuentes ni la elección de otro tema.
 - **Fuentes**: en **Configuración → App → Apariencia**, la tarjeta **Fuentes** define las fuentes de **Interfaz**, **Contenido** y **Código** (predeterminada del tema, serif, sans-serif, monoespaciada o el nombre de cualquier fuente instalada) y el **Tamaño de fuente del contenido** (12–24 px) — el tamaño solo escala el editor y la vista de lectura; la interfaz permanece igual.
 - **Lista de fuentes**: bajo **Personalizada…** aparece una lista con las fuentes de tu sistema, cada fila en su propia fuente; la que no está instalada lo indica y no se puede elegir. El campo de nombre de abajo acepta cualquier otra fuente instalada.
 - **Zoom de la interfaz**: escala TODA la interfaz entre el 80 % y el 150 % — en **Configuración → App → Apariencia** o con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` restablece el zoom).
@@ -194,3 +197,7 @@ La barra lateral derecha no puede bajar de **200 px** — ninguna sección es ut
 - [Notas y Markdown](Notes_and_Markdown.md) — todo sobre cómo escribir
 - [Atajos de teclado](Keyboard_Shortcuts.md)
 - [FAQ y solución de problemas](FAQ.md)
+
+## Devolver una pestaña
+
+En una ventana separada o en una segunda ventana completa, haz clic derecho en la pestaña y elige **Volver a la ventana principal**. Se conservan texto, selección, vista, desplazamiento, historial y fijación. La pestaña de origen solo se cierra tras la confirmación. Sin ella, se conservan la pestaña y el borrador. Los marcadores se actualizan en todas las ventanas.

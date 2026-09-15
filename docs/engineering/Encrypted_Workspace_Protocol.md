@@ -284,6 +284,13 @@ a new logical `revisionId` and the complete PVO1 `payloadHash`. Delete binds one
 or more parent revisions and has `null` revision/payload fields. Timestamps do
 not establish authority or ordering.
 
+A comment body carrying a proposal additionally requires `comment.suggest`
+in the operation's accepted policy. It does not require `content.create` and
+does not grant a write to the original note. The sender checks before queueing
+and sealing; the receiver checks after opening the body. Historical assignment
+compatibility, publication envelopes and source-note review are specified in
+[Publication feedback](Publication_Feedback.md).
+
 #### Catalog (`catalogs/<groupId>/<epoch>/<hash>.pvcat`, maximum 16 MiB)
 
 Payload fields: `groupId`, `keyEpoch`, `catalogVersion`,

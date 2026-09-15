@@ -129,10 +129,10 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     return info;
   }
 
-  async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {
+  async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
     const rel = norm(path ?? "");
     const out: VaultFileInfo[] = [];
-    await this.walk(rel, recursive ?? false, out);
+    await this.walk(rel, recursive ?? false, out, false, [], 0, options?.signal);
     return out;
   }
 
@@ -142,9 +142,9 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     return out;
   }
 
-  async listDirReport(path = "", recursive = false) {
+  async listDirReport(path = "", recursive = false, options?: { signal?: AbortSignal }) {
     const files: VaultFileInfo[] = [];
-    await this.walk(norm(path), recursive, files, true);
+    await this.walk(norm(path), recursive, files, true, [], 0, options?.signal);
     return { files, skipped: [] };
   }
 
@@ -174,10 +174,13 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     }
   }
 
-  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0): Promise<void> {
+  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     if (includeHidden && depth > 256) throw new Error("Backup directory depth exceeded at " + rel);
     const res = await Filesystem.readdir({ path: this.full(rel), directory: Directory.Data });
+    signal?.throwIfAborted();
     for (const f of res.files) {
+      signal?.throwIfAborted();
       // Desktop parity: dot-prefixed children (.plainva internals, atomic
       // .plainva-tmp-* leftovers after a hard kill) never reach tree/index.
       // Direct listDir(".plainva/…") calls still work — only CHILD names of
@@ -196,7 +199,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
         mtime: f.mtime,
         ctime: f.ctime ?? undefined,
       });
-      if (isDir && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1);
+      if (isDir && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1, signal);
     }
   }
 }

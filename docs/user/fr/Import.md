@@ -1,8 +1,8 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-09-10
+Dernière mise à jour : 2026-09-15
 
-Plainva peut reprendre des notes depuis d'autres applications de prise de notes. L'import écrit toujours dans le vault que vous avez actuellement ouvert, dans un sous-dossier que vous nommez — il ne touche donc jamais au reste de votre vault, et vous pouvez déplacer ou supprimer le dossier importé par la suite comme n'importe quel autre dossier.
+Plainva importe les notes d’autres applications dans un nouveau vault ou un sous-dossier nouvellement nommé du vault ouvert. Le reste du vault reste inchangé ; vous pouvez ensuite déplacer ou supprimer le dossier importé.
 
 **L'import fonctionne sur les deux appareils, avec les mêmes sources.** Sur le bureau, l'écran d'accueil, la palette de commandes et le menu contextuel d'un dossier y mènent ; sur le téléphone, vous le trouvez sous **Réglages → Maintenance → Importer depuis une autre application**. Les sources qui nécessitent un accès à un service — Notion via son API — y sont également disponibles.
 
@@ -58,7 +58,7 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 | **Google Keep (Takeout)** | Le ZIP Google Takeout ou les fichiers `.json` | Notes, listes de contrôle, libellés comme étiquettes, couleur dans l’en-tête de la note, notes épinglées comme tableau |
 | **Simplenote** | Le fichier `.json` exporté | Notes actives et leurs tags |
 | **Logseq** | Le dossier de votre graphe | Les fichiers, copiés tels quels |
-| **Joplin** | Le dossier ou le ZIP de l’export Markdown | Notes avec leurs carnets, frontmatter, étiquettes et ressources |
+| **Joplin** | JEX/TAR, dossier RAW ou export Markdown | Notes, carnets, tags, ressources, liens internes et dates |
 | **Bear (TextBundle)** | Les dossiers `.textbundle` exportés | Notes avec leurs images |
 | **Notesnook** | L’export Markdown | Notes et leurs dossiers de carnets ; une note classée dans deux carnets est importée une fois |
 | **Capacities** | Le dossier ou le ZIP de l’export | Notes avec leurs propriétés en frontmatter, plus les médias |
@@ -171,3 +171,12 @@ Les fichiers ZIP sont traités avec des limites par fichier, de taille totale et
 ## Noms de fichiers occupés
 
 L’importateur vérifie jusqu’à 1000 variantes du nom. Si aucune n’est libre, si la cible ne peut pas être vérifiée ou si un nom réservé est désormais occupé, l’entrée est ignorée avec une explication. Les autres sont importées. Pour Notion, une réservation échouée conserve les liens vers la source d’origine au lieu d’attribuer une cible locale. Si le rapport ne trouve pas non plus de nom libre, l’import affiche une erreur ; les fichiers déjà importés restent dans le dossier cible.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX et RAW
+
+Sélectionnez un export JEX/TAR déchiffré ou un dossier RAW. L’aperçu compte notes, carnets, tags et pièces jointes. Les carnets vides sont conservés ; les titres identiques reçoivent des noms distincts et les liens suivent les ID. Les notes exportées sans leur carnet arrivent à la racine de l’import.
+
+Les ressources conservent leurs octets. Les enregistrements originaux, champs inconnus compris, sont aussi dans `_Joplin/Export.json`, compté comme une pièce jointe. Le rapport signale ressources manquantes et liens non résolus ; les liens originaux restent présents. Lisez-le avant de supprimer l’export.
+
+JEX exige une nouvelle destination. Archives invalides, chemins conflictuels, liens symboliques/physiques et extensions TAR comme PAX sont rejetés entièrement. Limites : 20 000 entrées, 32 MiB par fichier, 2 MiB par texte, 256 MiB au total, 64 MiB de texte et 64 MiB pour le fichier complémentaire. L’ordinateur utilise une copie privée ; le mobile lit des tranches du fichier. Annuler l’analyse n’écrit rien dans le vault. Pendant l’import, les fichiers déjà écrits et le rapport partiel restent ; aucun retour arrière automatique du dossier entier.

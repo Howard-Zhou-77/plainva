@@ -42,17 +42,18 @@
  * bridge (see `screenshot-fixture.mjs`) plus the content the surfaces need, so
  * the graph, the accounts and the attachments are photographed as themselves.
  *
- * Surfaces that still cannot be rendered — anything needing a live network
- * (mail bodies, calendar sync) — stay empty on purpose and must be reported as
+ * Surfaces that still cannot be rendered — live provider synchronization
+ * (beyond the local mail HTTP fixture) — stay empty on purpose and must be reported as
  * UNVERIFIED rather than green.
  */
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { installMailFixture, workspaceFixtureStorage } from "./screenshot-services.mjs";
 import {
   FIXTURE_ATTACHMENTS,
   FIXTURE_BOOKMARKS,
@@ -307,41 +308,18 @@ const SURFACES = [
    * who, whether it repeats) was invisible outside the edit form.
    */
   { id: "calendar-event-peek", requires: "[data-testid=\"event-peek-sheet\"]", steps: [...area("today"), { click: '[data-testid="pim-event"]', nth: 2 }] },
-  /**
-   * The mail area. What a browser can show of it is the toolbar and the app's
-   * own notice that a preview has no IMAP bridge - the message list itself
-   * needs the phone. So the proof is the toolbar, and the surface is captured
-   * and NOT counted (5.7): before `requires` asked, this counted as "mail"
-   * while it had photographed the device sign-in card for weeks.
-   */
+  // Real list, grouping and reader, backed by the locally routed Graph fixture.
+  // This checks the browser UI; native IMAP transport is covered separately.
+  { id: "mail", requires: "button.m-mailrow", steps: area("mail"), expectedCount: ["button.m-mailrow", 3] },
   {
-    id: "mail",
-    requires: "[data-testid=\"mail-threads-toggle\"]",
-    steps: area("mail"),
-    unverified: "no IMAP in a browser: the toolbar and the notice are the whole picture, the message list needs a device",
+    id: "mail-threads", requires: '[data-testid="mail-thread-count"]',
+    steps: [...area("mail"), { click: '[data-testid="mail-threads-toggle"]' }],
+    expectedText: ['[data-testid="mail-thread-count"]', "2"],
   },
-  /**
-   * The same surface with conversations ON. It exists because the mode was
-   * reported as a switch that "cannot be activated at all": measured, it flips
-   * correctly, but in a mailbox where every conversation is a single message
-   * the list looks identical afterwards — so nothing on screen said the mode
-   * was on. The state now sits on the mailbox line, and this is the picture
-   * that keeps it there. (The list itself stays unverified here: envelopes come
-   * from an IMAP server, which no fixture can be.)
-   *
-   * It CLICKS the switch rather than seeding it, and that is not a stylistic
-   * choice: `mailThreads` is a PER-VAULT field, and a surface `seed` writes the
-   * app-wide record. Per-vault values only ever arrive from there through the
-   * one-time migration on a context's FIRST page — every later surface already
-   * has a vault record, so its seed is silently dropped and the picture shows
-   * the default while claiming to show the mode. Per-vault state gets set the
-   * way a user sets it: through the control.
-   */
   {
-    id: "mail-threads",
-    requires: "[data-testid=\"mail-threads-toggle\"]",
-    unverified: "no IMAP in a browser: the toggle flips, the conversations it would group need a device",
-    steps: [...area("mail"), { click: '[data-testid="mail-threads-toggle"]' }, { wait: 500 }],
+    id: "mail-message", requires: ".m-mailtext",
+    steps: [...area("mail"), { click: '[data-testid="mail-threads-toggle"][aria-pressed="true"]', optional: true }, { click: "button.m-mailrow", nth: 0 }, { wait: 500 }],
+    expectedText: [".m-mailtext", "Die Projektplanung liegt im gemeinsamen Vault."],
   },
   /**
    * The rule editor (S16b). Two taps deep — settings, the mailbox, the rule —
@@ -534,33 +512,23 @@ const SURFACES = [
       { wait: 400 },
     ],
   },
-  /**
-   * *Security & Sharing* on a device whose vault IS a workspace.
-   *
-   * What this shows is the status card and the settled connection state — and
-   * that is all it has ever shown. The claim above it used to be "people,
-   * groups and slices instead of the on-ramp"; measured (S12), the picture
-   * carries the banner, one status row and "encryption status unknown". Every
-   * group, every device row, the team, the slices, the danger zone and the
-   * rekey progress hang off `runtime`, and the app only ever mints a runtime
-   * behind a remote probe — a wizard that needs a cloud to answer, or a
-   * pairing that needs one to reach. A browser fixture has neither.
-   *
-   * So this is captured and NOT counted. Seeding a runtime would mean either
-   * committing key material for a screenshot or teaching the fixture the
-   * keystore's storage layout; the first is a liability, the second is the
-   * kind of fixture that quietly captures nothing again the day the layout
-   * moves. The honest price is that C14's three actions — decommission,
-   * ownership transfer, revocation — need a device (Sammelplan § 2.28).
-   *
-   * The longer beat is deliberate: without it the shutter catches the probe
-   * mid-flight and the picture says "checking …" forever, which is a
-   * transient, not a state.
-   */
+  // Fresh, valid runtime with owner/device, invited member, group and slice.
+  // The provider remains offline; no destructive remote action is exercised.
   {
-    id: "security-area-active",
-    steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { wait: 4000 }],
-    unverified: "runtime-gated: groups, team, slices, danger zone and rekey need a workspace runtime, which only a remote probe can mint",
+    id: "security-area-active", requires: ".m-security-tabs",
+    steps: [...TO_CLOUD_VAULT, ...settingsArea("security")],
+    expectedText: [".m-page", "Pixel (Fixture)"],
+  },
+  {
+    id: "security-team", requires: ".m-revoke",
+    steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { click: '.m-security-tabs button:has-text("Team")' }],
+    expectedText: [".m-page", "Ben Beispiel"],
+    fitButtons: ".m-revoke button",
+  },
+  {
+    id: "security-slices", requires: ".m-security-tabs",
+    steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { click: '.m-security-tabs button:has-text("Vault Slices")' }],
+    expectedText: [".m-page", "Team-Handbuch"],
   },
   /**
    * The Obsidian corner (TestFlight feedback Build 91, P0). Three surfaces
@@ -687,7 +655,8 @@ async function waitForServer(url, timeoutMs = 60_000) {
 
 function runOnce(cmd, cmdArgs) {
   return new Promise((res, rej) => {
-    const child = spawn(cmd, cmdArgs, { cwd: APP_DIR, stdio: ["ignore", "ignore", "inherit"] });
+    const child = spawn(cmd, cmdArgs, { cwd: APP_DIR, stdio: ["ignore", "ignore", "inherit"], windowsHide: true });
+    child.on("error", rej);
     child.on("exit", (code) => (code === 0 ? res() : rej(new Error(`${cmd} ${cmdArgs.join(" ")} exited ${code}`))));
   });
 }
@@ -710,16 +679,15 @@ async function assertPortFree(port) {
 /**
  * Starts the preview server in its OWN process group.
  *
- * `npx` spawns vite as a grandchild, so signalling the child alone leaves the
- * server listening — the next run then hits `assertPortFree` and refuses to
- * start, which is what actually happened during N0.1. Killing the group takes
- * the whole tree down.
+ * Execute Vite with the current Node runtime directly: no platform-specific
+ * npx.cmd shell and no grandchild can remain listening after a Windows run.
  */
 function startServer(port, dev) {
   const cmdArgs = dev
-    ? ["vite", "--port", String(port), "--strictPort"]
-    : ["vite", "preview", "--port", String(port), "--strictPort"];
-  const child = spawn("npx", cmdArgs, { cwd: APP_DIR, stdio: ["ignore", "pipe", "pipe"], detached: true });
+    ? [join(APP_DIR, "node_modules/vite/bin/vite.js"), "--port", String(port), "--strictPort"]
+    : [join(APP_DIR, "node_modules/vite/bin/vite.js"), "preview", "--port", String(port), "--strictPort"];
+  const child = spawn(process.execPath, cmdArgs, { cwd: APP_DIR, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32", windowsHide: true });
+  child.on("error", error => process.stderr.write(`preview failed: ${error.message}\n`));
   child.stdout.on("data", () => {});
   child.stderr.on("data", (d) => process.stderr.write(String(d)));
   return child;
@@ -728,6 +696,7 @@ function startServer(port, dev) {
 function stopServer(child) {
   if (!child?.pid) return;
   try {
+    if (process.platform === "win32") { child.kill("SIGTERM"); return; }
     process.kill(-child.pid, "SIGTERM"); // negative pid = the whole group
   } catch {
     child.kill("SIGTERM");
@@ -787,7 +756,7 @@ async function runSteps(page, surface) {
  * A capture that cannot prove this must report its surfaces as unverified
  * rather than green (rework N0.1).
  */
-async function seedContext(context, baseUrl, sql, themeId) {
+async function seedContext(context, baseUrl, sql, themeId, workspaceStorage) {
   const settings = { ...BASE_SETTINGS, ...THEMES[themeId] };
   const page = await context.newPage();
   await page.addInitScript((entries) => {
@@ -804,11 +773,11 @@ async function seedContext(context, baseUrl, sql, themeId) {
         ["Projekte.base", FIXTURE_BASE],
         ["Aufgaben.base", FIXTURE_TASK_BASE],
         ["Zettel.base", FIXTURE_ZETTEL_BASE],
-        fixtureDailyToday(),
+        fixtureDailyToday(FIXED_TIME),
         [".plainva/bookmarks.json", FIXTURE_BOOKMARKS],
       ],
       attachments: FIXTURE_ATTACHMENTS,
-      storage: fixtureStorage(),
+      storage: { ...fixtureStorage(), ...workspaceStorage },
       cloudNotes: FIXTURE_CLOUD_NOTES,
       cloudVaultId: CLOUD_VAULT,
     });
@@ -838,7 +807,7 @@ function viewportFor(args) {
   return args.landscape ? VIEWPORT_LANDSCAPE : VIEWPORT;
 }
 
-async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewport = VIEWPORT) {
+async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewport = VIEWPORT, workspaceStorage = {}) {
   const dir = join(outDir, themeId);
   await mkdir(dir, { recursive: true });
   const results = [];
@@ -852,6 +821,7 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
     reducedMotion: "reduce",
   });
   context.setDefaultTimeout(8000);
+  context.setDefaultNavigationTimeout(45_000);
   // Nothing leaves localhost. The fixture carries credentials that open
   // nothing, and a capture must not knock on a live provider with them: the
   // first run with a seeded calendar credential sent it to Microsoft's token
@@ -859,6 +829,7 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
   // fails like a network outage, which is a state the app has a face for.
   const origin = new URL(baseUrl).origin;
   await context.route((url) => url.origin !== origin, (route) => route.abort("blockedbyclient"));
+  const mail = await installMailFixture(context);
   // Relative timestamps ("in dieser Minute") and today's date would make two
   // runs differ for no reason, and a comparison that always reports noise is
   // worth nothing. Only the clock READING is fixed — timers keep running, so
@@ -870,7 +841,8 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
   // one theme, or every page would re-index and the pictures would catch it
   // half-built.
   const sql = await installSqlBridge(context);
-  const index = await seedContext(context, baseUrl, sql, themeId);
+  const index = await seedContext(context, baseUrl, sql, themeId, workspaceStorage);
+  index.mail = mail;
   process.stdout.write(
     `  fixture: ${index.files} files, ${index.links} links, ${index.pimAccounts} calendar account(s)\n`,
   );
@@ -897,6 +869,9 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
           // home screen its steps expect - fifty surfaces failed in one cascade
           // (5.7). Each surface starts where a fresh install starts.
           if (key.startsWith("plainva-last-open-")) globalThis.localStorage.removeItem(key);
+          // The full navigation session superseded last-open memory. Reset it
+          // too, otherwise every later scenario reopens the previous note.
+          if (key.startsWith("plainva-nav-")) globalThis.localStorage.removeItem(key);
         }
       },
       [[SETTINGS_KEY, JSON.stringify(settings)], FIXTURE_CONFLICT_SEED],
@@ -925,6 +900,21 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
       // says" from a comment into a check.
       if (surface.requires && (await page.locator(surface.requires).count()) === 0) {
         throw new Error(`surface shows nothing matching its subject (${surface.requires})`);
+      }
+      if (surface.expectedCount) {
+        const [selector, count] = surface.expectedCount;
+        if (await page.locator(selector).count() !== count) throw new Error(`expected ${count} visible subjects: ${selector}`);
+      }
+      if (surface.expectedText) {
+        const [selector, expected] = surface.expectedText;
+        if (!(await page.locator(selector).allTextContents()).join(" ").includes(expected)) throw new Error(`missing subject text: ${expected}`);
+      }
+      if (surface.fitButtons) {
+        const clipped = await page.locator(surface.fitButtons).evaluateAll(buttons => buttons.filter(button => {
+          const box = button.getBoundingClientRect(), row = button.closest(".pv-grouprow")?.getBoundingClientRect();
+          return !row || box.left < row.left || box.right > row.right || button.scrollWidth > button.clientWidth + 1;
+        }).map(button => button.textContent));
+        if (clipped.length) throw new Error(`clipped actions: ${clipped.join(", ")}`);
       }
       // Nothing may make the document wider than the window (finding
       // 2026-08-21). A picture cannot show this — the shutter crops at the
@@ -1002,6 +992,10 @@ async function main() {
   if (surfaces.length === 0) throw new Error("no surfaces selected");
 
   const outDir = resolve(APP_DIR, args.out);
+  const outputWithinRepo = relative(resolve(APP_DIR, "../.."), outDir);
+  if (!outputWithinRepo || outputWithinRepo === ".." || outputWithinRepo.startsWith(`..${sep}`) || isAbsolute(outputWithinRepo)) {
+    throw new Error("Screenshot output must be a dedicated directory inside the app repository.");
+  }
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
 
@@ -1011,12 +1005,13 @@ async function main() {
     await assertPortFree(args.port);
     if (!args.dev) {
       process.stdout.write("building…\n");
-      await runOnce("npx", ["vite", "build"]);
+      await runOnce(process.execPath, [join(APP_DIR, "node_modules/vite/bin/vite.js"), "build"]);
     }
     server = startServer(args.port, args.dev);
     await waitForServer(baseUrl);
   }
 
+  const workspaceStorage = await workspaceFixtureStorage(CLOUD_VAULT);
   const browser = await chromium.launch();
   const report = {
     capturedAt: new Date().toISOString(),
@@ -1029,7 +1024,7 @@ async function main() {
   try {
     for (const theme of themes) {
       process.stdout.write(`\n[${theme}]\n`);
-      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces, viewportFor(args));
+      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces, viewportFor(args), workspaceStorage);
       report.themes[theme] = results;
       report.fixture[theme] = index;
     }

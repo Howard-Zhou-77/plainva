@@ -73,6 +73,7 @@ export interface ImportOptionDef {
  * empty file in the user's vault would be worse than an honest "skipped".
  */
 export interface UnpackedFile {
+  sourceFormat?: 'jex';
   relativePath: string;
   content: string;
   /** Omitted means text: payloads assembled in code are always text. */
@@ -173,6 +174,7 @@ export interface ImportLabels {
   degradedHtmlStructure: string;
   /** Recorded when a `.base` had to be written as raw JSON because no serializer was supplied. */
   degradedBaseSerializer: string;
+  jexIncomplete?: string;
 }
 
 export const DEFAULT_IMPORT_LABELS: ImportLabels = {
@@ -312,6 +314,8 @@ export interface ImportPlan {
   sourceId: ImportSourceId;
   sourceName: string;
   totalNotes: number;
+  totalFolders?: number;
+  totalTags?: number;
   totalAttachments: number;
   totalDatabases: number;
   totalChecklists: number;

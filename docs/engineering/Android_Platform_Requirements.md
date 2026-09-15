@@ -1,6 +1,6 @@
 # Android platform requirements
 
-Status: 2026-09-04. What Google Play and Android require of the mobile app,
+Status: 2026-09-15. What Google Play and Android require of the mobile app,
 when, and which guard in this repository backs each requirement. Re-check the
 dates when a new Android version or Play policy lands; the test
 `apps/mobile/src/androidPlatformGuards.test.ts` keeps the guards wired.
@@ -8,18 +8,19 @@ dates when a new Android version or Play policy lands; the test
 ## The short version
 
 There is **no new limit on app storage** in Android 17. The headlines about
-"memory limits" mean RAM. Three things carry dates:
+"memory limits" mean RAM. The current requirements are:
 
 | Requirement | Applies | Deadline | Plainva today | Guard |
 |---|---|---|---|---|
-| **Target API level.** New builds must target the previous year's Android. | Play, all apps | API 36 since **2026-08-31**; API 37 expected from **2027-08-31** | `targetSdkVersion = 36` (`apps/mobile/android/variables.gradle`) | `androidPlatformGuards.test.ts` (floor 36) |
-| **16 KB page size.** Every native library must be LOAD-aligned to 16 KB. | Play, apps targeting API 35+ on 64-bit devices | Updates since 2026-05; **hard block on upload from 2027-02-01** | Two native libraries in the bundle, both 16 KB-aligned (first run of the guard, 2026-09-04): `libsqlcipher.so` (`net.zetetic:sqlcipher-android` 4.17.0 via `@capacitor-community/sqlite`, 16 KB-aware since 4.6.1) and `libimage_processing_util_jni.so` (AndroidX camera, via the Capacitor camera plugin) | Workflow step **Check 16 KB page alignment of native libraries** in `.github/workflows/release-mobile.yml`, before the Play upload |
-| **Per-app memory limit** ("Memory Limiter"). An app over its RAM budget is squeezed into zRAM, then killed. | Android 17 devices (Pixel first, other OEMs over the year); Play vitals from **2026-11**, stricter Play requirements from **2027-02** | rolling | Not measured yet (see below) | `ProcessExitPlugin` records a limiter kill in the sync diagnostics |
+| **Target API level.** New builds must target the previous year's Android. | Play, all apps | API 36 since **2026-08-31**; no confirmed API-37 Play deadline in the current policy | `targetSdkVersion = 36` (`apps/mobile/android/variables.gradle`) | `androidPlatformGuards.test.ts` (floor 36) |
+| **16 KB page size.** Every native library must be LOAD-aligned to 16 KB. | Play, apps targeting API 35+ on 64-bit devices | Updates since 2026-05; **hard block on upload from 2027-02-01** | Three libraries across four ABIs: SQLCipher 4.17.0, image-processing JNI and surface JNI. All twelve files have LOAD alignment 16384 in the 2026-09-15 APK; native loading and storage passed on the isolated x86_64 16 KB image | Workflow step **Check 16 KB page alignment of native libraries** in `.github/workflows/release-mobile.yml`, before the Play upload |
+| **Process memory limit** ("Memory Limiter"). Excess memory can cause reclaim, throttling and eventually termination. | Android 17+; limits depend on device configuration and process visibility | Platform behavior; no additional Play deadline established here | Emulator startup snapshot recorded; sustained limiter behavior is not measured | `ProcessExitPlugin` records relevant system exits in sync diagnostics |
 
 ## Per-app memory limit
 
-AOSP's Memory Limiter enforces cgroup `memory.high` / `memory.swap.max` per app
-UID. The budgets by device RAM (visible / not visible):
+AOSP's Memory Limiter uses cgroup `memory.high` / `memory.swap.max` for app
+processes. Reference limits by device RAM (visible / not visible) are below;
+the device's `/system/etc/memory-limiter-config.xml` determines its actual limits.
 
 | Device RAM | Visible | Background |
 |---|---|---|
@@ -29,9 +30,8 @@ UID. The budgets by device RAM (visible / not visible):
 | 12 GB | 8 192 MiB | 4 096 MiB |
 | 16 GB | 10 240 MiB | 5 120 MiB |
 
-A WebView app the size of Plainva normally sits far below these. The risk is
-not the budget but a **leak over hours** — a long sync session, a graph left
-open, a search index rebuilt repeatedly. Two things follow:
+A startup snapshot does not establish behavior over hours of sync, graph use
+or repeated indexing. Two things follow:
 
 1. **Measure** on a phone with the large test vault:
    `adb shell dumpsys meminfo com.plainva.app` at start, after a full-text
@@ -46,18 +46,15 @@ open, a search index rebuilt repeatedly. Two things follow:
    proof that the app stays inside its budget; the measurement is the other
    half.
 
-Sources: AOSP "Memory Limiter" (source.android.com/docs/core/perf/memory-limiter),
-Android Developers Blog "Preparing your app for broader memory limits" (2026-08).
+Source: [AOSP Memory Limiter](https://source.android.com/docs/core/perf/memory-limiter).
 
 ## 16 KB page size
 
 Native libraries compiled for 4 KB pages fail to load on 16 KB devices; Play
 refuses uploads without 16 KB support from 2027-02-01. The bundle currently
-carries two native libraries — SQLCipher for Android (through
-`@capacitor-community/sqlite`, 16 KB-aligned since 4.6.1) and AndroidX's
-image-processing JNI (through the Capacitor camera plugin) — and the guard's
-first run (2026-09-04, `mobile-v0.8.0.2`) found every LOAD segment of both at
-`0x4000`. The workflow step unpacks the AAB, runs `readelf -lW` on
+carries SQLCipher for Android through `@capacitor-community/sqlite`, plus
+image-processing and surface JNI through the camera stack. The 2026-09-15
+APK inventory found all twelve ABI-specific files LOAD-aligned at `0x4000`. The workflow step unpacks the AAB, runs `readelf -lW` on
 every `.so` and fails the job when any `LOAD` segment is aligned below
 `0x4000` (16384). It runs before the Play upload, so a dependency bump that
 regresses this never reaches the internal track.
@@ -66,11 +63,17 @@ Sources: developer.android.com/guide/practices/page-sizes;
 Android Developers Blog "Prepare your apps for Google Play's 16 KB page size
 compatibility requirement" (2025-05).
 
+The native checks and measured limits are in [Upstream compatibility](Upstream_Compatibility.md). Run the app-specific instrumentation tasks (`:app:assembleDebugAndroidTest`), not every dependency module's example tests. The `StorageCompatibilityTest` runner accepts `-e expectedPageSize 16384` for a 16 KB device.
+
 ## Target API level
 
 Play requires new apps and updates to target the previous year's Android
 (API 36 since 2026-08-31, extension to 1 November on request). Moving to API
-37 (Android 17) is a deliberate step, not a version bump: apps targeting 37
+37 (Android 17) remains pending a confirmed stable SDK/toolchain combination;
+the official setup page still uses Preview installation wording. The current
+Capacitor 8.5.1 / AGP 8.13.0 / Gradle 8.14.3 stack remains on compile/target 36.
+The [Play policy](https://support.google.com/googleplay/android-developer/answer/11926878)
+does not yet establish a 2027-08-31 API-37 deadline. When targeting 37, apps
 get a hard cap on RemoteViews/widget bitmap memory
 (`1.5 × screen width × screen height × 4` bytes, fatal on overflow). Plainva has
 no widget today; the cap becomes relevant the day one is added.

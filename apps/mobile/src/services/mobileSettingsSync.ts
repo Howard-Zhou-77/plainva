@@ -1,3 +1,4 @@
+import { setForeignLegacyComments } from "@plainva/ui";
 import {
   ENCRYPTION_MANIFEST_PATH,
   EncryptingSyncTarget,
@@ -92,11 +93,13 @@ import { createMobileSecretsPort } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
-import { readSyncRootFolder } from "./syncRootFolder";
+import { readDriveDestination, readSyncRootFolder } from "./syncRootFolder";
 import { mobileKeyringCacheKey } from "./vaultForget";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 import { isMemberProfileField } from "@plainva/ui";
+import { mergePersonalDesignValues } from "@plainva/ui";
+import { mobilePersonalDesign } from "./personalDesign";
 
 const GUARD_VERSION = 1;
 const KEYFILE_PATH = ".plainva/sync/keyfile.json";
@@ -165,7 +168,10 @@ async function remoteRoot(vaultId: string, provider: MobileSyncProvider): Promis
   switch (provider.provider) {
     case "webdav": return provider.creds.url;
     case "s3": return `${provider.creds.endpoint}/${provider.creds.bucket}/${provider.creds.prefix ?? ""}`;
-    case "drive":
+    case "drive": {
+      const selected = await readDriveDestination(vaultId, provider);
+      return selected.id ? `id:${selected.id}` : selected.path || "Plainva";
+    }
     case "onedrive":
       return (await readSyncRootFolder(vaultId, provider.provider, provider)) || "Plainva";
     case "dropbox": return (await readSyncRootFolder(vaultId, "dropbox", provider)) || "/";
@@ -579,10 +585,11 @@ export function importVaultSettings(
 }
 
 /** Public for the cross-shell convergence contracts; production uses it below. */
-export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort {
+export function createMobileProfilePort(vault: MobileVault, memberId: string | null = null): ProfileSettingsPort {
   const vaultId = vault.vaultId;
   return {
     normalizeValues: canonicalizeProfileValues,
+    mergeObservedValues: mergePersonalDesignValues,
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
@@ -651,9 +658,12 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       if (!(await barLayoutIsInherited("mobileBar", vaultId))) {
         values.barLayoutMobileBar = await loadBarLayout("mobileBar", vaultId);
       }
+      const designProfile = await (await mobilePersonalDesign(vaultId, memberId)).export();
+      if (designProfile) values.personalDesign = designProfile;
       return canonicalizeProfileValues(values);
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
+      mergePersonalDesignValues([values]);
       const canonical = canonicalizeProfileValues(values);
       const { patch, skipped } = importVaultSettings(canonical, true);
       await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
@@ -744,7 +754,7 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
           await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
         }
 
-        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar"]);
+        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "personalDesign"]);
         const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
         const store = await settingsStore();
         await store.set(unknownKey(vaultId), unknown);
@@ -757,6 +767,9 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
         throw error;
       }
       // The accounts exist now; the runtimes have to be told, or the calendar
+      // The design register joins after the rollback-able profile import; a
+      // retry is idempotent and cannot roll back a concurrent local choice.
+      await (await mobilePersonalDesign(vaultId, memberId)).receive(canonical.personalDesign);
       // stays empty until the next app start.
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-accounts-imported"));
     },
@@ -971,7 +984,7 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
       // the synchronous policy check below can read it.
       const noticeStorage = await profileNoticeStorage(vaultId);
       return new SettingsSyncStep({
-        port: createMobileProfilePort(vault),
+        port: createMobileProfilePort(vault, memberId),
         deviceId: device,
         memberId: memberId ?? undefined,
         isMemberField: isMemberProfileField,
@@ -1016,6 +1029,7 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
       if (!ring && (await raw.exists(KEYFILE_PATH))) return null;
       return new CommentsSyncStep({
         vaultKey: vaultId,
+        onForeignPlaintext: (count) => setForeignLegacyComments(vaultId, count),
         downloadOnly: !!vault.workspaceState,
         // One file per device (N2): the same id the store writes as the author.
         deviceId: device,

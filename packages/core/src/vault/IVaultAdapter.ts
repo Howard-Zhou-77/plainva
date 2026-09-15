@@ -129,7 +129,7 @@ export interface IVaultAdapter {
    * @param path The directory path (use "" or "/" for root)
    * @param recursive If true, returns all items in subdirectories as well
    */
-  listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]>;
+  listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]>;
 
   /**
    * Same walk as `listDir`, but additionally reports the entries the walk
@@ -141,7 +141,7 @@ export interface IVaultAdapter {
    * a folder silently missing from the walk used to be indistinguishable from
    * a folder that is genuinely empty.
    */
-  listDirReport?(path?: string, recursive?: boolean): Promise<VaultListing>;
+  listDirReport?(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing>;
 
   /** Complete backup inventory, including hidden files. Excluded DIRECTORY
    * names are pruned at every depth; symbolic links are not followed.

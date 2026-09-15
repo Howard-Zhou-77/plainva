@@ -307,6 +307,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setShownVault(path);
   }, [label]);
 
+  useEffect(() => {
+    if (!isOwner) return;
+    let disposed = false;
+    let off: (() => void) | undefined;
+    void import("../services/tabTransfer").then(({ registerMainTabOpener }) => {
+      if (!disposed) off = registerMainTabOpener(openVault);
+    });
+    return () => { disposed = true; off?.(); };
+  }, [isOwner, openVault]);
+
   const selectVault = useCallback(async () => {
     const selected = await open({
       directory: true,

@@ -1,8 +1,10 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-07
+Stan na: 2026-09-15
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
+
+**Pakiet społeczności dla Arch Linux:** [plainva w AUR](https://aur.archlinux.org/packages/plainva) jest utrzymywany niezależnie. Przed kompilacją należy sprawdzić PKGBUILD; projekt Plainva nie weryfikuje tych kompilacji społeczności. Aplikacja pozostaje na licencji AGPL-3.0-only.
 
 ## Wymagania systemowe
 
@@ -167,7 +169,8 @@ Układ należy do vaultu i przenosi się na inne urządzenia (patrz [Konfiguracj
 - **Przełączanie pasków bocznych** za pomocą dwóch przycisków na pasku tytułu lub `Ctrl+Alt+B` (lewy) / `Ctrl+Alt+R` (prawy) — świetne do skupionego pisania. Plainva zapamiętuje ten stan.
 - **Paleta poleceń**: `Ctrl+P` otwiera **Polecenia** — wpisz i naciśnij `Enter`, aby uruchomić (nowa notatka, notatka dzienna, podział, paski boczne, **Utwórz kopię zapasową teraz** i wiele więcej).
 - **Gęstość**: w **Ustawienia → Aplikacja → Wygląd** wybierz między **Komfortowy** a **Kompaktowy** — Kompaktowy zagęszcza listy, menu i wiersze tabel; treść notatek pozostaje bez zmian.
-- **Własny motyw**: karta **Mój motyw** w **Ustawienia → Aplikacja → Wygląd** wybiera motyw, a ołówek na niej otwiera jego stronę: nastrój (jasny/ciemny), tło z ograniczonego zakresu jasności, dowolny akcent, zaokrąglenie (czcionki wybiera się na karcie **Czcionki** na tej samej stronie). Kolory tekstu Plainva wyprowadza sama, więc tekst nigdy nie znika w tle; zbyt blady akcent jest poprawiany do co najmniej 3:1, a edytor o tym informuje. W telefonie te same ustawienia są na ekranie **Wygląd**.
+- **Własny motyw**: karta **Mój motyw** w **Ustawienia → Aplikacja → Wygląd** wybiera motyw, a ołówek na niej otwiera jego stronę: nastrój (jasny/ciemny), tło z ograniczonego zakresu jasności, dowolny akcent, zaokrąglenie (czcionki wybiera się na karcie **Czcionki** na tej samej stronie). Kolory tekstu Plainva wyprowadza sama, więc tekst nigdy nie znika w tle; zbyt blady akcent jest poprawiany do co najmniej 3:1, a edytor o tym informuje. W telefonie te same ustawienia są na ekranie **Wygląd**. Jasny i ciemny nastrój zachowują własne kolory, a narożniki są wspólne. Zapisany nastrój pozostaje bez zmian. Drugi jest początkowo propozycją i zostaje zapisany dopiero po wyraźnym przyjęciu. Z oboma nastrojami tryb **System** podąża za urządzeniem.
+- **Osobista synchronizacja wyglądu**: na stronie własnego motywu włącz **Synchronizuj przez ten sejf**. Na każdym urządzeniu wybierz odblokowany sejf i włącz synchronizację ustawień. Jeden sejf jest źródłem Twojego wyglądu; inni członkowie nie muszą go używać. Odebrany wygląd zostaje przyjęty, a jeśli go nie ma, udostępniany jest lokalny. Jednoczesne zmiany zachowują oba warianty do wyboru. Wyłączenie synchronizacji zachowuje lokalny wygląd. Czcionki i wybór innego motywu nie są synchronizowane tym przełącznikiem.
 - **Czcionki**: w **Ustawienia → Aplikacja → Wygląd** karta **Czcionki** ustawia czcionki dla **Interfejsu**, **Treści** i **Kodu** (domyślna motywu, szeryfowa, bezszeryfowa, o stałej szerokości lub nazwa dowolnej zainstalowanej czcionki) oraz **Rozmiar czcionki treści** (12–24 px) — rozmiar skaluje tylko edytor i widok czytania; interfejs pozostaje bez zmian.
 - **Lista czcionek**: pod **Niestandardowa…** znajduje się lista czcionek Twojego systemu, każdy wiersz w swojej czcionce; niezainstalowana czcionka informuje o tym i nie da się jej wybrać. Pole nazwy poniżej przyjmuje każdą inną zainstalowaną czcionkę.
 - **Powiększenie interfejsu**: skaluje CAŁY interfejs między 80 % a 150 % — w **Ustawienia → Aplikacja → Wygląd** lub przez `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` przywraca wartość domyślną).
@@ -194,3 +197,7 @@ Prawy panel nie może zejść poniżej **200 px** — poniżej tej wartości ża
 - [Notatki i Markdown](Notes_and_Markdown.md) — wszystko o pisaniu
 - [Skróty klawiszowe](Keyboard_Shortcuts.md)
 - [FAQ i rozwiązywanie problemów](FAQ.md)
+
+## Przenoszenie karty z powrotem
+
+W osobnym lub drugim pełnym oknie kliknij kartę prawym przyciskiem i wybierz **Wróć do głównego okna**. Tekst, zaznaczenie, widok, przewinięcie, historia i przypięcie zostają zachowane. Karta źródłowa zamyka się dopiero po potwierdzeniu. Bez potwierdzenia karta i szkic pozostają dostępne. Zakładki są aktualizowane we wszystkich oknach.

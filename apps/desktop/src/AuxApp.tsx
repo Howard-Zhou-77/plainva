@@ -1,7 +1,10 @@
+import { useWindowBookmarks } from "./hooks/useWindowBookmarks";
+import { useTabTransferSource } from "./hooks/useTabTransfer";
+import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState, ICON, IconButton, toast } from "@plainva/ui";
-import { PanelRight } from "lucide-react";
+import { ArrowLeftToLine, PanelRight } from "lucide-react";
 import { RightSidebar, type SectionId } from "./components/RightSidebar";
 import { windowStateKey } from "./services/windowContext";
 import { AuxTitleBar } from "./components/AuxTitleBar";
@@ -53,6 +56,7 @@ export function AuxApp() {
   const { t } = useTranslation();
   const params = currentWindowParams();
   const { vaultAdapter, vaultPath, isLoading, error, fileTreeVersion, triggerFileTreeUpdate } = useVault();
+  const { bookmarks, toggleBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
   // Per window (multi-window C4 convention): whether the context sidebar is
   // open describes THIS window's view.
   const rightCollapsedKey = windowStateKey("plainva-aux-right-collapsed");
@@ -95,6 +99,7 @@ export function AuxApp() {
     // untouched, so an existing layout survives the update.
     layoutScope: label,
   });
+  const tabTransfer = useTabTransferSource(vaultPath, label, layout, selectTab, closeTab);
 
   // What the shared components ask the shell for (finding 2026-09-07): the
   // version history, "reveal in tree", the note behind a link, the composer,
@@ -215,23 +220,6 @@ export function AuxApp() {
     },
     [label, openTab],
   );
-
-  /**
-   * The star in the graph. Bookmarks are OWNER state — its sidebar renders the
-   * list — so this window asks rather than writing `.plainva/bookmarks.json`
-   * from a list it never loaded: a blind write here would drop every bookmark
-   * the owner knows about.
-   */
-  const toggleBookmark = useCallback((target: string) => {
-    void (async () => {
-      try {
-        const bus = await getWindowBus();
-        await bus.request("toggle-bookmark", { path: target });
-      } catch (e) {
-        console.warn("[AuxApp] could not toggle the bookmark", e);
-      }
-    })();
-  }, []);
 
   // The owner can hand this window different content (dedup routing).
   useEffect(() => {
@@ -377,7 +365,8 @@ export function AuxApp() {
   const menuIsFile = !!menuTabPath && !isVirtualPath(menuTabPath);
   const menuHasUnpinnedLeft = !!tabMenu && !!menuPane && menuPane.tabs.slice(0, tabMenu.tabIndex).some((tb) => !tb.pinned);
   const menuHasUnpinnedRight = !!tabMenu && !!menuPane && menuPane.tabs.slice(tabMenu.tabIndex + 1).some((tb) => !tb.pinned);
-  const rightSidebarToggle = (
+  const comparisonActive = activePath?.startsWith(COMPARISON_PREFIX) === true;
+  const rightSidebarToggle = !comparisonActive && (
     <IconButton
       label={t("titlebar.toggleRightSidebar")}
       size="sm"
@@ -409,7 +398,9 @@ export function AuxApp() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)" }}>
-      <AuxTitleBar title={title} tabs={titleBarTabs} label={label} actions={rightSidebarToggle} />
+      <AuxTitleBar title={title} tabs={titleBarTabs} label={label}
+        onTitleContextMenu={activePath ? event => { event.preventDefault(); setTabMenu({ paneIndex: layout.activePaneIndex, tabIndex: layout.panes[layout.activePaneIndex].activeIndex, x: event.clientX, y: event.clientY }); } : undefined}
+        actions={<>{activePath && <IconButton label={t("window.returnToMain")} data-testid="aux-return-main" size="sm" onClick={() => { void tabTransfer.start(layout.activePaneIndex, layout.panes[layout.activePaneIndex].activeIndex); }}><ArrowLeftToLine size={ICON.ui} /></IconButton>}{rightSidebarToggle}</>} />
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "row", overflow: "hidden" }}>
       <main
         style={{
@@ -478,10 +469,12 @@ export function AuxApp() {
                   <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                     <AuxPane
                       path={path}
+                      onCloseTab={() => closeTab(i, pane.activeIndex)}
                       isActivePane={isActivePane}
                       onOpenPath={(p) => openPath(i, p)}
                       onOpenInSplit={(p) => openInOtherPane(i, p)}
                       onToggleBookmark={toggleBookmark}
+                      isBookmarked={bookmarks.includes(path)}
                       activeSplitDirection={activeSplitDirection}
                     />
                   </div>
@@ -494,7 +487,7 @@ export function AuxApp() {
           D4): outline, graph, databases, backlinks, properties. The calendar
           stays with the central window — it needs the owner's services (E5).
           Read-only client services carry everything these sections ask for. */}
-      {!rightCollapsed && !error && !!vaultAdapter && (
+      {!comparisonActive && !rightCollapsed && !error && !!vaultAdapter && (
         <aside
           aria-label="Right Sidebar"
           data-testid="aux-right-sidebar"
@@ -562,6 +555,7 @@ export function AuxApp() {
           onRevealInTree={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: menuTabPath } })) : undefined}
           onCopyPath={menuIsFile ? () => { void navigator.clipboard.writeText(menuTabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
           onRename={menuIsFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
+          isBookmarked={bookmarks.includes(menuTabPath ?? "")}
           onToggleBookmark={menuIsFile ? () => toggleBookmark(menuTabPath!) : undefined}
           onReopenClosed={reopenClosedTab}
           canReopenClosed={closedTabCount > 0}
@@ -572,10 +566,10 @@ export function AuxApp() {
           canCloseLeft={menuHasUnpinnedLeft}
           canCloseRight={menuHasUnpinnedRight}
           onShowVersionHistory={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: menuTabPath } })) : undefined}
-          // No "open in new window": the tab IS in one. Going back into the
-          // central window is a different command (Sammelplan § 3.21).
+          onReturnToMain={menuTabPath ? () => { void tabTransfer.start(tabMenu.paneIndex, tabMenu.tabIndex); } : undefined}
         />
       )}
+      {tabTransfer.modal}
     </div>
   );
 }

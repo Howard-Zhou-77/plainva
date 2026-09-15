@@ -3,6 +3,7 @@ import {
   classifyArchiveEntry,
   DEFAULT_EXTRACT_LIMITS,
   isTextPath,
+  readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl,
   type ExtractSkipReason,
   type UnpackedFile,
 } from "@plainva/core";
@@ -26,6 +27,7 @@ import {
 export interface MobileUnpackedFile extends UnpackedFile {
   /** Raw entry bytes — attachments the writer copies without decoding. */
   bytes?: Uint8Array;
+  readBytes?: () => Promise<Uint8Array>;
 }
 
 export interface ExtractedArchive {
@@ -116,7 +118,7 @@ export async function extractArchive(
 
 /** Whether a picked file looks like an archive rather than a single document. */
 export function isArchiveName(name: string): boolean {
-  return name.toLowerCase().endsWith(".zip");
+  return /\.(zip|jex|tar)$/i.test(name);
 }
 
 /**
@@ -126,7 +128,16 @@ export function isArchiveName(name: string): boolean {
  * which is how the phone offers "a folder of Markdown" — the document picker
  * returns the files, not the folder.
  */
-export async function unpackSelection(picked: File[]): Promise<ExtractedArchive> {
+export async function unpackSelection(picked: File[], control: ArchiveReadControl = {}): Promise<ExtractedArchive> {
+  checkArchiveAbort(control.signal);
+  if (picked.length === 1 && /\.(jex|tar)$/i.test(picked[0].name)) {
+    const archive = await extractTarArchive(picked[0], control);
+    if (/\.jex$/i.test(picked[0].name)) {
+      if (!archive.files.length) throw new Error('import.jexInvalid');
+      archive.files.forEach(file => { file.sourceFormat = 'jex'; });
+    }
+    return archive;
+  }
   if (picked.length === 1 && isArchiveName(picked[0].name)) {
     return extractArchive(new Uint8Array(await picked[0].arrayBuffer()));
   }
@@ -181,7 +192,32 @@ export async function unpackSelection(picked: File[]): Promise<ExtractedArchive>
  * report it as skipped, which is honest but needlessly lossy.
  */
 export function archiveByteReader(archive: ExtractedArchive): (sourcePath: string) => Promise<Uint8Array | null> {
-  const byPath = new Map<string, Uint8Array>();
-  for (const file of archive.files) if (file.bytes) byPath.set(file.relativePath, file.bytes);
-  return async (sourcePath: string) => byPath.get(sourcePath) ?? null;
+  const byPath = new Map<string, () => Promise<Uint8Array>>();
+  for (const file of archive.files) {
+    if (file.bytes) byPath.set(file.relativePath, async () => file.bytes!);
+    else if (file.readBytes) byPath.set(file.relativePath, file.readBytes);
+  }
+  return async (sourcePath: string) => byPath.get(sourcePath)?.() ?? null;
+}
+
+/** A picked Blob is an immutable staging source; attachments are read one at a time. */
+export async function extractTarArchive(blob: Blob, control: ArchiveReadControl = {}): Promise<ExtractedArchive> {
+  const read = async (offset: number, length: number) => new Uint8Array(await blob.slice(offset, offset + length).arrayBuffer());
+  const entries = await readTarEntries({ size: blob.size, read }, { ...control, onProgress: n => control.onProgress?.(Math.floor(n * 0.6)) });
+  const files: MobileUnpackedFile[] = [];
+  let textBytes = 0, totalBytes = 0;
+  for (const entry of entries) {
+    checkArchiveAbort(control.signal);
+    totalBytes += entry.size;
+    const file: MobileUnpackedFile = { relativePath: entry.relativePath, byteSize: entry.size, mtimeMs: entry.mtimeMs,
+      content: '', isText: false, sourcePath: entry.relativePath, readBytes: () => read(entry.offset, entry.size) };
+    if (isTextPath(entry.relativePath) && !entry.relativePath.startsWith('resources/')) {
+      if (entry.size > JEX_LIMITS.maxTextEntryBytes || (textBytes += entry.size) > JEX_LIMITS.maxTextBytes) throw new Error('import.archiveTooLarge');
+      try { file.content = new TextDecoder('utf-8', { fatal: true }).decode(await file.readBytes!()); file.isText = true; }
+      catch (error) { if (!(error instanceof TypeError)) throw error; }
+    }
+    files.push(file);
+    control.onProgress?.(60 + Math.floor(files.length / Math.max(entries.length, 1) * 40));
+  }
+  return { files, skipped: [], totalBytes };
 }

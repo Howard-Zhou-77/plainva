@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
+import type { MobileTestGlobals } from "./exampleVault";
 
 /**
  * The date jump on the phone (plan Kalender, Anker-Links, Dependabot
@@ -51,10 +53,67 @@ test("tapping the period opens the date jump sheet, and a picked day moves the c
   await sheet.locator('[data-testid="pim-jump-next-year"]').click();
   await sheet.locator('[data-testid="pim-jump-month-2"]').click();
   await sheet.locator(`[data-testid="pim-jump-day-${year}-03-03"]`).click();
+  await sheet.getByTestId("pim-jump-go").click();
 
   await expect(sheet).toHaveCount(0);
   await expect(title).not.toHaveText(before);
   // Every view names the day or the month it shows; a jump to March of next
   // year is visible in the period whichever view was remembered.
   await expect(title).toContainText(/March|3/);
+});
+
+test("daily-note marks use the configured path, and the action opens or creates it", async ({ page, context }, testInfo) => {
+  const sql = await installSqlBridge(context);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.clock.setFixedTime(new Date("2026-09-14T12:00:00"));
+  await context.addInitScript(() => localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({
+    onboarded: true, language: "en", motion: "off", dailyFolder: "Journal", dailyFormat: "YY.MM.DD",
+  })));
+  try {
+    await page.goto("/");
+    await page.waitForFunction(() => Boolean((globalThis as MobileTestGlobals).Capacitor?.Plugins?.Filesystem));
+    await expect(page.locator(".m-tabbar")).toBeVisible();
+    await page.evaluate(async () => {
+      const files = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+      try { await files.mkdir({ path: "vault/Journal", directory: "DATA", recursive: true }); }
+      catch (error) {
+        if ((await files.stat({ path: "vault/Journal", directory: "DATA" })).type !== "directory") throw error;
+      }
+      await files.writeFile({
+        path: "vault/Journal/26.10.20.md", data: "# Daily note preserved\nExisting content", directory: "DATA", encoding: "utf8",
+      });
+    });
+    await page.reload();
+    await expect(page.locator("#root > *").first()).toBeVisible();
+    await page.waitForTimeout(1500);
+    if (await page.getByTestId("whats-new-close").isVisible()) await page.getByTestId("whats-new-close").click();
+    const openCalendar = async () => {
+      const tab = page.locator(".m-tabbar .m-tab", { hasText: /^Calendar$/ });
+      if (await tab.count()) await tab.first().click();
+      else {
+        await page.getByTestId("tab-areas").click();
+        await page.getByRole("button", { name: /^Calendar$/ }).first().click();
+      }
+      await page.getByTestId("pim-title").click();
+      await page.getByTestId("pim-jump-month-9").click();
+    };
+    await openCalendar();
+    await expect(page.getByTestId("pim-jump-day-2026-10-20")).toHaveClass(/has-mark/);
+    await page.getByTestId("pim-jump-day-2026-10-20").click();
+    await expect(page.getByTestId("pim-jump-daily-note")).toHaveText("Open daily note");
+    expect(await page.getByTestId("pim-jump").evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("daily-note-picker-320.png") });
+    await page.getByTestId("pim-jump-daily-note").click();
+    await expect(page.locator(".cm-content")).toContainText("Existing content");
+    await page.getByRole("button", { name: /^Back$/ }).first().click();
+    await openCalendar();
+    await page.getByTestId("pim-jump-day-2026-10-21").click();
+    await expect(page.getByTestId("pim-jump-daily-note")).toHaveText("Create daily note");
+    await page.getByTestId("pim-jump-daily-note").click();
+    await expect.poll(() => page.evaluate(async () => {
+      try {
+        return (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/Journal/26.10.21.md", directory: "DATA", encoding: "utf8" })).data;
+      } catch { return null; }
+    })).toBeTruthy();
+  } finally { sql.close(); }
 });

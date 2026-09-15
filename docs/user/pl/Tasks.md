@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-09-06
+Stan na: 2026-09-15
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -131,3 +131,14 @@ Zadania dostawcy są dopasowywane według tożsamości. Osobne wystąpienia maj�
 Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mogą być osobnymi wystąpieniami. Obie zawartości zostaną zachowane jako oddzielne zadania.
 
 **Zachowaj jako osobne zadania** — Ten plik pozostanie bez zmian: Bieżący plik  Kopia konfliktowa zostanie zachowana jako osobny plik: kopia konfliktu
+
+<!-- tasks-jex-2026-09-14 -->
+## Metadane Tasks i powtarzanie
+
+Komputer, telefon i podgląd na żywo rozpoznają ➕ utworzenie, ✅ ukończenie, 📅 termin, ⏳ zaplanowanie, 🛫 początek, 🆔 ID i 🔁 powtarzanie. Daty: YYYY-MM-DD. Istniejące ID pozostają po przesunięciu wiersza; nieznane dane zostają w Markdown.
+
+Automatyczne są tylko angielskie reguły `every [N] day/week/month/year[s] [when done]` (N: 1–999). Ukończenie przesuwa o jeden okres, nawet nadal zaległy; `when done` liczy od ukończenia. Odstępy dat są zachowane, z ograniczeniem do końca miesiąca. Bez daty następne zadanie też jej nie ma. Złożone reguły, zależności, ID bloków lub duplikaty, błędne daty, treść z wcięciem, natywne powtarzanie i zadania dostawców wyłączają ten generator.
+
+Zaznaczenie dodaje datę ukończenia do zadania z metadanymi. Obsługiwane powtarzanie dodaje brakujące ID i osobne ID `pv-…` następnego zadania. To jedna zmiana Markdown, w całości odwracalna przez Cofnij. Ponowne otwarcie i zaznaczenie zachowuje następne zadanie oraz jego zmiany.
+
+Natywne zadania bazy nadal pomijają zaległe okresy. Zapisany plan docelowy zapobiega duplikatom. Przy niepotwierdzonym następniku sprawdź folder; ponowne otwarcie i zaznaczenie może wznowić zapis po błędzie. Zmienione źródło nie tworzy innej kopii: sprawdź notatki i w razie potrzeby utwórz następnik ręcznie. Potwierdzony, później usunięty następnik nie zostaje odtworzony.

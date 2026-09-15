@@ -19,7 +19,7 @@
 
 use base64::Engine as _;
 use mail_parser::MimeHeaders as _;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::Arc;
@@ -40,6 +40,8 @@ pub struct MailboxInfo {
 #[serde(rename_all = "camelCase")]
 pub struct MailEnvelope {
     pub uid: u32,
+    pub uid_validity: Option<u32>,
+    pub has_attachments: Option<bool>,
     pub subject: String,
     pub from: String,
     /// Unix ms of the INTERNALDATE (arrival), 0 when unknown.
@@ -104,6 +106,37 @@ pub struct MailMessage {
 /// SMTP client uses). The imap `Session` is generic over this concrete type.
 type TlsStream = rustls::StreamOwned<rustls::ClientConnection, TcpStream>;
 type ImapSession = imap::Session<TlsStream>;
+
+#[derive(serde::Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum MailAuth { Password, Xoauth2 }
+
+fn credential_fingerprint_input(pass: &str, auth: Option<MailAuth>) -> String {
+    if auth == Some(MailAuth::Xoauth2) { format!("xoauth2:{pass}") } else { pass.to_string() }
+}
+
+pub(crate) fn oauth_payload(user: &str, token: &str) -> Result<String, String> {
+    if user.is_empty() || token.is_empty() || user.chars().chain(token.chars()).any(|c| c.is_ascii_control()) {
+        return Err("Invalid OAuth mail credentials".into());
+    }
+    Ok(format!("user={user}\x01auth=Bearer {token}\x01\x01"))
+}
+
+struct Xoauth2 { payload: String, sent: std::cell::Cell<bool> }
+impl imap::Authenticator for Xoauth2 {
+    type Response = String;
+    fn process(&self, challenge: &[u8]) -> String {
+        // A JSON error challenge gets the required empty SASL response.
+        if !self.sent.replace(true) && challenge.is_empty() { self.payload.clone() } else { String::new() }
+    }
+}
+
+fn login_client(client: imap::Client<TlsStream>, user: &str, pass: &str, auth: Option<MailAuth>) -> Result<ImapSession, String> {
+    if auth == Some(MailAuth::Xoauth2) {
+        let response = Xoauth2 { payload: oauth_payload(user, pass)?, sent: std::cell::Cell::new(false) };
+        client.authenticate("XOAUTH2", &response).map_err(|_| "MAIL_OAUTH_REJECTED".to_string())
+    } else { client.login(user, pass).map_err(|(e, _)| format!("login failed: {e}")) }
+}
 
 /// True for a loopback host (localhost / 127.0.0.0/8 / ::1). A TLS connection
 /// that never leaves the machine cannot be intercepted, so we accept a
@@ -250,12 +283,12 @@ fn with_session<T>(
     host: &str,
     port: u16,
     user: &str,
-    pass: &str,
+    pass: &str, auth: Option<MailAuth>,
     f: impl FnOnce(&mut ImapSession) -> Result<T, String>,
 ) -> Result<T, String> {
     POOL.with(
-        &crate::mail_pool::session_key(host, port, user, pass),
-        || open_session(host, port, user, pass),
+        &crate::mail_pool::session_key(host, port, user, &credential_fingerprint_input(pass, auth)),
+        || open_session(host, port, user, pass, auth),
         // The cheapest possible round trip: if the server closed the connection
         // while it sat idle, this is where we find out — not mid-FETCH.
         |session| session.noop().is_ok(),
@@ -272,11 +305,11 @@ fn with_writable<T>(
     host: &str,
     port: u16,
     user: &str,
-    pass: &str,
+    pass: &str, auth: Option<MailAuth>,
     mailbox: &str,
     f: impl FnOnce(&mut ImapSession) -> Result<T, String>,
 ) -> Result<T, String> {
-    with_session(host, port, user, pass, |session| {
+    with_session(host, port, user, pass, auth, |session| {
         session.select(mailbox).map_err(|e| format!("select failed: {e}"))?;
         f(session)
     })
@@ -301,7 +334,7 @@ pub async fn mail_release_sessions(user: Option<String>) -> Result<(), String> {
     .map_err(|e| format!("task join failed: {e}"))
 }
 
-fn open_session(host: &str, port: u16, user: &str, pass: &str) -> Result<ImapSession, String> {
+fn open_session(host: &str, port: u16, user: &str, pass: &str, auth: Option<MailAuth>) -> Result<ImapSession, String> {
     let tcp = connect_tcp(host, port)?;
     // 993 = implicit TLS (greeting arrives encrypted); everything else does an
     // explicit STARTTLS upgrade on the plain socket (RFC 3501 §6.2.1). This is
@@ -316,16 +349,12 @@ fn open_session(host: &str, port: u16, user: &str, pass: &str) -> Result<ImapSes
         client
             .read_greeting()
             .map_err(|e| format!("greeting failed: {e}"))?;
-        client
-            .login(user, pass)
-            .map_err(|(e, _)| format!("login failed: {e}"))
+        login_client(client, user, pass, auth)
     } else {
         let tls = starttls_upgrade(host, tcp)?;
         // The greeting was consumed on the plain socket before STARTTLS, so we
         // go straight to LOGIN (login consumes the client).
-        imap::Client::new(tls)
-            .login(user, pass)
-            .map_err(|(e, _)| format!("login failed: {e}"))
+        login_client(imap::Client::new(tls), user, pass, auth)
     }
 }
 
@@ -389,9 +418,9 @@ fn address_text(addr: Option<&mail_parser::Address>) -> String {
 }
 
 #[tauri::command]
-pub async fn mail_check_login(host: String, port: u16, user: String, pass: String) -> Result<Vec<MailboxInfo>, String> {
+pub async fn mail_check_login(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>) -> Result<Vec<MailboxInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             let names = session
                 .list(None, Some("*"))
                 .map_err(|e| format!("list failed: {e}"))?;
@@ -417,7 +446,23 @@ pub async fn mail_check_login(host: String, port: u16, user: String, pass: Strin
 
 /// Builds an envelope from a FETCH row (UID FLAGS INTERNALDATE + the FROM/SUBJECT/DATE
 /// header fields). Rows without a UID are skipped. Pure over the fetch row.
-fn fetch_to_envelope(f: &imap::types::Fetch) -> Option<MailEnvelope> {
+fn body_has_attachment(body: &imap_proto::types::BodyStructure<'_>) -> bool {
+    use imap_proto::types::BodyStructure;
+    let common = match body {
+        BodyStructure::Basic { common, .. } | BodyStructure::Text { common, .. } | BodyStructure::Message { common, .. } | BodyStructure::Multipart { common, .. } => common,
+    };
+    let named = |params: &imap_proto::types::BodyParams<'_>| params.as_ref().is_some_and(|values| values.iter().any(|(key, value)| {
+        let key = key.to_ascii_lowercase();
+        !value.is_empty() && (key == "name" || key == "filename" || key.starts_with("name*") || key.starts_with("filename*"))
+    }));
+    named(&common.ty.params) || common.disposition.as_ref().is_some_and(|d| d.ty.eq_ignore_ascii_case("attachment") || named(&d.params)) || match body {
+        BodyStructure::Multipart { bodies, .. } => bodies.iter().any(body_has_attachment),
+        BodyStructure::Message { body, .. } => body_has_attachment(body),
+        _ => false,
+    }
+}
+
+fn fetch_to_envelope(f: &imap::types::Fetch, uid_validity: Option<u32>) -> Option<MailEnvelope> {
     let uid = f.uid?;
     let header_bytes = f.header().unwrap_or_default();
     let parsed = mail_parser::MessageParser::default().parse(header_bytes);
@@ -443,7 +488,8 @@ fn fetch_to_envelope(f: &imap::types::Fetch) -> Option<MailEnvelope> {
             )
         })
         .unwrap_or((None, None, None));
-    Some(MailEnvelope { uid, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references })
+    let has_attachments = f.bodystructure().map(body_has_attachment);
+    Some(MailEnvelope { uid, uid_validity, has_attachments, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references })
 }
 
 #[tauri::command]
@@ -452,14 +498,14 @@ pub async fn mail_list_envelopes(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     offset: u32,
     limit: u32,
     before_uid: Option<u32>,
 ) -> Result<MailEnvelopePage, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             // EXAMINE = read-only select; the server rejects any store attempt.
             let mb = session
                 .examine(&mailbox)
@@ -488,12 +534,12 @@ pub async fn mail_list_envelopes(
             let fetches = session
                 .uid_fetch(
                     set,
-                    "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])",
+                    "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])",
                 )
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = Vec::new();
             for f in fetches.iter() {
-                if let Some(env) = fetch_to_envelope(f) {
+                if let Some(env) = fetch_to_envelope(f, mb.uid_validity) {
                     messages.push(env);
                 }
             }
@@ -527,12 +573,12 @@ pub async fn mail_fetch_message(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     uid: u32,
 ) -> Result<MailMessage, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             let selected = session
                 .examine(&mailbox)
                 .map_err(|e| format!("examine failed: {e}"))?;
@@ -580,12 +626,12 @@ pub async fn mail_fetch_raw(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     uid: u32,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             session
                 .examine(&mailbox)
                 .map_err(|e| format!("examine failed: {e}"))?;
@@ -598,17 +644,19 @@ pub async fn mail_fetch_raw(
 }
 
 #[tauri::command]
+// Keep the flat IPC parameters used by existing callers; auth is optional.
+#[allow(clippy::too_many_arguments)]
 pub async fn mail_fetch_attachment(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     uid: u32,
     index: usize,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             session
                 .examine(&mailbox)
                 .map_err(|e| format!("examine failed: {e}"))?;
@@ -658,7 +706,7 @@ pub async fn mail_append_draft(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     to: String,
     subject: String,
@@ -670,7 +718,7 @@ pub async fn mail_append_draft(
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mime = build_draft_mime(&to, &cc.unwrap_or_default(), &bcc.unwrap_or_default(), &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             session
                 .append_with_flags(escape_imap_string(&mailbox), &mime, &[imap::types::Flag::Draft])
                 .map_err(|e| format!("append failed: {e}"))?;
@@ -705,9 +753,9 @@ fn build_search_arg(query: &str) -> String {
 /// Sets or clears the `\Seen` flag on a message.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, seen: bool) -> Result<(), String> {
+pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, uid: u32, seen: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+        with_writable(&host, port, &user, &pass, auth, &mailbox, |session| {
             let op = if seen { "+FLAGS (\\Seen)" } else { "-FLAGS (\\Seen)" };
             session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
             Ok(())
@@ -720,9 +768,9 @@ pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, 
 /// Sets or clears the RFC 3501 `\Flagged` marker on a message.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, flagged: bool) -> Result<(), String> {
+pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, uid: u32, flagged: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+        with_writable(&host, port, &user, &pass, auth, &mailbox, |session| {
             let op = if flagged { "+FLAGS (\\Flagged)" } else { "-FLAGS (\\Flagged)" };
             session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
             Ok(())
@@ -744,9 +792,9 @@ pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: Strin
 /// round, so a message never carries both at once.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn mail_set_junk(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, junk: bool) -> Result<(), String> {
+pub async fn mail_set_junk(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, uid: u32, junk: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+        with_writable(&host, port, &user, &pass, auth, &mailbox, |session| {
             let (add, remove) = if junk { ("$Junk", "$NotJunk") } else { ("$NotJunk", "$Junk") };
             session
                 .uid_store(uid.to_string(), format!("+FLAGS ({add})"))
@@ -764,9 +812,9 @@ pub async fn mail_set_junk(host: String, port: u16, user: String, pass: String, 
 /// Creates a mailbox. Used when an account has no junk folder at all — Plainva
 /// offers to make one rather than moving mail into a name it invented.
 #[tauri::command]
-pub async fn mail_create_mailbox(host: String, port: u16, user: String, pass: String, name: String) -> Result<(), String> {
+pub async fn mail_create_mailbox(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, name: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             session.create(&name).map_err(|e| format!("create failed: {e}"))?;
             // Not every server subscribes a freshly created mailbox, and an
             // unsubscribed folder is invisible in clients that list by
@@ -779,54 +827,81 @@ pub async fn mail_create_mailbox(host: String, port: u16, user: String, pass: St
     .map_err(|e| format!("task join failed: {e}"))?
 }
 
-/// Permanently removes exactly one message. With UIDPLUS the server can expunge
-/// the UID directly. On older servers we temporarily unmark OTHER deleted
-/// messages, run EXPUNGE, then restore those flags so unrelated mail is safe.
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum MailBulkAction { Seen { value: bool }, Flagged { value: bool }, Move { target: String }, Delete }
+
+#[derive(Serialize)]
+pub struct MailBulkResult { uid: u32, status: &'static str, reason: Option<&'static str> }
+
+fn uid_flags(session: &mut ImapSession, uids: &[u32]) -> Result<std::collections::HashMap<u32, (bool, bool)>, String> {
+    let set = uids.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+    let rows = session.uid_fetch(set, "(UID FLAGS)").map_err(|_| "Could not verify message flags")?;
+    Ok(rows.iter().filter_map(|f| f.uid.map(|uid| (uid, (
+        f.flags().iter().any(|v| matches!(v, imap::types::Flag::Seen)),
+        f.flags().iter().any(|v| matches!(v, imap::types::Flag::Flagged)),
+    )))).collect())
+}
+
+/// No automatic replay after an uncertain write. The existing account pool
+/// owns the session throughout SELECT, verification, mutation and read-back.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn mail_delete_message(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32) -> Result<(), String> {
+pub async fn mail_bulk_action(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, uids: Vec<u32>, uid_validity: Option<u32>, action: MailBulkAction) -> Result<Vec<MailBulkResult>, String> {
+    if uids.len() > 100 || uids.contains(&0) { return Err("Invalid mail UID batch".into()); }
+    if uids.is_empty() { return Ok(vec![]); }
     tauri::async_runtime::spawn_blocking(move || {
-        with_writable(&host, port, &user, &pass, &mailbox, |session| {
-            let uid_s = uid.to_string();
-            let has_uidplus = session.capabilities().map(|c| c.has_str("UIDPLUS")).unwrap_or(false);
-            if has_uidplus {
-                session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
-                session.uid_expunge(&uid_s).map_err(|e| format!("uid expunge failed: {e}"))?;
-            } else {
-                let other_deleted: Vec<u32> = session
-                    .uid_search("DELETED")
-                    .map_err(|e| format!("deleted search failed: {e}"))?
-                    .into_iter()
-                    .filter(|other| *other != uid)
-                    .collect();
-                let other_set = other_deleted.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
-                if !other_set.is_empty() {
-                    session.uid_store(&other_set, "-FLAGS (\\Deleted)").map_err(|e| format!("protect deleted messages failed: {e}"))?;
-                }
-                let result = (|| -> Result<(), String> {
-                    session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
-                    session.expunge().map_err(|e| format!("expunge failed: {e}"))?;
-                    Ok(())
-                })();
-                if !other_set.is_empty() {
-                    let _ = session.uid_store(&other_set, "+FLAGS (\\Deleted)");
-                }
-                result?;
-            }
-            Ok(())
+        with_session(&host, port, &user, &pass, auth, |session| {
+            let selected = session.select(&mailbox).map_err(|_| "Could not open the mailbox")?;
+            let all_failed = |reason| uids.iter().map(|uid| MailBulkResult { uid: *uid, status: "failed", reason: Some(reason) }).collect();
+            if uid_validity.is_some() && uid_validity != selected.uid_validity { return Ok(all_failed("changed")); }
+            let caps = session.capabilities().map_err(|_| "Could not read mailbox capabilities")?;
+            if (matches!(action, MailBulkAction::Move { .. }) && !caps.has_str("MOVE")) || (matches!(action, MailBulkAction::Delete) && !caps.has_str("UIDPLUS")) { return Ok(all_failed("unsupported")); }
+            let before = uid_flags(session, &uids)?;
+            let present: Vec<u32> = uids.iter().copied().filter(|uid| before.contains_key(uid)).collect();
+            if present.is_empty() { return Ok(all_failed("missing")); }
+            let set = present.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            let changed = match &action {
+                MailBulkAction::Seen { value } => session.uid_store(&set, if *value { "+FLAGS (\\Seen)" } else { "-FLAGS (\\Seen)" }).map(|_| ()),
+                MailBulkAction::Flagged { value } => session.uid_store(&set, if *value { "+FLAGS (\\Flagged)" } else { "-FLAGS (\\Flagged)" }).map(|_| ()),
+                MailBulkAction::Move { target } => if target == &mailbox { Ok(()) } else { session.uid_mv(&set, target) },
+                MailBulkAction::Delete => session.uid_store(&set, "+FLAGS (\\Deleted)").and_then(|_| session.uid_expunge(&set)).map(|_| ()),
+            };
+            let after = uid_flags(session, &present);
+            Ok(uids.iter().map(|uid| {
+                if !before.contains_key(uid) { return MailBulkResult { uid: *uid, status: "failed", reason: Some("missing") }; }
+                let applied = after.as_ref().ok().is_some_and(|flags| match &action {
+                    MailBulkAction::Seen { value } => flags.get(uid).is_some_and(|v| v.0 == *value),
+                    MailBulkAction::Flagged { value } => flags.get(uid).is_some_and(|v| v.1 == *value),
+                    MailBulkAction::Move { target } if target == &mailbox => true,
+                    _ => changed.is_ok() && !flags.contains_key(uid),
+                });
+                if applied { MailBulkResult { uid: *uid, status: "done", reason: None } }
+                else { MailBulkResult { uid: *uid, status: if after.is_err() || matches!(action, MailBulkAction::Move { .. } | MailBulkAction::Delete) { "uncertain" } else { "failed" }, reason: Some(if after.is_err() { "connection" } else { "rejected" }) } }
+            }).collect())
         })
-    })
-    .await
-    .map_err(|e| format!("task join failed: {e}"))?
+    }).await.map_err(|_| "Mail task failed".to_string())?
+}
+
+/// Permanent deletion requires targeted UID EXPUNGE. Temporarily clearing
+/// other clients' Deleted flags cannot make global EXPUNGE safe under races.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_delete_message(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, uid: u32) -> Result<(), String> {
+    let result = mail_bulk_action(host, port, user, pass, auth, mailbox, vec![uid], None, MailBulkAction::Delete).await?;
+    if result.first().is_some_and(|r| r.status == "done") { Ok(()) }
+    else if result.first().is_some_and(|r| r.reason == Some("unsupported")) { Err("MAIL_BULK_UNSUPPORTED".into()) }
+    else { Err("The mail server did not confirm the deletion".into()) }
 }
 
 /// Moves a message to another mailbox (used for both "move" and "delete to
 /// Trash"). Uses the MOVE extension; deletion stays reversible.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn mail_move_message(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, target: String) -> Result<(), String> {
+pub async fn mail_move_message(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, uid: u32, target: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+        with_writable(&host, port, &user, &pass, auth, &mailbox, |session| {
+            if !session.capabilities().map_err(|_| "Could not read mailbox capabilities")?.has_str("MOVE") { return Err("MAIL_BULK_UNSUPPORTED".into()); }
             session.uid_mv(uid.to_string(), &target).map_err(|e| format!("move failed: {e}"))?;
             Ok(())
         })
@@ -839,9 +914,9 @@ pub async fn mail_move_message(host: String, port: u16, user: String, pass: Stri
 /// newest first.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn mail_search(host: String, port: u16, user: String, pass: String, mailbox: String, query: String) -> Result<Vec<u32>, String> {
+pub async fn mail_search(host: String, port: u16, user: String, pass: String, auth: Option<MailAuth>, mailbox: String, query: String) -> Result<Vec<u32>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
+        with_session(&host, port, &user, &pass, auth, |session| {
             session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
             let search = build_search_arg(&query);
             let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
@@ -863,14 +938,14 @@ pub async fn mail_search_envelopes(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     query: String,
     limit: u32,
 ) -> Result<Vec<MailEnvelope>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
-            session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+        with_session(&host, port, &user, &pass, auth, |session| {
+            let selected = session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
             let search = build_search_arg(&query);
             let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
             let mut ordered: Vec<u32> = uids.into_iter().collect();
@@ -882,9 +957,9 @@ pub async fn mail_search_envelopes(
             }
             let set = ordered.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
+                .uid_fetch(set, "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
                 .map_err(|e| format!("fetch failed: {e}"))?;
-            let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
+            let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(|f| fetch_to_envelope(f, selected.uid_validity)).collect();
             // The server may return the set in any order; sort newest first by date.
             messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
             Ok(messages)
@@ -901,13 +976,13 @@ pub async fn mail_list_flagged_envelopes(
     host: String,
     port: u16,
     user: String,
-    pass: String,
+    pass: String, auth: Option<MailAuth>,
     mailbox: String,
     limit: u32,
 ) -> Result<Vec<MailEnvelope>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        with_session(&host, port, &user, &pass, |session| {
-            session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+        with_session(&host, port, &user, &pass, auth, |session| {
+            let selected = session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
             let mut ordered: Vec<u32> = session.uid_search("FLAGGED").map_err(|e| format!("search flagged failed: {e}"))?.into_iter().collect();
             ordered.sort_unstable_by(|a, b| b.cmp(a));
             ordered.truncate(limit.clamp(1, 500) as usize);
@@ -916,9 +991,9 @@ pub async fn mail_list_flagged_envelopes(
             }
             let set = ordered.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
+                .uid_fetch(set, "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
                 .map_err(|e| format!("fetch failed: {e}"))?;
-            let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
+            let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(|f| fetch_to_envelope(f, selected.uid_validity)).collect();
             messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
             Ok(messages)
         })

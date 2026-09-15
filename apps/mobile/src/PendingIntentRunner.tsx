@@ -1,11 +1,10 @@
 import { useEffect } from "react";
-import type { PendingShare } from "./services/shareTarget";
 import { consumeReminderIntent } from "./services/reminderScheduler";
 import { runReminderIntent, type CalendarFocus } from "./services/reminderActions";
 
 /**
  * Runs the intents that arrive from outside the app — a launcher shortcut, a
- * share, a tapped reminder (S11). They are parked as state while the vault is
+ * tapped reminder (S11). They are parked as state while the vault is
  * still booting and executed here, once the closures that can act on them
  * exist.
  *
@@ -15,21 +14,15 @@ import { runReminderIntent, type CalendarFocus } from "./services/reminderAction
  */
 export function PendingIntentRunner({
   pendingShortcut,
-  pendingShare,
   setPendingShortcut,
-  setPendingShare,
   onCapture,
-  onCaptureShared,
   onOpenToday,
   onOpenNote,
   onOpenCalendar,
 }: {
   pendingShortcut: string | null;
-  pendingShare: PendingShare | null;
   setPendingShortcut: (v: string | null) => void;
-  setPendingShare: (v: PendingShare | null) => void;
   onCapture: () => void;
-  onCaptureShared: (share: PendingShare) => void;
   onOpenToday: () => void;
   onOpenNote: (path: string) => void;
   onOpenCalendar: (focus?: CalendarFocus) => void;
@@ -55,11 +48,5 @@ export function PendingIntentRunner({
     else if (pendingShortcut === "today") onOpenToday();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingShortcut]);
-  useEffect(() => {
-    if (!pendingShare) return;
-    setPendingShare(null);
-    onCaptureShared(pendingShare);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingShare]);
   return null;
 }

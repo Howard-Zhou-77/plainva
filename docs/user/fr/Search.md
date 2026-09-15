@@ -1,16 +1,16 @@
 # Recherche
 
-Dernière mise à jour : 2026-09-03
+Dernière mise à jour : 2026-09-15
 
 Plainva propose trois façons de rechercher : la recherche en texte intégral dans tout le vault, le sélecteur rapide pour ouvrir des fichiers, et rechercher & remplacer dans une note.
 
 ## Recherche en texte intégral dans le vault
 
-Le champ de recherche en haut de la barre latérale recherche dans tout le vault — titres *et* contenus. Il s'appuie sur un index en texte intégral local (SQLite FTS5) construit à l'ouverture du vault et maintenu à jour à chaque modification ; la recherche fonctionne donc aussi hors ligne et sans délai perceptible.
+Le champ en haut de la barre latérale recherche les titres et les contenus dans tout le vault. Un index local en texte intégral (SQLite FTS5) est créé à son ouverture et actualisé lorsque les fichiers changent. La recherche fonctionne hors ligne.
 
 La recherche réagit au fur et à mesure que vous tapez : les préfixes de mots correspondent déjà ("Proj" trouve "Projet plan") — pas besoin d'appuyer sur Entrée. Le **X** à droite du champ efface la recherche en cours (ou appuyez sur `Esc`) ; la barre latérale réaffiche alors l'arborescence de fichiers normale.
 
-La liste de résultats affiche le nombre de résultats en haut et regroupe les résultats : les résultats **Nom de fichier** d'abord (le terme apparaît dans le nom de la note), puis les résultats **Contenu**. Chaque ligne montre l'icône du document, le chemin du dossier et — pour les résultats de contenu — un extrait de texte avec la correspondance mise en évidence. Cliquer sur un résultat ouvre la note et saute directement à la première occurrence ; elle y est sélectionnée. Si rien ne correspond, la liste affiche **Aucun résultat**.
+La recherche affiche chaque occurrence avec un extrait, le chemin des titres et le numéro de ligne. Ouvrir une ligne sélectionne cette occurrence précise ; les correspondances d’une même note sont présentées séparément. Le compteur ne comprend que les résultats déjà chargés. Vous pouvez charger d’autres occurrences. Les flèches déplacent la sélection et Entrée l’ouvre. Le chargement, les résultats vides et les erreurs sont indiqués ; une nouvelle saisie écarte les anciennes réponses. Si une modification empêche de retrouver une occurrence sans ambiguïté, un message le signale. Ces occurrences sont aussi disponibles dans le sélecteur rapide et la recherche mobile. Sur le téléphone, revenir à la recherche restaure la requête, les résultats chargés et la position dans la liste.
 
 Le champ de recherche s'applique aussi aux autres vues de la barre latérale : dans **Tags**, il filtre la liste des tags, dans **Signets**, les signets.
 

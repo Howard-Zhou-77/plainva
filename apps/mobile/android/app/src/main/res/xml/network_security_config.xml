@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Respect the device owner's installed CAs for self-hosted services.
+         This applies to every client using Android's platform trust, not just
+         WebDAV. Certificate validity and hostname verification remain active.
+         HTTP remains available only within the bridge's configured-origin policy. -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

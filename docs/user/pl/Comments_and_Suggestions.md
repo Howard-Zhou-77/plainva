@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 
@@ -71,3 +71,9 @@ Komputer i urządzenie mobilne korzystają z tego samego magazynu podpisanych ko
 Komentarze w starszych plikach są zachowywane i importowane przy uprawnieniach do zarządzania i komentowania. **Z wcześniejszej historii** zachowuje pierwotną nazwę i datę. Informacje te nie potwierdzają wstecznie członkostwa w obszarze roboczym; nowy podpis potwierdza import. Jeśli brakuje uprawnień, zsynchronizowanej notatki docelowej lub udanego zapisu, stary komentarz pozostaje widoczny. Odpowiadanie, usuwanie i działania dotyczące sugestii są niedostępne do czasu trwałego przypisania celu. Import nie wysyła ponownie powiadomień ze starej historii.
 
 Jeśli zablokowana jest tylko starsza historia, odblokowanie otwiera ekran hasła synchronizacji; nowe komentarze nadal są dostępne. Jeśli zablokowany jest sam obszar roboczy, otwierają się ustawienia bezpieczeństwa. Operacje sugestii rozpoczęte przed aktualizacją zachowują zapisany postęp i można je wznowić z aktualnymi uprawnieniami. Import nie usuwa oryginalnych plików komentarzy.
+
+## Opinie o publikacjach
+
+Odbiorcy otwierają publikację jako osobny obszar roboczy. Odczyt nie pozwala przesyłać opinii; komentowanie pozwala dodawać uwagi, a sugerowanie także proponować zmiany w kopii. Oryginał pozostaje tylko do odczytu. Wersja komputerowa i mobilna sprawdzają te same uprawnienia i zachowują niewysłane opinie do ponownej próby.
+
+Opinie pojawiają się przy oryginalnej notatce na komputerze i telefonie, pogrupowane według publikacji i z nazwami odbiorców. Pasujące propozycje z dokładnej kopii można przyjąć lub odrzucić przez zwykły proces potwierdzonego zapisu. Decyzja jest zapisywana przy oryginale w Twoim sejfie; nie wysyła odpowiedzi do odbiorców. Kopie oczyszczone i fragmenty, których nie da się bezpiecznie odnaleźć, nie pozwalają na automatyczne zastosowanie. Opinie utworzone w obecnych klientach pozostają czytelne dla właściciela po cofnięciu dostępu odbiorcy. Stare opinie zaszyfrowane wyłącznie dla usuniętego klucza odbiorcy nie są przepisywane. Publikacja bez klucza na tym urządzeniu nadal jest pomijana.

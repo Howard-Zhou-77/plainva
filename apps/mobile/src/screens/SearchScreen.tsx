@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, FilePlus, Search } from "lucide-react";
 import {
-  Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
+  useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
   rememberSearch, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge} from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
@@ -46,11 +46,17 @@ export function SearchScreen({
   commands: AppCommand[];
 }) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState("");
+  const restore = useRef(recallSearchSession(vault.vaultId));
+  const [query, setQuery] = useState(() => recallSearchSession(vault.vaultId)?.query ?? "");
   const debounced = useDebouncedValue(query, 150);
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [corpus, setCorpus] = useState<{ path: string; title: string }[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const changed = () => setRevision((value) => value + 1);
+    window.addEventListener("m-vault-changed", changed);
+    return () => window.removeEventListener("m-vault-changed", changed);
+  }, []);
   const parsed = parseQuery(debounced);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
@@ -62,38 +68,51 @@ export function SearchScreen({
     // keystroke.
     void vault.queryService?.listNotes().then(setCorpus).catch(() => {});
     void loadRecentSearches(vault.vaultId).then(setRecent).catch(() => {});
-  }, [vault]);
+  }, [vault, revision]);
+  const searchPage = useSearchPages(vault.queryService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision);
+  const results = searchPage.hits;
+  const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!vault.searchAvailable || parsed.mode !== "find") {
-      setResults([]);
-      return;
-    }
-    let stale = false;
-    void vaultOps.search(vault, parsed.term).then((rows) => {
-      if (!stale) setResults(rows);
+    const saved = restore.current;
+    if (!saved || saved.query !== query || debounced !== query || searchPage.loading || searchPage.failed) return;
+    // Reload fresh pages before restoring the scroll position. Restoring on
+    // mount clamps it to zero because the asynchronous rows do not exist yet.
+    if (results.length < saved.visibleCount && searchPage.hasMore) { searchPage.loadMore(); return; }
+    const frame = requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = saved.scrollTop;
+      restore.current = undefined;
     });
-    return () => {
-      stale = true;
-    };
-  }, [vault, parsed.mode, parsed.term]);
+    return () => cancelAnimationFrame(frame);
+  }, [query, debounced, results.length, searchPage]);
+  const keepContext = () => {
+    if (!restore.current) rememberSearchSession(vault.vaultId, query, scrollRef.current?.scrollTop ?? 0, results.length);
+  };
+  const changeQuery = (value: string) => {
+    restore.current = undefined;
+    setQuery(value);
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    rememberSearchSession(vault.vaultId, value, 0);
+  };
 
   // Grouping (P4, desktop parity): a SNIPPET_MARK sentinel in the highlighted
   // title means the file NAME matched; everything else is a content hit.
   // The sentinel is char(1) — constructed, never typed literally.
   const mark = String.fromCharCode(1);
-  const nameHits = results.filter((r) => r.titleHighlighted?.includes(mark));
+  const nameHits = results.filter((r) => !r.occurrence && r.titleHighlighted?.includes(mark));
   const nameSet = new Set(nameHits.map((r) => r.path));
   const contentHits = results.filter((r) => !nameSet.has(r.path));
 
   const openResult = (r: SearchResult) => {
+    keepContext();
     // Park the jump BEFORE opening: the editor may not be mounted yet.
     const term = jumpTermOf(parsed.term);
-    if (term) setPendingSearchJump({ path: r.path, term });
+    if (term) setPendingSearchJump({ path: r.path, term, ...r.occurrence });
     void rememberSearch(vault.vaultId, parsed.term);
     onOpenNote(r.path);
   };
 
   const openPath = (path: string) => {
+    keepContext();
     void rememberSearch(vault.vaultId, parsed.term);
     onOpenNote(path);
   };
@@ -118,7 +137,7 @@ export function SearchScreen({
   };
 
   const resultRow = (r: SearchResult) => (
-    <button className="m-row m-result" key={r.path} onClick={() => openResult(r)}>
+    <button className="m-row m-result" data-search-occurrence={r.occurrence?.from} key={r.path + ":" + (r.occurrence?.from ?? "file")} onClick={() => openResult(r)}>
       {docIcons.get(r.path) ? (
         <span className="m-rowicon">
           <DocIcon color={docIcons.get(r.path)!.color} icon={docIcons.get(r.path)!.icon} size={ICON.head} />
@@ -132,6 +151,7 @@ export function SearchScreen({
             ? renderSnippetNodes(r.titleHighlighted)
             : r.path.split("/").pop()!.replace(/\.md$/i, "")}
         </span>
+        {r.occurrence && <span className="m-result-snippet">{r.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: r.occurrence.line })}</span>}
         {r.snippet ? (
           <span className="m-result-snippet">{renderSnippetNodes(r.snippet)}</span>
         ) : null}
@@ -158,7 +178,7 @@ export function SearchScreen({
 
   const bothGroups = nameHits.length > 0 && contentHits.length > 0;
   return (
-    <div className="m-page">
+    <div className="m-page" ref={scrollRef} onScroll={keepContext}>
       {/* The search field IS this surface's title — the one place where the
           title slot carries a control instead of a heading. */}
       <AppBar
@@ -169,7 +189,7 @@ export function SearchScreen({
           <SearchField
             clearLabel={t("sidebar.clearSearch")}
             onEscapeWhenEmpty={onBack}
-            onValueChange={setQuery}
+            onValueChange={changeQuery}
             placeholder={t("search.hint")}
             ref={inputRef}
             value={query}
@@ -182,7 +202,7 @@ export function SearchScreen({
             <>
               <p className="m-sectionlabel">{t("search.recent")}</p>
               {recent.map((q) => (
-                <button className="m-row" key={q} onClick={() => setQuery(q)}>
+                <button className="m-row" key={q} onClick={() => changeQuery(q)}>
                   <Clock size={ICON.head} />
                   <span>{q}</span>
                 </button>
@@ -195,7 +215,7 @@ export function SearchScreen({
               <Chip
                 key={op.insert}
                 onClick={() => {
-                  setQuery(appendOperator(query, op.insert));
+                  changeQuery(appendOperator(query, op.insert));
                   inputRef.current?.focus();
                 }}
               >
@@ -217,7 +237,7 @@ export function SearchScreen({
           <EmptyState
             action={
               parsed.term ? (
-                <Button data-testid="search-instead" onClick={() => setQuery(parsed.term)} variant="tonal">
+                <Button data-testid="search-instead" onClick={() => changeQuery(parsed.term)} variant="tonal">
                   {t("search.searchInstead")}
                 </Button>
               ) : undefined
@@ -264,7 +284,11 @@ export function SearchScreen({
           {/* The full-text hits, minus what the name list already showed. */}
           {nameHits.filter((r) => !nameMatchSet.has(r.path)).map(resultRow)}
           {contentHits.length > 0 && <p className="m-sectionlabel">{t("sidebar.matchesContent")}</p>}
-          {contentHits.filter((r) => !nameMatchSet.has(r.path)).map(resultRow)}
+          {contentHits.filter((r) => r.occurrence || !nameMatchSet.has(r.path)).map(resultRow)}
+          {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
+          {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
+          {!searchPage.loading && !searchPage.failed && !results.length && <p role="status">{t("searchResults.empty")}</p>}
           {/* A search that finds nothing is still a way forward (desktop parity). */}
           {createName !== "" && (
             <button className="m-row" onClick={createNote}>

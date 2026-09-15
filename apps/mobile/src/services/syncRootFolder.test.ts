@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { setPlatformServices, type ISettingsStore } from "@plainva/ui";
 import {
   clearSyncRootFolders,
+  readDriveDestination,
   readSyncRootFolder,
   syncRootFolderKey,
   writeSyncRootFolder,
@@ -58,6 +59,14 @@ describe("where the remote folder lives (finding 2026-08-19)", () => {
     // A cleared field is a DECISION ("use the default"), not a missing value —
     // reading must not resurrect the stale blob value on top of it.
     expect(await readSyncRootFolder(VAULT, "drive", drive("Wiki"))).toBe("");
+  });
+
+  it("retains a same-named folder's identity through reconnect and clears it on a new path choice", async () => {
+    await writeSyncRootFolder(VAULT, "drive", "Plainva", "second-folder");
+    expect(await readDriveDestination(VAULT, null)).toEqual({ path: "Plainva", id: "second-folder" });
+    expect(await readSyncRootFolder(VAULT, "drive", null)).toBe("Plainva");
+    await writeSyncRootFolder(VAULT, "drive", "New vault");
+    expect(await readDriveDestination(VAULT, null)).toEqual({ path: "New vault" });
   });
 
   it("does not write a store entry for an account that never had a folder", async () => {

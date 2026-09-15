@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-09-06
+Última revisão: 2026-09-15
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -287,3 +287,11 @@ Uma barra que ultrapassa o período exibido é cortada na borda e ali **não tem
 Filtre por faixa de cor, ícone, tags da nota inteira ou propriedade de rótulos escolhida para o mural. Tags coincidem exatamente: #work não encontra #workshop nem #work/child. Texto e frontmatter são combinados. Valores ficam disponíveis de toda a fonte mesmo sem resultados; nomes de ícones desconhecidos são preservados.
 
 O filtro muda a seleção visível, não os arquivos. Os valores vêm de toda a fonte, mesmo quando não há resultados.
+
+## Exportar uma tabela
+
+Abra **Exportar tabela** no menu do banco de dados no desktop ou use o ícone de exportação na barra móvel. A janela mostra o número atual de linhas do resultado e as colunas da visualização.
+
+**Fórmulas (.base)** cria uma tabela com uma seleção fixa das linhas atuais. Estes cálculos por relações salvas permanecem como fórmulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Abra o arquivo no mesmo cofre com as notas vinculadas. A janela identifica cálculos incompatíveis e relações inversas; use a exportação de valores para essas colunas.
+
+**Valores (.csv)** contém os valores calculados atuais e os caminhos dos arquivos. Os valores não serão atualizados; as listas permanecem em JSON. Textos semelhantes a fórmulas são protegidos como texto em planilhas. Nenhuma opção grava propriedades calculadas nas notas originais.

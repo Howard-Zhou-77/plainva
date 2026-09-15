@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Guardado en este dispositivo. Abre Plainva para elegir el vault y la carpeta.</string>
+    <string name="share_failed">No se ha guardado por completo. Comparte de nuevo los originales.</string>
+    <string name="share_limit">Máximo 10 archivos, 25 MiB por archivo, 50 MiB en total y 512 KiB de texto.</string>
+    <string name="share_full">La cola está llena. Primero importa o descarta contenido pendiente en Plainva.</string>
+</resources>

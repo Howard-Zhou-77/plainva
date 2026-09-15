@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-09-07
+Última revisão: 2026-09-15
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -12,7 +12,7 @@ O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e lev
 
 - **Microsoft** — para Outlook.com e Microsoft 365: marque **E-mail** na etapa de serviços (se quiser, junto com **Arquivos** e **Calendário e tarefas** — uma conta, um login) e entre diretamente pelo navegador, sem senha de app e sem IMAP. O Plainva usa o registro central de app do Plainva para isso (você pode informar seu próprio ID de app opcionalmente nos detalhes da conta). Ler a caixa, capturar e **enviar diretamente** passam todos pelo login da Microsoft.
 - **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — blocos dedicados: endereço de e-mail mais uma **senha de app**, os servidores já vêm preenchidos (a maioria desses blocos também permite marcar **Calendário e tarefas** na mesma etapa — uma senha de app para todos os serviços escolhidos). O assistente traz o link do guia oficial de cada provedor para criar a senha de app.
-- **Servidor de e-mail (IMAP)** — para todos os outros provedores: host, porta e uma senha ou **senha de app**. Há predefinições prontas para provedores do mundo todo — de **web.de**/**GMX** e **T-Online**, passando por **Orange**, **Libero**, **WP**, **Seznam** e **Comcast**, até **QQ Mail**, **NetEase**, **Naver** e **Yahoo! JAPAN**; a seleção **Provedor** tem uma linha de busca para isso, e digitar seu endereço escolhe automaticamente a predefinição correspondente. Quando um provedor tem particularidades, o assistente avisa logo abaixo do formulário: alguns exigem uma **senha de app** ou um **código de autorização** em vez da senha da conta, outros precisam que o IMAP seja ativado antes nas configurações do provedor — cada um com um link para o guia oficial. Para o Gmail isso é `imap.gmail.com`, porta `993`, com uma senha de app de [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (exige autenticação de dois fatores) — sem OAuth, sem verificação; o assistente já avisa isso sozinho para endereços do Gmail. **Caixas do Outlook.com** não podem mais se conectar via IMAP com senha (a Microsoft desativou esse caminho) — a predefinição aponta para o bloco **Microsoft**. O **Proton Mail** só funciona através do Proton Mail Bridge local pago (tem sua própria predefinição). Para enviar diretamente, é possível informar um host SMTP.
+- **Servidor de e-mail (IMAP)** — para todos os outros provedores: host, porta e uma senha ou **senha de app**. Há predefinições prontas para provedores do mundo todo — de **web.de**/**GMX** e **T-Online**, passando por **Orange**, **Libero**, **WP**, **Seznam** e **Comcast**, até **QQ Mail**, **NetEase**, **Naver** e **Yahoo! JAPAN**; a seleção **Provedor** tem uma linha de busca para isso, e digitar seu endereço escolhe automaticamente a predefinição correspondente. Quando um provedor tem particularidades, o assistente avisa logo abaixo do formulário: alguns exigem uma **senha de app** ou um **código de autorização** em vez da senha da conta, outros precisam que o IMAP seja ativado antes nas configurações do provedor — cada um com um link para o guia oficial. Para o Gmail isso é `imap.gmail.com`, porta `993`, com uma senha de app de [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (exige autenticação de dois fatores) — um acesso separado com senha de app; o assistente já avisa isso sozinho para endereços do Gmail. **Caixas do Outlook.com** não podem mais se conectar via IMAP com senha (a Microsoft desativou esse caminho) — a predefinição aponta para o bloco **Microsoft**. O **Proton Mail** só funciona através do Proton Mail Bridge local pago (tem sua própria predefinição). Para enviar diretamente, é possível informar um host SMTP.
 
 Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para o chaveiro do seu sistema operacional. As caixas de correio conectadas e as configurações de captura ficam depois na área **E-mail**: a configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
 
@@ -137,3 +137,18 @@ As regras do Gmail continuam sendo configuradas nas próprias configurações do
 ## Ampliar contas existentes
 
 Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
+
+<!-- gmail-oauth-2026-09-14 -->
+## Entrar no Gmail com Google
+
+Uma versão de teste configurada mostra **Entrar com Google · Teste** nas contas de e-mail. Esse acesso ainda não está disponível para todos. Desktop e iOS usam o navegador do sistema; Android usa o seletor nativo de contas Google. O Plainva verifica a conta escolhida e as permissões concedidas antes de adicionar serviços. Outra conta, cancelamento ou recusa de consentimento não substitui um acesso existente.
+
+O Google exige acesso completo ao e-mail para IMAP e SMTP. O acesso fica neste dispositivo; tokens OAuth não são sincronizados com o cofre. Os e-mails salvos como notas ou arquivos EML tornam-se conteúdo do cofre e seguem suas configurações de armazenamento, compartilhamento e sincronização. As senhas de app do Gmail continuam funcionando.
+
+## Várias mensagens, anexos e teclado
+
+Selecione várias mensagens para marcá-las como lidas ou não lidas, movê-las ou excluí-las. As alterações confirmadas atualizam a lista. As mensagens não confirmadas permanecem selecionadas, com um resultado individual. Cancelar interrompe após o lote atual. Recarregue a pasta antes de repetir uma ação com resultado incerto. Se o servidor não permitir uma ação específica, o Plainva explica o motivo e preserva as outras mensagens.
+
+**Com anexos** filtra as mensagens carregadas. O aviso indica quantas têm metadados conhecidos. A falta de metadados não significa ausência de anexos; outras páginas podem conter mais resultados.
+
+Com um teclado físico no dispositivo móvel, Cima/Baixo e Home/End movem o foco na lista. Enter abre ou seleciona a mensagem. Esquerda/Direita recolhem ou expandem conversas; Escape sai da seleção ou cancela os próximos lotes. Os campos de pesquisa mantêm as teclas normais de edição.

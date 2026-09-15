@@ -9,6 +9,8 @@ import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, typ
 import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { listExistingDailyNotes } from "../../services/dailyNotes";
+import { useDailyNoteAction } from "../../hooks/useDailyNoteAction";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { loadCalendarOverlays, saveCalendarOverlays } from "../../services/pim/calendarOverlays";
 import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
@@ -86,6 +88,11 @@ const AGENDA_DAYS = 60;
 export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
+  const openDailyNote = useDailyNoteAction(onOpenPath);
+  const loadDailyDays = useCallback(async (dates: Date[]) => {
+    if (!vaultPath || !vaultAdapter) return new Set<string>();
+    return listExistingDailyNotes(dates, { vaultPath, adapter: vaultAdapter });
+  }, [vaultPath, vaultAdapter]);
 
   const todayKey = localIsoKey(new Date());
   const tomorrowKey = ((): string => {
@@ -1509,6 +1516,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           <DateJumpPicker
             value={selectedDay}
             weekStart={weekStartDay}
+            loadMarkedDays={loadDailyDays}
+            marksRevision={fileTreeVersion}
+            onOpenDailyNote={(key) => { setJumpOpen(false); void openDailyNote(new Date(`${key}T00:00:00`)); }}
             band={
               (viewMode === "week" || viewMode === "3day") && gridDays.length > 0
                 ? { from: localIsoKey(gridDays[0]), to: localIsoKey(gridDays[gridDays.length - 1]) }

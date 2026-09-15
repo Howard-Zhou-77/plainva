@@ -13,12 +13,14 @@ export class EditorSaveLifetime {
   savedRevision = -1;
   discardedRevision = -1;
   activeWrites = 0;
+  transferFrozen = false;
   private active = false;
 
   constructor(readonly vaultPath: string | null, readonly path: string | null, readonly adapter: IVaultAdapter | null) {}
   activate(): void { this.active = true; }
   deactivate(): void { this.active = false; }
   isActive(): boolean { return this.active; }
+  setTransferFrozen(frozen: boolean): void { this.transferFrozen = frozen; }
   recover(draft: { revision: number; sessionId?: string }): void { this.recoveredDraft = draft; }
   update(patch: Partial<Pick<EditorSaveLifetime, "dirty" | "persisted" | "revision" | "shape" | "baseInput" | "savedRevision" | "discardedRevision" | "activeWrites" | "recoveredDraft">>): void {
     Object.assign(this, patch);

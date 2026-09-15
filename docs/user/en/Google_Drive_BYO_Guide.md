@@ -1,6 +1,6 @@
 # Setting up Google Drive Sync (Bring Your Own Credentials)
 
-Last updated: 2026-07-28
+Last updated: 2026-09-15
 
 To sync a local vault with your Google Drive in Plainva, you can use your own Google API credentials. Since Plainva has not (yet) gone through Google's central CASA verification, this **Bring Your Own Credentials (BYO)** approach offers a safe way to sync your private files.
 
@@ -66,10 +66,15 @@ Your vault now syncs safely with Google Drive through your own credentials.
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-The desktop-client instructions above apply to the desktop app. Mobile needs a registration for the device: use the **iOS** client type with bundle ID `com.plainva.app`, or **Android** with package name `com.plainva.app` and the installed build’s SHA-1 signing certificate. Mobile clients usually need no client secret. Plainva’s browser return URI is `com.plainva.app:/oauth2redirect`. Google blocks this return method for new Android clients by default. Google documents an exception through explicitly enabling the custom URI method in the Android client’s advanced settings; if that option is unavailable for your client, that client cannot use the current browser flow. A desktop client ID is not a substitute. For calendars, also enable **Google Calendar API** and **Google Tasks API**. Missing permissions require new consent; an existing Drive sign-in alone is insufficient.
+The desktop instructions above require a Desktop client ID and its matching client secret. Android uses Google Identity Services: register package `com.plainva.app` with the SHA-1 certificate of the installed build. Play builds use the app-signing certificate; locally signed builds may use a different certificate. Android uses no browser redirect and no client secret. On iOS, use an iOS client with bundle ID `com.plainva.app` and return URI `com.plainva.app:/oauth2redirect`. A desktop client cannot replace mobile registration. For calendars, also enable Google Calendar API and Google Tasks API.
 
-[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+[Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
+
+
 
 Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.
 
 The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide.
+
+<!-- account-grants-destination-2026-09-14 -->
+A generic sign-in error cannot tell Plainva your Google project’s publishing status or test-user list. Check those settings in Google Cloud and read the specific provider message. A desktop client needs its client ID and matching client secret value; mobile registration depends on the platform and installed build.

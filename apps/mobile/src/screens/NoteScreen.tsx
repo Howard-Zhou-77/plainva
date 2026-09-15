@@ -1,3 +1,4 @@
+import { listMobilePublicationFeedback } from "../services/mobileComments";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -211,6 +212,16 @@ export function NoteScreen({
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const commentCaps = workspaceCapabilities ?? MOBILE_COMMENT_CAPABILITIES;
   const canComment = commentCaps.includes("comment.create");
+  const canSuggest = canComment && commentCaps.includes("comment.suggest");
+  const [publicationComments, setPublicationComments] = useState<Awaited<ReturnType<typeof listMobilePublicationFeedback>>>([]);
+  useEffect(() => {
+    let stale = false;
+    setPublicationComments([]);
+    if (commentsOpen) void listMobilePublicationFeedback(vault, path)
+      .then(entries => { if (!stale) setPublicationComments(entries); })
+      .catch(() => { if (!stale) setPublicationComments([]); });
+    return () => { stale = true; };
+  }, [vault, path, commentsOpen, commentTick]);
   /**
    * Locked on this phone (N3): the keyfile is in the vault, the key is not.
    * The verbs stay - comment, suggest - and lead to the sheet, which says what
@@ -511,7 +522,7 @@ export function NoteScreen({
       window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { vaultId: vault.vaultId, path, note } }));
       window.dispatchEvent(new CustomEvent("m-editor-suggest-restore", { detail: { vaultId: vault.vaultId, path, copy: reconciled.copy } }));
     }, 0);
-    if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
+    if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length, count: reconciled.orphaned.length }));
   };
   const discardParked = () => {
     setParked(null);
@@ -870,7 +881,7 @@ export function NoteScreen({
           <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("comments.suggestParkedResume")}</Button>
         </>}>
           <strong>{t("comments.suggestParkedTitle")}</strong>
-          <p className="m-hint" data-testid="suggest-parked">{t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(parked), when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
+          <p className="m-hint" data-testid="suggest-parked">{t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(parked), count: parkedSuggestionBlocks(parked), when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
         </Banner>
       )}
       {suggesting && (
@@ -897,7 +908,7 @@ export function NoteScreen({
             setPendingRange({ ...req, anchor: buildCommentAnchor(source, placed.from, placed.to, mintAnchorMarkerId(source), req.display) });
             setPendingPropertyAnchor(null); setCommentsOpen(true);
           }}
-          onPassageSuggest={canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
+          onPassageSuggest={canSuggest && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
             // Locked (N3): the verb leads to the explanation, not into a mode
             // whose send would fail a minute later.
             if (commentsLocked) { setCommentsOpen(true); return; }
@@ -908,14 +919,11 @@ export function NoteScreen({
             setSuggestCount(0);
             window.setTimeout(() => editorEvent("m-editor-suggest-start"), 0);
           } : undefined}
-          onEditAt={workspaceCanWrite && !managedIndex && !suggesting ? (range) => {
-            // The third verb over a read-mode selection (P5, Build-91
-            // feedback): switch to writing and land the cursor on the passage
-            // the finger marked — the editor exists in edit shape a tick later.
+          onEditAt={workspaceCanWrite && !managedIndex && !suggesting ? () => {
+            // The marked range already belongs to the same editor session.
+            // Enabling writing preserves it. A deferred jump can arrive after
+            // the first keystrokes and replace them at stale source offsets.
             setEditing(true);
-            window.setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("m-editor-goto-range", { detail: { vaultId: vault.vaultId, path, from: range.from, to: range.to } }));
-            }, 0);
           } : undefined}
           onAnchorActivate={(commentId) => { setActiveCommentId(commentId); setCommentsOpen(true); }}
           onSuggestionApply={workspaceCanWrite ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "applied"); } : undefined}
@@ -953,6 +961,7 @@ export function NoteScreen({
 
       {commentsOpen && (
         <CommentsSheet
+          publicationComments={publicationComments}
           operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
@@ -1036,7 +1045,7 @@ export function NoteScreen({
             ]),
             // The suggestion mode (V5): type in a copy, send the changes as a
             // round. Needs the right to comment, not to write.
-            ...(canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? [{
+            ...(canSuggest && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? [{
               icon: <PenLine size={ICON.head} />,
               label: t("comments.suggestMode"),
               onClick: () => {

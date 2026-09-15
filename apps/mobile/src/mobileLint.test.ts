@@ -1165,7 +1165,7 @@ describe("mail can file a draft and narrow the list", () => {
     const view = stripComments(readFileSync(join(SRC, "screens/mail/mailListView.ts"), "utf8"));
     expect(view).toMatch(/isEmptyByFilter/);
     const screen = stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/view\.isEmptyByFilter \? t\("mail\.noUnread"\)/);
+    expect(screen).toMatch(/view\.isEmptyByFilter \? t\(attachmentsOnly \? "mail\.noAttachmentMatches" : "mail\.noUnread"\)/);
   });
 
   it("offers the sign-in where the missing password empties the list", () => {
@@ -1359,7 +1359,8 @@ describe("a managed overview cannot be edited by accident", () => {
     // The suggestion mode (V5) edits a copy, so it opens the editor without the
     // write right - but never on a managed overview: its menu entry is gated too.
     expect(screen).toMatch(/editable=\{\(editing && workspaceCanWrite && !managedIndex\) \|\| suggesting\}/);
-    expect(screen).toMatch(/canComment && resolveOpenAction\(path\) !== "text" && !managedIndex && !suggesting/);
+    expect(screen).toContain('const canSuggest = canComment && commentCaps.includes("comment.suggest")');
+    expect(screen).toMatch(/canSuggest && resolveOpenAction\(path\) !== "text" && !managedIndex && !suggesting/);
     expect(screen).toMatch(/!editing && workspaceCanWrite && !managedIndex &&/);
     // The way out exists and removes the marker rather than just unlocking.
     expect(screen).toMatch(/stripPlainvaIndexMarker\(doc\)/);
@@ -3100,7 +3101,7 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
     // refreshing on the side — the arrangement stage B exists to end.
     const login = read("src/services/accountLogin.ts");
     expect(login).toMatch(/forgetGraphMailRuntime\(vaultId, id\)/);
-    expect(login).toMatch(/saveMicrosoftMailAccount\(vaultId, \{ \.\.\.mail, clientId \}, ""\)/);
+    expect(login).toMatch(/replaceProtectedSlot\(accountCredentialStore, \[mailSecretKey\(vaultId, id\), legacyMailSecretKey\(vaultId, id\)\], previous, \{ \.\.\.previous, refreshToken: "" \}\)/);
   });
 
   it("says whether restoring a mass deletion worked", () => {

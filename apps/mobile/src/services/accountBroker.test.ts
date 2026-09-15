@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GOOGLE_MAIL_SCOPES, primaryAccountToken } from "@plainva/ui";
 import {
   GOOGLE_CALENDAR_SCOPES,
   refreshOneDriveAccessToken,
@@ -56,6 +57,17 @@ describe("mobile account broker local OAuth boundary", () => {
     state.refreshDrive.mockClear();
   });
 
+  it("routes Gmail through its own confirmed mail grant while a calendar grant remains narrower", async () => {
+    state.records = [{ ...google("gmail", "calendar"), services: { mail: { mailAccountId: "gmail-box" }, calendar: { pimAccountId: "calendar" } } }];
+    state.secrets.set(accountSecretKey("gmail-vault", "gmail"), { version: 2, grants: [
+      { clientId: "calendar-client", refreshToken: "calendar-refresh", scopes: GOOGLE_CALENDAR_SCOPES },
+      { clientId: "mail-client", refreshToken: "mail-refresh", scopes: GOOGLE_MAIL_SCOPES },
+    ] });
+    const provider = await brokerTokenProvider("gmail-vault", "mail", "gmail-box");
+    await expect(provider?.(false)).resolves.toBe("access-mail-client");
+    expect(await brokerTokenProvider("gmail-vault", "mail", "other-mailbox")).toBeUndefined();
+  });
+
   it("routes a calendar through the matching local account slot", async () => {
     state.secrets.set(accountSecretKey("v1", "g1"), {
       clientId: "android-client-1",
@@ -86,7 +98,7 @@ describe("mobile account broker local OAuth boundary", () => {
     await expect(brokerTokenProvider("v1", "calendar", "pim-1")).resolves.toBeUndefined();
   });
 
-  it("changes client and invalidates token in one local slot write", async () => {
+  it("changes the selected client without pairing it with the old client's grant", async () => {
     state.secrets.set(accountSecretKey("v1", "g1"), {
       clientId: "old-client",
       clientSecret: "old-secret",
@@ -98,7 +110,7 @@ describe("mobile account broker local OAuth boundary", () => {
       clientId: "new-client",
       clientSecret: "new-secret",
     })).resolves.toBe(true);
-    expect(state.secrets.get(accountSecretKey("v1", "g1"))).toEqual({
+    expect(primaryAccountToken(state.secrets.get(accountSecretKey("v1", "g1")))).toEqual({
       clientId: "new-client",
       clientSecret: "new-secret",
       refreshToken: "",
@@ -153,6 +165,6 @@ describe("mobile scoped token renewal through the secure store", () => {
     await saveAccountToken("v1", "ms", { clientId: "client", refreshToken: "new-consent", scopes: microsoftScopeFor("calendar") });
     release(); await failure;
     await expect(provider(false)).resolves.toBe("fresh");
-    expect(state.secrets.get(accountSecretKey("v1", "ms"))).toMatchObject({ refreshToken: "new-consent" });
+    expect(primaryAccountToken(state.secrets.get(accountSecretKey("v1", "ms")))).toMatchObject({ refreshToken: "new-consent" });
   });
 });

@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -239,8 +239,8 @@ Alles Plainva-Spezifische ist namespaced. Drei Orte:
 |---|---|---|
 | `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Plainva-only-Ansichtsart (siehe unten) |
 | `groupBy` | bare Eigenschaftsschlüssel | Gruppierungsspalte des Boards |
-| `dateField` | bare Eigenschaftsschlüssel | Startdatum für Kalender/Zeitachse |
-| `endField` | bare Eigenschaftsschlüssel | Enddatum der Zeitachse |
+| `dateField` | bare Eigenschaftsschlüssel | Startdatum für Kalender/Zeitleiste |
+| `endField` | bare Eigenschaftsschlüssel | Enddatum der Zeitleiste |
 | `coverImage` | bare Eigenschaftsschlüssel | Titelbild-Eigenschaft der Galerie |
 | `subItemsProperty` | bare Eigenschaftsschlüssel | Eltern-Spalte (Self-Relation) für die Unterelemente-Verschachtelung |
 | `widths` | Map id → px | Spaltenbreiten |
@@ -330,7 +330,7 @@ options:
 | Galerie | `cards` | — |
 | Board | `table` | `board` |
 | Kalender | `table` | `calendar` |
-| Zeitachse | `table` | `timeline` |
+| Zeitleiste | `table` | `timeline` |
 
 ### Filter
 

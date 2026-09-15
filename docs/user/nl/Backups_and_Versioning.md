@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-09-07
+Laatst bijgewerkt: 2026-09-15
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -90,3 +90,7 @@ Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde ti
 Een bestand is gewijzigd sinds het openen. De vergelijking is opnieuw geladen. Controleer de huidige inhoud en kies opnieuw.
 
 Regel voor regel samenvoegen is een hulpmiddel voor de computer; hier neem je één versie helemaal over of houd je beide.
+
+## De geselecteerde kopie vergelijken
+
+De geselecteerde versie toont toegevoegde en verwijderde regels ten opzichte van de huidige notitie, ook als de diff verborgen is. **Openen in nieuw venster** houdt op de desktop precies die kopie geselecteerd. Als deze verdwijnt, meldt Plainva dat. Grote bestanden hebben mogelijk geen regelaantallen; binaire bestanden hebben geen tekstvergelijking. Mobiel toont dezelfde aantallen in het volledige vergelijkingsscherm.

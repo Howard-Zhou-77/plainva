@@ -1,7 +1,8 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
-import { SyncStateRepository } from "./SyncStateRepository.js";
+import { SyncStateRepository, type SyncState } from "./SyncStateRepository.js";
 import { mergeText } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
+import { withPathMutation } from "./pathMutation.js";
 
 export class ConflictError extends Error {
   public conflictPath?: string;
@@ -30,7 +31,8 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   constructor(
     private readonly inner: IVaultAdapter,
     private readonly syncRepo: SyncStateRepository,
-    private readonly onAutoMerge?: (path: string, mergedText: string) => void
+    private readonly onAutoMerge?: (path: string, mergedText: string) => void,
+    private readonly mutationScope: object = syncRepo
   ) {}
 
   /**
@@ -42,7 +44,6 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
    * Chaining per path makes each op atomic w.r.t. other ops on the same path. A failed op
    * (a genuine conflict) rejects to its own caller but never blocks the next queued op.
    */
-  private writeChains = new Map<string, Promise<unknown>>();
 
   /**
    * Hash of the content this adapter last wrote per path (TestFlight feedback
@@ -71,14 +72,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   }
 
   private runExclusive<T>(path: string, fn: () => Promise<T>): Promise<T> {
-    const prev = this.writeChains.get(path) ?? Promise.resolve();
-    const run = prev.catch(() => {}).then(fn);
-    this.writeChains.set(path, run);
-    // Once this op is the tail of the chain, drop the map entry to avoid unbounded growth.
-    run.catch(() => {}).finally(() => {
-      if (this.writeChains.get(path) === run) this.writeChains.delete(path);
-    });
-    return run;
+    return withPathMutation(this.mutationScope, [path], fn);
   }
 
   async initialize(): Promise<void> {
@@ -111,10 +105,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   }
 
   async writeTextFile(path: string, localContent: string): Promise<void> {
-    return this.runExclusive(path, () => this.writeTextFileLocked(path, localContent));
+    // Capture the base before waiting behind an incoming write. Its completion
+    // advances sync_state, but cannot retroactively update the user's draft.
+    const requestedState = await this.syncRepo.getSyncState(path);
+    return this.runExclusive(path, () => this.writeTextFileLocked(path, localContent, requestedState));
   }
 
-  private async writeTextFileLocked(path: string, localContent: string): Promise<void> {
+  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null): Promise<void> {
     const isNew = !(await this.inner.exists(path));
     if (isNew) {
       await this.inner.writeTextFile(path, localContent);
@@ -126,7 +123,6 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
     const currentDiskContent = await this.inner.readTextFile(path);
     const diskSha256 = await sha256Hash(currentDiskContent);
-    const syncState = await this.syncRepo.getSyncState(path);
     // The disk holds what we wrote last: not a foreign change, whatever the
     // stored hash claims (see `lastWritten`).
     const ownContent = this.wasWrittenByUs(path, diskSha256);
@@ -153,7 +149,9 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
       // External modification detected! Attempt 3-way merge.
       console.warn(`[ConflictAware] disk changed under us for ${path} (diskSha=${diskSha256.slice(0, 8)}, expected local=${syncState.local_sha256.slice(0, 8)}) -> attempting merge`);
-      const baseContent = await this.findBaseContent(path, syncState.local_sha256);
+      const capturedBase = syncState.base_text;
+      const baseContent = capturedBase != null && await sha256Hash(capturedBase) === syncState.local_sha256
+        ? capturedBase : await this.findBaseContent(path, syncState.local_sha256);
       if (baseContent === null) {
         // We cannot merge without the base version. Save the user's edits as a CONFLICT file.
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -246,15 +244,15 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
     // We do not auto-merge binary files
-    return this.inner.writeBinaryFile(path, content);
+    return this.runExclusive(path, () => this.inner.writeBinaryFile(path, content));
   }
 
   async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
-    return this.inner.deleteItem(path, recursive, confirmation);
+    return this.runExclusive(path, () => this.inner.deleteItem(path, recursive, confirmation));
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    return this.inner.renameItem(oldPath, newPath);
+    return withPathMutation(this.mutationScope, [oldPath, newPath], () => this.inner.renameItem(oldPath, newPath));
   }
 
   async exists(path: string): Promise<boolean> {
@@ -276,14 +274,14 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     await (this.inner as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     return this.inner.listDirReport
-      ? this.inner.listDirReport(path, recursive)
-      : { files: await this.inner.listDir(path, recursive), skipped: [] };
+      ? this.inner.listDirReport(path, recursive, options)
+      : { files: await this.inner.listDir(path, recursive, options), skipped: [] };
   }
 
-  async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {
-    return this.inner.listDir(path, recursive);
+  async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
+    return this.inner.listDir(path, recursive, options);
   }
 
   async createDir(path: string): Promise<void> {

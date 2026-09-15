@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-10
+Stan na: 2026-09-15
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -187,3 +187,9 @@ Wszystko pozostaje standardowym Markdownem ze standardowym frontmatter. Obsidian
 Gdy zaznaczenie obejmuje kilka wierszy, **pogrubienie**, *kursywa*, przekreślenie, wyróżnienie i kod liniowy są stosowane osobno do każdego niepustego wiersza. Prefiksy list, cytatów, nagłówków i zadań pozostają poza znacznikami. Linki pozostają jednowierszowe, ponieważ wielowierszowa etykieta nie jest przenośnym Markdownem.
 
 Nagłówek ATX i zadanie GFM są alternatywnymi typami bloków. Plainva nie zapisuje nieprawidłowej kombinacji. Formatowanie liniowe działa w obu; użyj `- [ ] **Ważne zadanie**`, aby wyróżnić tytuł.
+
+## Osadzanie sekcji i bloków
+
+`![[Notatka#Nagłówek]]` pokazuje sekcję z podnagłówkami do następnego nagłówka tego samego lub wyższego poziomu. `![[Notatka#^block-id]]` pokazuje wskazany akapit, element listy albo blok przed identyfikatorem umieszczonym w osobnym wierszu. Zwykły link `[[Notatka#^block-id]]` prowadzi tam również w trybie czytania.
+
+Przy powtarzających się nagłówkach użyj jednoznacznej hierarchii (`#Projekt#Wynik`) lub kotwicy z numerem (`#wynik-1`). Brakujące i niejednoznaczne cele pokazują komunikat, a źródło pozostaje dostępne. Głębokość zagnieżdżenia jest ograniczona; przykłady kodu nie wykonują osadzania. Na telefonie sekcje i bloki nie są skracane do czterech wierszy zwykłego podglądu notatki. Istniejące pliki nie są zmieniane.

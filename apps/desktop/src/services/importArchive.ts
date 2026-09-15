@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isTextPath, type UnpackedFile } from '@plainva/core';
+import { isTextPath, readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl, type UnpackedFile } from '@plainva/core';
 
 // The text-extension list moved to @plainva/core in S40 so the phone decodes
 // the same entries as text; re-exported because callers here import it.
@@ -40,10 +40,23 @@ export interface ExtractedArchive {
   files: UnpackedFile[];
   /** Entries the extractor refused (oversized, symlink, unsafe path). */
   skipped: Array<{ relativePath: string; reason: string }>;
+  readSourceBytes?: (sourcePath: string) => Promise<Uint8Array | null>;
 }
 
-export async function extractArchive(archivePath: string): Promise<ExtractedArchive> {
+export async function extractArchive(archivePath: string, control: ArchiveReadControl = {}): Promise<ExtractedArchive> {
+  checkArchiveAbort(control.signal);
   const result = await invoke<NativeResult>('extract_archive', { archivePath });
+  if (/\.(jex|tar)$/i.test(archivePath)) {
+    try {
+      const archive = await readStagedTar(result, control);
+      if (/\.jex$/i.test(archivePath)) {
+        if (!archive.files.length) throw new Error('import.jexInvalid');
+        archive.files.forEach(file => { file.sourceFormat = 'jex'; });
+      }
+      return archive;
+    }
+    catch (error) { await discardExtractedArchive(result.root); throw error; }
+  }
   const { readTextFile } = await import('@tauri-apps/plugin-fs');
 
   const files: UnpackedFile[] = [];
@@ -75,6 +88,64 @@ export async function extractArchive(archivePath: string): Promise<ExtractedArch
     files,
     skipped: result.skipped.map((s) => ({ relativePath: s.rel_path, reason: s.reason })),
   };
+}
+
+interface TarReadFs {
+  open(path: string, options: { read: boolean }): Promise<{ seek(offset: number, whence: number): Promise<unknown>; read(bytes: Uint8Array): Promise<number | null>; close(): Promise<void> }>;
+  SeekMode: { Start: number };
+}
+export async function readStagedTar(result: NativeResult, control: ArchiveReadControl = {}, fs?: TarReadFs): Promise<ExtractedArchive> {
+  const { open, SeekMode } = fs ?? await import('@tauri-apps/plugin-fs');
+  const staged = `${result.root}/source.tar`;
+  const source = await open(staged, { read: true });
+  const read = async (offset: number, length: number) => {
+    checkArchiveAbort(control.signal);
+    await source.seek(offset, SeekMode.Start);
+    const bytes = new Uint8Array(length);
+    let readCount = 0;
+    while (readCount < length) {
+      checkArchiveAbort(control.signal);
+      const n = await source.read(bytes.subarray(readCount, Math.min(length, readCount + 256 * 1024)));
+      if (!n) throw new Error('import.archiveInvalid');
+      readCount += n;
+    }
+    return bytes;
+  };
+  const files: UnpackedFile[] = [];
+  const ranges = new Map<string, { offset: number; size: number }>();
+  try {
+    const entries = await readTarEntries({ size: result.total_bytes, read }, { ...control, onProgress: n => control.onProgress?.(Math.floor(n * 0.6)) });
+    let textBytes = 0;
+    for (const entry of entries) {
+      checkArchiveAbort(control.signal);
+      const sourcePath = `${result.root}/@${entry.offset}:${entry.size}`;
+      ranges.set(sourcePath, entry);
+      const file: UnpackedFile = { relativePath: entry.relativePath, sourcePath, byteSize: entry.size, mtimeMs: entry.mtimeMs, content: '', isText: false };
+      if (isTextPath(entry.relativePath) && !entry.relativePath.startsWith('resources/')) {
+        if (entry.size > JEX_LIMITS.maxTextEntryBytes || (textBytes += entry.size) > JEX_LIMITS.maxTextBytes) throw new Error('import.archiveTooLarge');
+        try { file.content = new TextDecoder('utf-8', { fatal: true }).decode(await read(entry.offset, entry.size)); file.isText = true; }
+        catch (error) { if (!(error instanceof TypeError)) throw error; }
+      }
+      files.push(file);
+      control.onProgress?.(60 + Math.floor(files.length / Math.max(entries.length, 1) * 40));
+    }
+  } finally { await source.close(); }
+  return { root: result.root, files, skipped: [], readSourceBytes: async path => {
+    const range = ranges.get(path);
+    if (!range) return null;
+    const handle = await open(staged, { read: true });
+    try {
+      await handle.seek(range.offset, SeekMode.Start);
+      const bytes = new Uint8Array(range.size);
+      let n = 0;
+      while (n < bytes.length) {
+        const chunk = await handle.read(bytes.subarray(n, Math.min(n + 256 * 1024, bytes.length)));
+        if (!chunk) throw new Error('import.archiveInvalid');
+        n += chunk;
+      }
+      return bytes;
+    } finally { await handle.close(); }
+  } };
 }
 
 /**

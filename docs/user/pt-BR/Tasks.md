@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-09-06
+Última revisão: 2026-09-15
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -131,3 +131,14 @@ Tarefas do provedor são associadas pela identidade. Ocorrências diferentes rec
 Estes arquivos pertencem a tarefas diferentes. Tarefas recorrentes com o mesmo título podem ser ocorrências distintas. Os dois conteúdos são mantidos como tarefas separadas.
 
 **Manter como tarefas separadas** — Este arquivo permanece inalterado: Arquivo atual  A cópia em conflito é mantida como arquivo separado: cópia de conflito
+
+<!-- tasks-jex-2026-09-14 -->
+## Metadados Tasks e repetição
+
+Desktop, celular e visualização ao vivo reconhecem ➕ criação, ✅ conclusão, 📅 vencimento, ⏳ agendamento, 🛫 início, 🆔 ID e 🔁 repetição. Datas: YYYY-MM-DD. Os IDs existentes permanecem ao mover linhas; dados desconhecidos ficam no Markdown.
+
+Somente as regras em inglês `every [N] day/week/month/year[s] [when done]` (N: 1–999) são automáticas. Concluir avança um período, mesmo ainda atrasado; `when done` conta da conclusão. Distâncias entre datas são mantidas, limitadas ao fim do mês. Sem data, a próxima continua sem data. Regras complexas, dependências, IDs de bloco ou duplicados, datas inválidas, conteúdo recuado, repetição nativa e tarefas de provedores desativam esse gerador.
+
+Marcar adiciona a data de conclusão às tarefas com metadados. A repetição compatível adiciona um ID se faltar e dá à próxima um ID `pv-…` próprio. É uma única edição Markdown, totalmente reversível por Desfazer. Reabrir e marcar novamente preserva a próxima tarefa e suas alterações.
+
+Tarefas nativas de banco de dados continuam pulando períodos perdidos. Um plano de destino salvo evita duplicatas. Se a próxima tarefa não for confirmada, verifique a pasta; reabrir e marcar pode retomar após falha de gravação. Uma fonte alterada não gera uma cópia diferente: confira as notas e crie a próxima manualmente se necessário. Uma próxima tarefa confirmada e depois excluída não é restaurada.

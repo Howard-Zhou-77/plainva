@@ -1,4 +1,6 @@
 import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
+import { authorizeNativeGoogle } from "./googleNativeAuthorization";
 import {
   buildAuthUrl,
   buildDropboxAuthUrl,
@@ -7,6 +9,7 @@ import {
   exchangeDropboxCode,
   exchangeOneDriveCode,
   generatePkcePair,
+  DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -21,29 +24,23 @@ import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConn
 import { getActiveVaultEntry } from "./vaultRegistry";
 
 /**
- * Mobile OAuth (M3): the system browser (@capacitor/browser) replaces the
- * desktop loopback server. The provider redirects to the custom scheme
- * below (AndroidManifest intent-filter → appUrlOpen), the code is
- * exchanged via the shared core helpers over the native OkHttp fetch
- * (CORS-free), and the resulting provider lands in the sync slot.
+ * Mobile OAuth: Android Google uses native AuthorizationClient consent. The
+ * other flows use the system browser and PKCE with the custom-scheme callback.
+ * A received grant remains in protected storage until its destination is saved.
  *
  * Console prerequisites (maintainer, one-time):
  *  - Dropbox app: add redirect URI  com.plainva.app://oauth
  *  - Entra (OneDrive): platform "Mobile and desktop applications", add
  *    redirect URI  com.plainva.app://oauth
- *  - Google Drive stays BYO: create an ANDROID OAuth client (package
- *    com.plainva.app + signing SHA-1); Android clients have no secret.
- *    A desktop-type client id cannot work here (it only allows loopback
- *    redirects — Google answers "invalid_request").
+ *  - Google Drive: register the Android package and installed signing SHA-1,
+ *    or the iOS bundle and redirect scheme. Native clients have no secret.
+ *    See docs/engineering/Google_Mail.md for the public test-client setup.
  */
 
 export const OAUTH_REDIRECT_URI = "com.plainva.app://oauth";
 /**
- * Google rejects the "://host" form for installed-app custom schemes
- * (error 400 invalid_request, seen live on the Pixel). Android clients
- * expect the documented single-slash form "<scheme>:/<path>". The
- * manifest intent-filter matches on the scheme alone, so both URIs land
- * in the app.
+ * iOS Google installed-app redirect. Android Google returns through the SDK's
+ * activity result and does not use this URI.
  */
 export const DRIVE_REDIRECT_URI = "com.plainva.app:/oauth2redirect";
 
@@ -164,7 +161,7 @@ export async function beginStoredFilesConnection(context: ServiceConnectionConte
   if (!context.cloudAccountId) return false;
   const record = (await loadCloudAccounts(context.vaultId)).find(r => r.id === context.cloudAccountId);
   if (!record || (record.family !== "google" && record.family !== "microsoft")) return false;
-  const token = await getAccountToken(context.vaultId, record.id);
+  const token = await getAccountToken(context.vaultId, record.id, "files", record.family);
   if (!token?.clientId || !tokenCoversService(token, "files", record.family)) return false;
   try { await (await fileGrantProbe(context.vaultId, record.id, record.family, token)).getAccessToken(); } catch { return false; }
   pendingConnect = record.family === "google" ? { provider: "drive", creds: { clientId: token.clientId, clientSecret: token.clientSecret, refreshToken: "" } } : { provider: "onedrive", creds: { clientId: token.clientId, refreshToken: "" } };
@@ -301,6 +298,27 @@ export async function reconnectVault(vaultId: string): Promise<void> {
 /** Opens the provider consent page in the system browser. */
 export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
   extras = { ...extras, serviceContext: extras.serviceContext ?? await connectionContextFor("files") ?? { vaultId: (await getActiveVaultEntry()).id } };
+  if (provider === "drive" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+    const captured = structuredClone(extras);
+    return withAccountCredentialLock("native-google-consent", () => beginNativeDrive(captured));
+  }
+  return beginBrowserOAuth(provider, extras);
+}
+
+async function beginNativeDrive(extras: OAuthExtras): Promise<void> {
+    if (!extras.clientId) throw new Error("Google client registration is missing");
+    const result = await authorizeNativeGoogle(extras.scope ?? DRIVE_DEFAULT_SCOPE, true);
+    const nativeProvider: MobileSyncProvider = { provider: "drive", creds: { clientId: extras.clientId, refreshToken: "",
+      nativeGoogle: { email: result.profile.label! }, providerIdentity: result.profile.identity, grantedScope: result.scope,
+      rootFolderName: extras.rootFolderName || undefined } };
+    if (extras.reconnectVaultId) {
+      await reauthorizeVault(extras.reconnectVaultId, nativeProvider);
+      return;
+    }
+    await offerFolderPicker(nativeProvider, extras);
+}
+
+async function beginBrowserOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
   pending = { provider, verifier: pkce.codeVerifier, state, extras, createdAt: Date.now() };
@@ -447,16 +465,20 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
     }
     // Two-phase folder pick (#10): don't create the vault yet — hold the fresh
     // token and let the React host browse the cloud folders, then finishConnect.
-    pendingConnect = mp;
-    pendingCreateTemplateId = flow.extras.createTemplateId ?? null;
-    pendingServiceContext = flow.extras.serviceContext;
-    const folderState: PendingFolder = { provider: mp, createTemplateId: pendingCreateTemplateId, context: pendingServiceContext, createdAt: Date.now() };
-    await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
-    if (JSON.stringify(await getPlatformServices().credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(folderState)) throw new Error("storageFailed");
-    window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
+    await offerFolderPicker(mp, flow.extras);
   } catch (e) {
     if (flow && params.get("state") === flow.state) await recordConnectOutcome(flow.extras.serviceContext, "files", { state: "failed", message: e instanceof Error ? e.message : String(e) }).catch(() => {});
     toast.error(serviceConnectionMessage(e, i18n.t));
   }
   return true;
+}
+
+async function offerFolderPicker(provider: MobileSyncProvider, extras: OAuthExtras): Promise<void> {
+  const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, createdAt: Date.now() };
+  await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
+  if (JSON.stringify(await getPlatformServices().credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(folderState)) throw new Error("storageFailed");
+  pendingConnect = provider;
+  pendingCreateTemplateId = folderState.createTemplateId;
+  pendingServiceContext = folderState.context;
+  window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
 }

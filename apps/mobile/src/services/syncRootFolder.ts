@@ -1,5 +1,6 @@
 import { getPlatformServices } from "@plainva/ui";
 import type { MobileSyncProvider } from "./syncSlot";
+import { readDriveFolderSelection } from "@plainva/core";
 
 /**
  * Where the vault's remote folder lives — the settings, not the credentials
@@ -51,6 +52,10 @@ export async function readSyncRootFolder(
   if (!STORE_PROVIDERS.has(provider)) return folderFromCredentials(stored);
   const store = await getPlatformServices().loadSettings();
   const fromStore = await store.get<string>(syncRootFolderKey(vaultId, provider));
+  if (provider === "drive") {
+    const selected = readDriveFolderSelection(fromStore);
+    if (selected) return selected.path;
+  }
   if (typeof fromStore === "string") return fromStore;
 
   const legacy = folderFromCredentials(stored);
@@ -58,11 +63,17 @@ export async function readSyncRootFolder(
   return legacy;
 }
 
-export async function writeSyncRootFolder(vaultId: string, provider: string, value: string): Promise<void> {
+export async function writeSyncRootFolder(vaultId: string, provider: string, value: string, folderId?: string): Promise<void> {
   if (!STORE_PROVIDERS.has(provider)) return;
   const store = await getPlatformServices().loadSettings();
-  await store.set(syncRootFolderKey(vaultId, provider), value);
+  const selection = provider === "drive" && folderId ? readDriveFolderSelection({ path: value, id: folderId }) : null;
+  await store.set(syncRootFolderKey(vaultId, provider), selection ?? value);
   await store.save();
+}
+
+export async function readDriveDestination(vaultId: string, provider: MobileSyncProvider | null): Promise<{ path: string; id?: string }> {
+  const stored = await (await getPlatformServices().loadSettings()).get<unknown>(syncRootFolderKey(vaultId, "drive"));
+  return readDriveFolderSelection(stored) ?? { path: typeof stored === "string" ? stored : await readSyncRootFolder(vaultId, "drive", provider) };
 }
 
 /** Called when a vault is forgotten — the key is per vault AND per provider. */

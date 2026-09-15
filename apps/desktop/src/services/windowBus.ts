@@ -53,6 +53,7 @@ export interface BroadcastMap {
   "index-changed": { paths: string[]; structural: boolean };
   /** A file on disk changed — feeds the aux editor's external-update logic. */
   "file-changed": { path: string };
+  "bookmarks-changed": { paths: string[] };
   /**
    * A note's BODY was saved. Separate from index-changed on purpose: a pure
    * prose edit deliberately skips the tree bump (fix C, 2026-07-08), so a
@@ -141,6 +142,11 @@ export type PimWriteOp =
  * P3 — the shape is the same, only the handler moves with the feature.
  */
 export interface RpcMap {
+  "suggestion-park-write": { args: import("@plainva/core").ParkedSuggestion; result: void };
+  "suggestion-park-clear": { args: { path: string }; result: void };
+  "tab-transfer-begin": { args: import("./tabTransfer").TabTransfer; result: import("./tabTransfer").TransferResult };
+  "tab-transfer-status": { args: { id: string }; result: import("./tabTransfer").TransferResult };
+  "tab-transfer-cancel": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   write: { args: { path: string; content: string }; result: void };
   "write-binary": { args: { path: string; base64: string }; result: void };
   rename: { args: { from: string; to: string }; result: void };
@@ -232,7 +238,9 @@ export interface RpcMap {
    * an auxiliary window asks instead of writing `.plainva/bookmarks.json`
    * from a list it never loaded, which would drop every other entry.
    */
-  "toggle-bookmark": { args: { path: string }; result: void };
+  "toggle-bookmark": { args: { path: string }; result: string[] };
+  "bookmarks-list": { args: Record<string, never>; result: string[] };
+  "remove-bookmarks": { args: { paths: string[] }; result: string[] };
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
   "pim-refresh": { args: Record<string, never>; result: void };
   /**
@@ -381,6 +389,7 @@ export type RpcKind = keyof RpcMap;
 export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "index-changed": "vault",
   "file-changed": "vault",
+  "bookmarks-changed": "vault",
   "note-saved": "vault",
   "comments-changed": "vault",
   "comment-operation-changed": "vault",
@@ -407,6 +416,11 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
  * is why they cannot be answered N times either.
  */
 export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
+  "suggestion-park-write": "vault",
+  "suggestion-park-clear": "vault",
+  "tab-transfer-begin": "app",
+  "tab-transfer-status": "app",
+  "tab-transfer-cancel": "app",
   write: "vault",
   "write-binary": "vault",
   rename: "vault",
@@ -418,6 +432,8 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "pim-refresh": "vault",
   // Touches the bookmark list of one vault, so it is addressed like a write.
   "toggle-bookmark": "vault",
+  "bookmarks-list": "vault",
+  "remove-bookmarks": "vault",
   // Remarks belong to one vault's workspace or sideband bundle (V7).
   "comment-capabilities": "vault",
   "comment-list": "vault",

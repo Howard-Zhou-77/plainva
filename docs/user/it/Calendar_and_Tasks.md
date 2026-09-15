@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-09-11
+Ultimo aggiornamento: 2026-09-15
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -144,3 +144,5 @@ L’assistente mobile apre subito il collegamento adatto. Dopo l’accesso, sceg
 Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
 
 [Google — La tua registrazione dell’app](Google_Drive_BYO_Guide.md)
+
+Fai clic o tocca il periodo nell’intestazione del calendario per scegliere una data. I punti indicano le note giornaliere esistenti secondo la cartella e il formato del nome configurati, anche con punti nel nome. Seleziona un giorno e poi scegli **Vai a una data** oppure **Apri nota giornaliera** / **Crea nota giornaliera**. La creazione usa lo stesso modello della barra laterale e della vista Oggi. Gli indicatori si aggiornano al cambio di mese o quando le note cambiano. Gli eventi di più giorni mantengono le proprie righe stabili e si estendono verso destra dall’inizio; le date fuori dal periodo visibile vengono tagliate.

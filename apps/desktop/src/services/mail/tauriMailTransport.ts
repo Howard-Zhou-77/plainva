@@ -21,6 +21,7 @@ import { microsoftAuthFetch } from "../authFetch";
  * Rust takes `null` for absent optionals, hence the `?? null` mapping.
  */
 export const tauriMailTransport: MailTransport = {
+  bulkAction: (creds, args) => invoke("mail_bulk_action", { ...creds, ...args, uidValidity: args.uidValidity ?? null }),
   checkLogin: (creds: ImapCreds) => invoke<MailboxInfo[]>("mail_check_login", { ...creds }),
 
   listEnvelopes: (creds, args) =>
@@ -74,6 +75,7 @@ export const tauriMailTransport: MailTransport = {
   },
 
   sieveGet: async (creds, args) => {
+    if (creds.auth === "xoauth2") throw new Error("OAuth mail does not support ManageSieve");
     const [name, body, capabilities] = await invoke<[string, string, string[]]>("mail_sieve_get", {
       host: args.host,
       port: args.port,
@@ -84,6 +86,7 @@ export const tauriMailTransport: MailTransport = {
   },
 
   sievePut: async (creds, args) => {
+    if (creds.auth === "xoauth2") throw new Error("OAuth mail does not support ManageSieve");
     await invoke("mail_sieve_put", { host: args.host, port: args.port, user: creds.user, pass: creds.pass, name: args.name, body: args.body });
   },
 
@@ -103,6 +106,7 @@ export const tauriMailTransport: MailTransport = {
       port: args.port,
       user: args.user,
       pass: args.pass,
+      auth: args.auth ?? null,
       from: args.from,
       to: args.to,
       subject: args.subject,

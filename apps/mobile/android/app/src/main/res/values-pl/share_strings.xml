@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Zapisano na tym urządzeniu. Otwórz Plainva, aby wybrać vault i folder.</string>
+    <string name="share_failed">Nie zapisano całości. Udostępnij oryginalną zawartość ponownie.</string>
+    <string name="share_limit">Maksymalnie 10 plików, 25 MiB na plik, 50 MiB łącznie i 512 KiB tekstu.</string>
+    <string name="share_full">Kolejka jest pełna. Najpierw zaimportuj lub odrzuć oczekującą zawartość w Plainva.</string>
+</resources>

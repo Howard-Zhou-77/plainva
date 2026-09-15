@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Enregistré sur cet appareil. Ouvrez Plainva pour choisir le vault et le dossier.</string>
+    <string name="share_failed">Enregistrement incomplet. Partagez à nouveau le contenu original.</string>
+    <string name="share_limit">Au maximum 10 fichiers, 25 Mio par fichier, 50 Mio au total et 512 Kio de texte.</string>
+    <string name="share_full">La file est pleine. Importez ou supprimez d’abord du contenu en attente dans Plainva.</string>
+</resources>

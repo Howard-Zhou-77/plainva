@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-09-11
+Última revisão: 2026-09-15
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -144,3 +144,5 @@ O assistente móvel abre diretamente a conexão adequada. Após o login, escolha
 Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
 
 [Google — Seu próprio registro de aplicativo](Google_Drive_BYO_Guide.md)
+
+Clique ou toque no período no cabeçalho do calendário para escolher uma data. Os pontos indicam notas diárias existentes conforme a pasta e o formato de nome configurados, incluindo nomes com pontos. Selecione um dia e escolha **Ir para a data** ou **Abrir nota diária** / **Criar nota diária**. A criação usa o mesmo modelo da barra lateral e da visualização Hoje. Os marcadores são atualizados ao mudar de mês ou alterar notas. Eventos de vários dias mantêm suas linhas estáveis e se estendem à direita a partir do início; datas fora do período visível são recortadas.

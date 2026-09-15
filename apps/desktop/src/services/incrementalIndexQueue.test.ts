@@ -20,6 +20,24 @@ const indexerOf = (
 ): IncrementalIndexerLike => ({ indexPath, indexVaultFull });
 
 describe("incrementalIndexQueue", () => {
+  it("drains the active write but discards queued work after its vault closes", async () => {
+    const gate = deferred();
+    const indexPath = vi.fn(async () => { await gate.promise; return "indexed" as const; });
+    const onBatchDone = vi.fn();
+    const queue = createIncrementalIndexQueue({ indexer: indexerOf(indexPath), exists: async () => true, onBatchDone });
+    queue.enqueue(["a.md"]);
+    queue.enqueue(["b.md"]);
+    queue.stop();
+    queue.enqueue(["c.md"]);
+    let idle = false;
+    const drained = queue.whenIdle().then(() => { idle = true; });
+    await Promise.resolve();
+    expect(idle).toBe(false);
+    gate.resolve();
+    await drained;
+    expect(indexPath).toHaveBeenCalledTimes(1);
+    expect(onBatchDone).not.toHaveBeenCalled();
+  });
   it("never runs two batches concurrently", async () => {
     let active = 0;
     let maxActive = 0;

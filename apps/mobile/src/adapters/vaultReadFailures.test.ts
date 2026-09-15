@@ -5,17 +5,17 @@ import { CapacitorVaultAdapter } from "./CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "./ExternalVaultAdapter";
 import type { VaultFolderNative } from "../platform/vaultFolder";
 
-const native = vi.hoisted(() => ({ read: vi.fn(), stat: vi.fn(), mkdir: vi.fn() }));
+const native = vi.hoisted(() => ({ read: vi.fn(), stat: vi.fn(), mkdir: vi.fn(), list: vi.fn() }));
 vi.mock("@capacitor/filesystem", () => ({
   Directory: { Data: "DATA" }, Encoding: { UTF8: "utf8" },
   Filesystem: {
-    readFile: native.read, stat: native.stat, mkdir: native.mkdir,
+    readFile: native.read, stat: native.stat, mkdir: native.mkdir, readdir: native.list,
   },
 }));
 vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn() }));
 
 const entry = { name: "note.md", isDirectory: false, size: 4, mtime: 1 };
-const plugin = { read: native.read, stat: native.stat, mkdir: native.mkdir } as unknown as VaultFolderNative;
+const plugin = { read: native.read, stat: native.stat, mkdir: native.mkdir, list: native.list } as unknown as VaultFolderNative;
 const failure = (code: string) => Object.assign(new Error("read unavailable"), { code });
 
 /** Real SQLite, including transactions: the assertion is about retained rows. */
@@ -45,6 +45,16 @@ for (const kind of ["sandbox", "external"] as const) {
   };
   describe(`${kind} vault read failures`, () => {
     beforeEach(() => { vi.resetAllMocks(); readable(); });
+
+    it("stops a superseded listing without returning a partial vault", async () => {
+      const controller = new AbortController();
+      native.list.mockImplementationOnce(async () => {
+        controller.abort();
+        return kind === "sandbox" ? { files: [{ name: "folder", type: "directory" }] } : { entries: [{ name: "folder", isDirectory: true }] };
+      });
+      await expect(adapter().listDir("", true, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+      expect(native.list).toHaveBeenCalledTimes(1);
+    });
 
     it.each(["EACCES", "EIO", "OS-PLUG-FILE-0007", "OS-PLUG-FILE-0013"])("preserves %s on reads and metadata", async (code) => {
       const error = failure(code);

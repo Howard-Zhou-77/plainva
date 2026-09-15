@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RotateCcw, Copy } from "lucide-react";
+import { RotateCcw, Copy, ExternalLink } from "lucide-react";
+import { comparisonPath } from "../services/comparisonWindow";
+import { isOwnerWindow, currentWindowParams } from "../services/windowContext";
 import { appConfirm } from "../services/appDialogs";
 import {
   Button,
@@ -45,7 +47,7 @@ export const formatBytes = (bytes: number): string => {
 
 /** What the modal compares: the note's version history, or a sync-conflict copy next to it. */
 export type CompareSubject =
-  | { kind: "version"; path: string; orphan?: boolean }
+  | { kind: "version"; path: string; orphan?: boolean; selectedBackupPath?: string }
   | { kind: "conflict"; conflictPath: string }
   /** A local fork (C36): the copy this device kept when a write was refused. Same three exits as a conflict. */
   | { kind: "fork"; forkId: string; originalPath: string; forkPath: string };
@@ -86,7 +88,8 @@ export const CompareModal: React.FC<{
   onClose: () => void;
   onRestored?: (restoredPath: string) => void;
   onResolved?: (outcome: ConflictOutcome) => void;
-}> = ({ subject, onClose, onRestored, onResolved }) => {
+  standalone?: boolean;
+}> = ({ subject, onClose, onRestored, onResolved, standalone = false }) => {
   const { t, i18n } = useTranslation();
   const { vaultPath, vaultAdapter, backupAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, listWorkspaceRevisions, readWorkspaceRevision } = useVault();
   const workspaceHistory = workspaceSecurityStatus !== null;
@@ -100,6 +103,7 @@ export const CompareModal: React.FC<{
   // The note both cases talk about.
   const path = subject.kind === "version" ? subject.path : originalOfConflict ?? conflictPath ?? "";
   const orphan = subject.kind === "version" && subject.orphan === true;
+  const initialVersion = subject.kind === "version" ? subject.selectedBackupPath : undefined;
 
   const basename = path.split(/[/\\]/).pop() || path;
   const isText = isTextLikePath(path);
@@ -175,13 +179,15 @@ export const CompareModal: React.FC<{
       .then((list) => {
         if (!alive) return;
         setVersions(list);
-        setSelected(list[0] ?? null);
+        const chosen = initialVersion ? list.find(version => version.backupPath === initialVersion) : list[0];
+        setSelected(chosen ?? null);
+        if (initialVersion && !chosen) setError(t("compare.versionUnavailable"));
       })
       .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       alive = false;
     };
-  }, [isConflict, service, path, workspaceHistory, listWorkspaceRevisions]);
+  }, [isConflict, service, path, workspaceHistory, listWorkspaceRevisions, initialVersion, t]);
 
   // Version history: the selected version's content (text or image blob).
   useEffect(() => {
@@ -190,6 +196,7 @@ export const CompareModal: React.FC<{
     setVersionText(null);
     setImageUrl(null);
     if (isConflict || (!service && !workspaceHistory) || !selected) return;
+    setError(null);
     const readBytes = () => workspaceHistory
       ? readWorkspaceRevision(selected.backupPath.slice("workspace:".length))
       : service!.readVersionBinary(selected.backupPath);
@@ -442,7 +449,8 @@ export const CompareModal: React.FC<{
       : "";
 
   const footerStats = (() => {
-    if (!diffMounted || !stats || differentTasks) return null;
+    if (!canDiff || differentTasks) return null;
+    if (!stats) return t("compare.countsUnavailable");
     if (stats.hunks === 0) return t("compare.identical");
     const cost = isConflict
       ? rightEdited
@@ -502,6 +510,20 @@ export const CompareModal: React.FC<{
         </>
       ) : (
         <>
+          {!standalone && selected && <Button size="sm" icon={<ExternalLink size={ICON.ui} />} data-testid="version-popout" disabled={busy} onClick={() => {
+            if (!vaultPath) return;
+            const transferPath = comparisonPath(path, selected.backupPath, orphan);
+            void (async () => {
+              if (isOwnerWindow()) {
+                const { openOrFocusContent } = await import("../services/windowManager");
+                await openOrFocusContent({ vaultPath, path: transferPath, newWindow: true, title: `${t("compare.title")} · ${basename}` });
+              } else {
+                const { getWindowBus } = await import("../services/windowBus");
+                await (await getWindowBus()).request("open-content", { path: transferPath, newWindow: true, from: currentWindowParams().label ?? undefined }, { vaultPath });
+              }
+              onClose();
+            })().catch(() => setError(t("compare.windowFailed")));
+          }}>{t("window.openInNewWindow")}</Button>}
           {canDiff && (
             <Checkbox checked={showDiff} onChange={(e) => setShowDiff(e.target.checked)}>
               {t("versions.diffToggle")}
@@ -518,15 +540,7 @@ export const CompareModal: React.FC<{
     </div>
   );
 
-  return (
-    <Modal
-      onClose={() => { if (!busy) onClose(); }}
-      title={t("compare.title")}
-      size="xl"
-      testId={isConflict ? "compare-modal" : "version-history-modal"}
-      closeOnOverlay={!busy}
-      bodyClassName="pv-modal-body--flush"
-    >
+  const body = <>
       {isConflict && conflictPath ? <FileComparisonDetails vault={vaultPath ?? "Plainva"} originalPath={path} copyPath={conflictPath} original={currentText} copy={conflictText} onReveal={file => { onClose(); window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: file } })); }} /> : <div style={{ padding: "0.45rem 1rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-tip={path}>
         {path}
         {orphan && <> — {t("versions.orphanHint")}</>}
@@ -554,10 +568,12 @@ export const CompareModal: React.FC<{
                     return (
                       <button
                         key={v.backupPath}
+                        data-version={v.backupPath}
+                        aria-pressed={isSel}
                         data-testid="version-item"
                         onClick={() => setSelected(v)}
                         style={{
-                          display: "flex", alignItems: "baseline", gap: "0.5rem", width: "100%", textAlign: "left",
+                          display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "0.5rem", width: "100%", textAlign: "left",
                           padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", cursor: "pointer",
                           border: "1px solid " + (isSel ? "var(--accent-color)" : "transparent"),
                           background: isSel ? "var(--bg-hover)" : "transparent", color: "var(--text-main)",
@@ -570,6 +586,7 @@ export const CompareModal: React.FC<{
                           </span>
                         )}
                         <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{formatBytes(v.size)}</span>
+                        {isSel && stats && <span data-testid="version-row-lines" style={{ flexBasis: "100%", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("compare.lineChanges", { added: stats.added, removed: stats.removed })}</span>}
                       </button>
                     );
                   })}
@@ -593,6 +610,9 @@ export const CompareModal: React.FC<{
           </div>
         </div>
       )}
-    </Modal>
+  </>;
+  return standalone ? <section data-testid="comparison-window" aria-label={t("compare.title")} style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>{body}</section> : (
+    <Modal onClose={() => { if (!busy) onClose(); }} title={t("compare.title")} size="xl"
+      testId={isConflict ? "compare-modal" : "version-history-modal"} closeOnOverlay={!busy} bodyClassName="pv-modal-body--flush">{body}</Modal>
   );
 };

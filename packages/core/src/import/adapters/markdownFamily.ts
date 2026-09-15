@@ -13,6 +13,7 @@ import {
 import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { timesFromFile } from '../sourceTimes.js';
+import { analyzeJex, isJexInput, runJex } from './jex.js';
 
 /**
  * The shared body of every "Markdown plus frontmatter in a ZIP" importer.
@@ -245,14 +246,23 @@ export abstract class MarkdownFamilyImporter implements ImportSource {
  */
 export class JoplinImporter extends MarkdownFamilyImporter {
   readonly id: ImportSourceId = 'joplin';
-  readonly name = 'Joplin (Markdown + Front Matter)';
-  readonly description = 'Imports a Joplin Markdown export with its notebooks, frontmatter and resources.';
-  readonly detectPriority = 20;
+  readonly name = 'Joplin (JEX / Markdown)';
+  readonly description = 'Imports JEX/RAW or Markdown exports with notebooks, metadata, tags and resources.';
+  // A serialized Joplin ID is more specific than Notion's ID-in-filename hint.
+  readonly detectPriority = 60;
 
   protected signature(files: UnpackedFile[]): boolean {
+    if (isJexInput(files)) return true;
     const hasResources = files.some((f) => /(^|\/)_resources\//.test(f.relativePath));
     const hasMarkdown = files.some((f) => f.relativePath.toLowerCase().endsWith('.md'));
     return hasResources && hasMarkdown;
+  }
+
+  override async analyze(input: UnpackedFile[], opts: ImportOptions): Promise<ImportPlan> {
+    return isJexInput(input) ? analyzeJex(input, opts, this) : super.analyze(input, opts);
+  }
+  override async run(input: UnpackedFile[], opts: ImportOptions, onProgress?: (percent: number, message: string) => void): Promise<ImportReport> {
+    return isJexInput(input) ? runJex(input, opts, this, onProgress) : super.run(input, opts, onProgress);
   }
 }
 

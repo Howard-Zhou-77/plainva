@@ -29,7 +29,7 @@ export function dailyNotePathFor(date: Date, settings: DailyNoteSettings): strin
  * Which of `dates` already have a daily note: the local ISO keys (YYYY-MM-DD)
  * of the days whose expected path exists. Format-agnostic by construction —
  * it builds the path the app would open, so it matches however the notes
- * were named. An unreadable path counts as absent.
+ * were named. An I/O error is propagated so callers cannot claim absence.
  */
 export async function existingDailyNoteDays(
   dates: readonly Date[],
@@ -39,11 +39,7 @@ export async function existingDailyNoteDays(
   const out = new Set<string>();
   await Promise.all(
     dates.map(async (d) => {
-      try {
-        if (await exists(dailyNotePathFor(d, settings))) out.add(localIsoKey(d));
-      } catch {
-        /* absent */
-      }
+      if (await exists(dailyNotePathFor(d, settings))) out.add(localIsoKey(d));
     }),
   );
   return out;

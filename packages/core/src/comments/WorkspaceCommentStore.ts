@@ -177,6 +177,7 @@ export class WorkspaceCommentStore implements CommentStore {
       // immediate and its own, not a "not sent" card a cycle later.
       const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
       if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-comment-not-permitted");
+      if (input.suggestion && !evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.suggest", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-suggestion-not-permitted");
       if (legacyOrigin && !evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "workspace.manage" }).allowed)
         throw new Error("workspace-comment-import-not-permitted");
       // Into the outbox, not onto the network (K6, finding 2026-09-03). Sealing

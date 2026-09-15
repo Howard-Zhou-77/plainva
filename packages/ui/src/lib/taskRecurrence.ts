@@ -1,4 +1,4 @@
-import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
+import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath, workspaceSha256Hex, utf8Encode, tasksDayNumber } from "@plainva/core";
 
 /**
  * Recurring tasks (issue #34, wave 3; shared by both shells since S24).
@@ -112,6 +112,12 @@ export function readRepeatRule(content: string): RepeatRule | null {
   return normalizeRule(readFrontmatterPath(content, REPEAT_PATH));
 }
 
+/** A retry on another day must keep the date chosen by its persisted plan. */
+export function readRepeatCompletionDay(content: string): string | null {
+  const day = readFrontmatterPath(content, ["plainva", "repeatNext", "completedOn"]);
+  return typeof day === "string" && tasksDayNumber(day) !== null ? day : null;
+}
+
 /** Writes the rule into a note, or removes it when `null`. Only the rule key is
  * touched, so a sibling anchor (`plainva.pim`, `plainva.blocks`) survives. */
 export function writeRepeatRule(content: string, rule: RepeatRule | null): string {
@@ -128,7 +134,7 @@ export function canRepeat(content: string): boolean {
  * must never travel through timezone math. */
 function parseDay(key: string): { y: number; m: number; d: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key.trim());
-  if (!m) return null;
+  if (!m || tasksDayNumber(key.trim()) === null) return null;
   return { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) };
 }
 
@@ -140,7 +146,7 @@ function formatDay(y: number, m: number, d: number): string {
 function addDays(key: string, days: number): string {
   const p = parseDay(key);
   if (!p) return key;
-  const dt = new Date(Date.UTC(p.y, p.m - 1, p.d));
+  const dt = new Date(0); dt.setUTCFullYear(p.y, p.m - 1, p.d);
   dt.setUTCDate(dt.getUTCDate() + days);
   return formatDay(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
 }
@@ -156,7 +162,8 @@ function addMonths(key: string, months: number): string {
   const total = (p.y * 12 + (p.m - 1)) + months;
   const y = Math.floor(total / 12);
   const m = total - y * 12 + 1;
-  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lastDate = new Date(0); lastDate.setUTCFullYear(y, m, 0);
+  const lastDay = lastDate.getUTCDate();
   return formatDay(y, m, Math.min(p.d, lastDay));
 }
 
@@ -188,38 +195,81 @@ function step(from: string, rule: RepeatRule): string {
  */
 export function nextDueDate(rule: RepeatRule, currentDue: string | null, completedOn: string): string | null {
   const anchor = rule.from === "completion" ? completedOn : currentDue || completedOn;
-  if (!parseDay(anchor)) return null;
+  if (!parseDay(anchor) || !Number.isInteger(rule.interval) || rule.interval < 1 || rule.interval > MAX_INTERVAL || !FREQS.includes(rule.freq)) return null;
   let next = step(anchor, rule);
   if (rule.from === "due" && parseDay(completedOn)) {
-    // Catch up without materialising the misses. The bound is generous enough
-    // for years of a daily task and still terminates on absurd input.
-    for (let i = 0; i < 4000 && next <= completedOn; i++) next = step(next, rule);
+    if (rule.freq === "daily" || rule.freq === "weekly") {
+      const days = rule.interval * (rule.freq === "weekly" ? 7 : 1);
+      const periods = Math.max(1, Math.floor((tasksDayNumber(completedOn.trim())! - tasksDayNumber(anchor.trim())!) / days) + 1);
+      next = addDays(anchor, periods * days);
+    } else {
+      // Preserve each month's clamping. Four-digit civil years bound this
+      // loop to fewer than 120,000 steps, including very old imported tasks.
+      while (tasksDayNumber(next) !== null && next <= completedOn) next = step(next, rule);
+    }
   }
-  return next;
+  return tasksDayNumber(next) === null ? null : next;
 }
 
 /** The next free "<stem> N.md" beside the completed note. The occurrence is an
  * ordinary sibling note, so the finished one stays as the record of what was
  * done. Pure except for the existence probe. */
 export async function writeNextOccurrenceNote(
-  adapter: { exists(path: string): Promise<boolean>; writeTextFile(path: string, content: string): Promise<void> },
+  adapter: { exists(path: string): Promise<boolean>; readTextFile(path: string): Promise<string>; writeTextFile(path: string, content: string): Promise<void> },
   sourcePath: string,
-  content: string
+  content: string,
+  completedOn?: string
 ): Promise<string | null> {
+  const planKey = ["plainva", "repeatNext"], originKey = ["plainva", "repeatOrigin"];
+  type Plan = { version: 1; id: string; path: string; hash: string; complete?: boolean; completedOn?: string };
+  const initial = await adapter.readTextFile(sourcePath);
+  let plan = readFrontmatterPath(initial, planKey) as Plan | undefined;
   const dot = sourcePath.lastIndexOf(".");
   const base = dot > 0 ? sourcePath.slice(0, dot) : sourcePath;
   const ext = dot > 0 ? sourcePath.slice(dot) : ".md";
   // Strip a trailing counter so a chain reads "Task 2", "Task 3" — not
   // "Task 2 2 2" after the third repetition.
   const stem = base.replace(/ \d+$/, "");
-  for (let n = 2; n < 500; n++) {
-    const candidate = `${stem} ${n}${ext}`;
-    if (!(await adapter.exists(candidate))) {
-      await adapter.writeTextFile(candidate, content);
-      return candidate;
+  const validTarget = (path: unknown) => typeof path === "string" && Array.from({ length: 498 }, (_, i) => `${stem} ${i + 2}${ext}`).includes(path) && path !== sourcePath;
+  if (plan && (plan.version !== 1 || !/^[a-f0-9-]{36}$/.test(plan.id) || !/^[a-f0-9]{64}$/.test(plan.hash) || (plan.complete !== undefined && typeof plan.complete !== "boolean"))) throw new Error("task_repeat_invalid_plan");
+  if ((plan?.completedOn !== undefined && (typeof plan.completedOn !== "string" || tasksDayNumber(plan.completedOn) === null)) || (completedOn !== undefined && tasksDayNumber(completedOn) === null)) throw new Error("task_repeat_invalid_plan");
+  // Completion is a receipt: deleting or editing a generated note later never
+  // resurrects it when the predecessor is checked a second time.
+  if (plan?.complete) return null;
+  if (plan && !validTarget(plan.path)) throw new Error("task_repeat_invalid_plan");
+  const id = plan?.id ?? crypto.randomUUID();
+  let nextContent = deleteFrontmatterPath(content, planKey);
+  nextContent = deleteFrontmatterPath(nextContent, ["blockedBy"]);
+  nextContent = setFrontmatterPath(nextContent, originKey, { id, source: sourcePath });
+  const hash = workspaceSha256Hex(utf8Encode(nextContent));
+  if (!plan) {
+    let path: string | null = null;
+    for (let n = 2; n < 500; n++) {
+      const candidate = `${stem} ${n}${ext}`;
+      if (!await adapter.exists(candidate)) { path = candidate; break; }
     }
+    if (!path) return null;
+    plan = { version: 1, id, path, hash, ...(completedOn ? { completedOn } : {}) };
+    await adapter.writeTextFile(sourcePath, setFrontmatterPath(initial, planKey, plan));
+    if (JSON.stringify(readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey)) !== JSON.stringify(plan)) throw new Error("task_repeat_plan_not_saved");
   }
-  return null;
+  let created = false;
+  if (await adapter.exists(plan.path)) {
+    const origin = readFrontmatterPath(await adapter.readTextFile(plan.path), originKey) as { id?: string; source?: string } | undefined;
+    if (origin?.id !== plan.id || origin.source !== sourcePath) throw new Error("task_repeat_destination_changed");
+  } else {
+    if (hash !== plan.hash) throw new Error("task_repeat_source_changed");
+    await adapter.writeTextFile(plan.path, nextContent);
+    if (workspaceSha256Hex(utf8Encode(await adapter.readTextFile(plan.path))) !== plan.hash) throw new Error("task_repeat_copy_not_saved");
+    created = true;
+  }
+  // Re-read before the receipt so a source edit made during the copy survives.
+  const latest = await adapter.readTextFile(sourcePath), current = readFrontmatterPath(latest, planKey) as Plan | undefined;
+  if (current?.id !== plan.id || current.path !== plan.path || current.hash !== plan.hash) throw new Error("task_repeat_plan_changed");
+  await adapter.writeTextFile(sourcePath, setFrontmatterPath(latest, planKey, { ...plan, complete: true }));
+  const receipt = readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey) as Plan | undefined;
+  if (receipt?.id !== plan.id || receipt.complete !== true) throw new Error("task_repeat_receipt_not_saved");
+  return created ? plan.path : null;
 }
 
 /** Human-readable rule, for the row badge and the dialog. The caller supplies

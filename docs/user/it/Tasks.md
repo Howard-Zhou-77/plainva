@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-06
+Ultimo aggiornamento: 2026-09-15
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -131,3 +131,14 @@ Le attività del provider vengono associate in base all’identità. Le diverse 
 Questi file appartengono ad attività diverse. Le attività ricorrenti con lo stesso titolo possono essere istanze distinte. Entrambi i contenuti vengono conservati separatamente.
 
 **Conserva come attività separate** — Questo file resta invariato: File attuale  La copia in conflitto viene conservata come file separato: copia di conflitto
+
+<!-- tasks-jex-2026-09-14 -->
+## Metadati Tasks e ripetizione
+
+Desktop, mobile e anteprima dal vivo riconoscono ➕ creazione, ✅ completamento, 📅 scadenza, ⏳ pianificazione, 🛫 inizio, 🆔 ID e 🔁 ripetizione. Date: YYYY-MM-DD. Gli ID esistenti restano anche spostando le righe; i dati sconosciuti rimangono nel Markdown.
+
+Sono automatiche solo le regole inglesi `every [N] day/week/month/year[s] [when done]` (N: 1–999). Il completamento avanza di un periodo, anche ancora scaduto; `when done` parte dal giorno di completamento. Distanze tra date e limiti di fine mese sono rispettati. Senza data, la successiva resta senza data. Regole complesse, dipendenze, ID di blocco o duplicati, date invalide, contenuto indentato, ripetizione nativa e attività dei fornitori disattivano questo generatore.
+
+Spuntare aggiunge la data di completamento alle attività con metadati. La ripetizione supportata aggiunge un ID se manca e assegna alla successiva un ID `pv-…` distinto. È un’unica modifica Markdown, annullabile nell’editor. Riaprire e rispuntare conserva la successiva e le sue modifiche.
+
+Le attività native del database saltano ancora i periodi scaduti. Un piano di destinazione salvato evita duplicati. Se la successiva non è confermata, controlla la cartella; riaprire e spuntare può riprendere dopo un errore di scrittura. Se la fonte è cambiata non viene scritta una copia diversa: controlla le note e crea manualmente la successiva se necessario. Una successiva confermata e poi eliminata non viene ricreata.

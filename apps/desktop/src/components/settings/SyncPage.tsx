@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
 import {
   Button,
+  DriveDestinationDialog,
   EmptyState,
   SettingCard,
   SettingCardNote,
@@ -46,7 +47,7 @@ import {
 } from "../../services/encryptionSession";
 import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
-import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder, createSyncFolderFromSlots } from "../../services/cloudAccountsActions";
+import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder, createSyncFolderFromSlots, openDriveDestination } from "../../services/cloudAccountsActions";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
 import { StoredCredentialsCard } from "./StoredCredentialsCard";
@@ -81,6 +82,8 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [drivePicker, setDrivePicker] = useState<Awaited<ReturnType<typeof openDriveDestination>> | null>(null);
+  const [openingPicker, setOpeningPicker] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
   const [secretsDecided, setSecretsDecided] = useState(true);
@@ -270,7 +273,11 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
             <TextInput value={rootFolder} readOnly style={{ width: 180 }} data-testid="sync-cloud-folder" />
             {provider !== "webdav" && (
-              <Button variant="secondary" onClick={() => setShowPicker(true)}>
+              <Button variant="secondary" disabled={openingPicker} onClick={() => {
+                if (provider !== "drive") { setShowPicker(true); return; }
+                setOpeningPicker(true);
+                void openDriveDestination(p.selectedVault).then(setDrivePicker).catch(error => toast.warning(String(error))).finally(() => setOpeningPicker(false));
+              }}>
                 {t("settings.browseFolders")}
               </Button>
             )}
@@ -684,6 +691,8 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           worth finding (E2). */}
       <StoredCredentialsCard />
 
+      {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
+        onSave={async selected => { await saveSyncRootFolder(drivePicker.vaultPath, "drive", selected.path, selected.id); await reload(); }} />}
       {showPicker && provider !== "none" && provider !== "webdav" && (
         <SyncFolderPickerModal
           listFolders={(path) => listSyncFoldersFromSlots(p.selectedVault, provider, path)}

@@ -1,6 +1,6 @@
 # Obsidian `.base` Compatibility Check (Plan D6)
 
-Last reviewed: 2026-07-03
+Last reviewed: 2026-09-15
 
 This document describes how Plainva's additional keys in `.base` files are
 cross-checked against Obsidian's Bases plugin, and records the result.
@@ -214,6 +214,8 @@ filters:
    `プロジェクト.base`) and a `de` vault (umlaut folders) in Obsidian.
 
 ## Result
+
+The separate [rollup export comparison](Obsidian_Rollup_Export.md) now records the measured formula subset, 10/100/1,000-row results, export behavior and its boundaries. It does not assert completion of the older manual scenarios below.
 
 - [ ] Obsidian opens the test file without errors (maintainer, date: ____)
 - [ ] Plainva-only view visibly degrades to a table (date: ____)

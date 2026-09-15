@@ -73,6 +73,11 @@ function ftsTerm(text: string, prefix: boolean): string {
 // word. Bare words stop at whitespace and quotes.
 const TOKEN_RE = /(-)?(path:|tag:)?(?:"([^"]*)("|$)|([^\s"]+))/gi;
 
+/** Matching rules for individual source occurrences, using the search grammar. */
+export function searchTermSpecs(input: string): { text: string; prefix: boolean }[] {
+  return [...input.matchAll(TOKEN_RE)].filter((m) => !m[1] && !m[2]).map((m) => ({ text: (m[3] ?? m[5] ?? "").trim(), prefix: m[3] === undefined || m[4] !== '"' })).filter((term) => /[\p{L}\p{N}]/u.test(term.text));
+}
+
 export function parseSearchQuery(input: string): ParsedSearchQuery {
   const positives: string[] = [];
   const negatives: string[] = [];

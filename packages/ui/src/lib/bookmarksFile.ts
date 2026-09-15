@@ -8,6 +8,8 @@
  * (which also matches the Obsidian bookmarks plugin's `items` layout).
  */
 
+import { VaultFileNotFoundError } from "@plainva/core";
+
 export interface BookmarksFile {
   /** Bookmarked note paths in user order. */
   paths: string[];
@@ -78,16 +80,36 @@ export interface BookmarksIO {
   writeTextFile: (path: string, content: string) => Promise<void>;
 }
 
-async function updateBookmarksOnDisk(io: BookmarksIO, change: (current: string[]) => string[]): Promise<string[]> {
-  let current: string[] = [];
-  try {
-    current = parseBookmarksFile(await io.readTextFile(BOOKMARKS_FILE)).paths;
-  } catch {
-    /* not there yet — the first bookmark creates it */
+/** A failed read is not an empty list: never erase bookmarks on an I/O error. */
+export async function readBookmarksOnDisk(io: Pick<BookmarksIO, "readTextFile">): Promise<string[]> {
+  let raw: string;
+  try { raw = await io.readTextFile(BOOKMARKS_FILE); }
+  catch (error) {
+    if (error instanceof VaultFileNotFoundError || (error as { code?: string })?.code === "ENOENT") return [];
+    throw error;
   }
-  const next = change(current);
-  await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
-  return next;
+  const parsed = parseBookmarksFile(raw);
+  if (!parsed.existed) throw new Error("Unreadable bookmarks document");
+  return parsed.paths;
+}
+
+export function mergeBookmarksOnDisk(io: BookmarksIO, paths: readonly string[]): Promise<string[]> {
+  return updateBookmarksOnDisk(io, current => [...new Set([...current, ...paths])]);
+}
+
+const lanes = new WeakMap<BookmarksIO, Promise<unknown>>();
+async function updateBookmarksOnDisk(io: BookmarksIO, change: (current: string[]) => string[]): Promise<string[]> {
+  // All desktop clients delegate mutations to the same owner adapter. The
+  // whole read-modify-write must share a lane, not just the final file write.
+  const run = (lanes.get(io) ?? Promise.resolve()).catch(() => {}).then(async () => {
+    const current = await readBookmarksOnDisk(io);
+    const next = change(current);
+    if (JSON.stringify(current) !== JSON.stringify(next)) await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
+    return next;
+  });
+  lanes.set(io, run);
+  void run.finally(() => { if (lanes.get(io) === run) lanes.delete(io); }).catch(() => {});
+  return run;
 }
 
 /** Where the list lives; device-local, never synced. */

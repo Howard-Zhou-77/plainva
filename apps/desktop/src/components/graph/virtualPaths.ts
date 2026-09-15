@@ -11,6 +11,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { CalendarRange, ListChecks, Mail, MessageSquare, Waypoints } from "lucide-react";
+import { COMPARISON_PREFIX } from "../../services/comparisonWindow";
 
 export const GRAPH_TAB_PATH = "plainva://graph";
 export const TASKS_TAB_PATH = "plainva://tasks";
@@ -42,5 +43,6 @@ const VIRTUAL_TAB_META: Record<string, VirtualTabMeta> = {
 /** Localized label key + icon for a virtual tab path; null for vault files. */
 export function virtualTabMeta(path: string | null | undefined): VirtualTabMeta | null {
   if (!path) return null;
+  if (path.startsWith(COMPARISON_PREFIX)) return { labelKey: "compare.title", defaultLabel: "Compare versions", icon: Waypoints };
   return VIRTUAL_TAB_META[path] ?? null;
 }

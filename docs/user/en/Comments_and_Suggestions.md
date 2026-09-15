@@ -1,6 +1,6 @@
 # Comments & Suggestions
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
@@ -71,3 +71,9 @@ Desktop and mobile use the same signed comment store in an encrypted workspace. 
 Older comments in the previous comment files are preserved and imported with workspace management and comment permissions. **From earlier history** keeps the original name and date. Those claims do not retroactively establish workspace membership; the new signature confirms the import. If permissions, the synced target note or a successful save are missing, the old comment stays visible. Reply, delete and suggestion actions remain unavailable until its target is durably assigned. Importing old history does not send its notifications again.
 
 If only the older history is locked, **Unlock** opens the sync-passphrase flow; new workspace comments remain available. If the workspace itself is locked, the action opens Security settings. Suggestion operations started before the update keep their saved progress and can resume with current permissions. Importing does not remove the original comment files.
+
+## Feedback on publications
+
+Recipients open the publication as its own workspace. Read access permits no feedback; comment access permits remarks, and suggestion access also permits proposed changes in a copy. The original remains read-only. Desktop and mobile enforce the same rights and retain unsent feedback for retry.
+
+Feedback appears beside the original note on desktop and mobile, grouped by publication with recipient names. Applicable proposals from an exact copy can be applied or declined through the normal verified save workflow. The decision is recorded with the original in your own vault; it does not send a reply to recipients. Sanitized copies and passages that cannot be matched safely offer no automatic application. Feedback created with current clients remains readable by the owner after recipient revocation. Older feedback encrypted only to a removed recipient key is not rewritten retrospectively. A publication whose key is missing on this device continues to be omitted.

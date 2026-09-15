@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
+  resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("./src/index.ts", import.meta.url)) }] },
   test: {
     // The three suites run side by side under turbo (pre-commit, pre-push,
     // CI). The workspace-comment and publication fixtures — real signing and

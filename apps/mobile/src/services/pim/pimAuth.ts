@@ -2,12 +2,14 @@ import {
   refreshDriveAccessToken,
   refreshOneDriveAccessToken,
   GRAPH_CALENDAR_SCOPES,
+  GOOGLE_CALENDAR_SCOPES,
   type PimAuthProvider,
 } from "@plainva/core";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { brokerTokenProvider } from "../accountBroker";
 import { rotatePimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { NO_STORED_SIGN_IN } from "@plainva/ui";
+import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "../googleNativeAuthorization";
 
 /**
  * Mobile OAuth token provider for the Google/Microsoft PIM accounts. Refreshes
@@ -72,7 +74,8 @@ export function buildPimAuthProvider(
       // every "sign in again" a no-op (finding 2026-08-19). Microsoft keeps the
       // broker first: its refresh token ROTATES, and a second copy renewing it
       // is what stage B removed.
-      const ownGoogleSignIn = !!currentRefreshToken && (creds.kind === "google" || !!options.onRotation);
+      const ownGoogleSignIn = (!!currentRefreshToken && (creds.kind === "google" || !!options.onRotation))
+        || (creds.kind === "google" && !!creds.nativeGoogle && !!options.onRotation);
       if ((creds.kind === "microsoft" || creds.kind === "google") && !ownGoogleSignIn) {
         if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultId, "calendar", accountId).catch(() => undefined);
         // A NEGATIVE probe is not trusted while there is no per-service token to
@@ -85,6 +88,10 @@ export function buildPimAuthProvider(
         }
         const viaBroker = await brokerProbe;
         if (viaBroker) return viaBroker(force ?? false);
+      }
+      if (creds.kind === "google" && creds.nativeGoogle) {
+        if (force) forgetNativeGoogleTokens();
+        return (await authorizeNativeGoogle(GOOGLE_CALENDAR_SCOPES, false, creds)).accessToken;
       }
       if (!force && accessToken && Date.now() < expiresAt) return accessToken;
       if (!inFlight) {

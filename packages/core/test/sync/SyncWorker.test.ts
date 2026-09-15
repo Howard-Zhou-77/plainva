@@ -95,6 +95,7 @@ describe("SyncWorker", () => {
     stateRepo = {
       // The worker reads the whole per-cycle state through ONE snapshot (P2.2).
       getAllStates: vi.fn().mockResolvedValue(new Map()),
+      getSyncState: vi.fn(async (path: string) => (await stateRepo.getAllStates.mock.results.at(-1)?.value)?.get(path) ?? null),
       updateLocalHashAndBaseText: vi.fn().mockResolvedValue(undefined),
       updateLocalHashAndBaseTextGuarded: vi.fn().mockResolvedValue(undefined),
       updateLocalHash: vi.fn().mockResolvedValue(undefined),

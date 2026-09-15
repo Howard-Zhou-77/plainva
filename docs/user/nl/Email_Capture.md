@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-09-07
+Laatst bijgewerkt: 2026-09-15
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -12,7 +12,7 @@ Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en —
 
 - **Microsoft** — voor Outlook.com en Microsoft 365: vink **E-mail** aan bij de stap diensten (desgewenst samen met **Bestanden** en **Agenda en taken** — één account, één aanmelding) en meld je rechtstreeks aan in de browser, zonder app-wachtwoord en zonder IMAP. Plainva gebruikt de centrale app-registratie van Plainva (je kunt optioneel je eigen app-ID opgeven in de accountdetails). Lezen, vastleggen en **direct verzenden** lopen allemaal via de Microsoft-aanmelding.
 - **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — eigen tegels: e-mailadres plus een **app-wachtwoord**, de servers zijn al ingevuld (bij de meeste van deze tegels kun je in dezelfde stap ook **Agenda en taken** aanvinken — één app-wachtwoord voor alle gekozen diensten). De assistent linkt telkens naar de officiële handleiding van de provider voor het aanmaken van het app-wachtwoord.
-- **E-mailserver (IMAP)** — voor elke andere provider: host, poort en een wachtwoord of **app-wachtwoord**. Er zijn kant-en-klare voorinstellingen voor providers uit de hele wereld — van **web.de**/**GMX** en **T-Online** via **Orange**, **Libero**, **WP**, **Seznam** en **Comcast** tot **QQ Mail**, **NetEase**, **Naver** en **Yahoo! JAPAN**; de keuzelijst **Provider** heeft daarvoor een zoekregel, en bij het intypen van je adres wordt de bijpassende voorinstelling automatisch gekozen. Waar een provider bijzonderheden heeft, wijst de assistent daar direct onder het formulier op: sommige vereisen een **app-wachtwoord** of een **autorisatiecode** in plaats van het accountwachtwoord, bij andere moet IMAP eerst in de instellingen van de provider worden ingeschakeld — telkens met een link naar de officiële handleiding. Voor Gmail is dat `imap.gmail.com`, poort `993`, met een app-wachtwoord van [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (vereist tweefactorauthenticatie) — geen OAuth, geen verificatie; de assistent wijst hier bij Gmail-adressen zelf op. **Outlook.com-mailboxen** kunnen niet meer via app-wachtwoord-IMAP verbinden (Microsoft heeft die weg uitgeschakeld) — de voorinstelling verwijst naar de tegel **Microsoft**. **Proton Mail** werkt alleen via de lokaal draaiende, betaalde Proton Mail Bridge (eigen voorinstelling). Voeg een SMTP-host toe om direct te verzenden.
+- **E-mailserver (IMAP)** — voor elke andere provider: host, poort en een wachtwoord of **app-wachtwoord**. Er zijn kant-en-klare voorinstellingen voor providers uit de hele wereld — van **web.de**/**GMX** en **T-Online** via **Orange**, **Libero**, **WP**, **Seznam** en **Comcast** tot **QQ Mail**, **NetEase**, **Naver** en **Yahoo! JAPAN**; de keuzelijst **Provider** heeft daarvoor een zoekregel, en bij het intypen van je adres wordt de bijpassende voorinstelling automatisch gekozen. Waar een provider bijzonderheden heeft, wijst de assistent daar direct onder het formulier op: sommige vereisen een **app-wachtwoord** of een **autorisatiecode** in plaats van het accountwachtwoord, bij andere moet IMAP eerst in de instellingen van de provider worden ingeschakeld — telkens met een link naar de officiële handleiding. Voor Gmail is dat `imap.gmail.com`, poort `993`, met een app-wachtwoord van [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (vereist tweefactorauthenticatie) — een afzonderlijke aanmelding met app-wachtwoord; de assistent wijst hier bij Gmail-adressen zelf op. **Outlook.com-mailboxen** kunnen niet meer via app-wachtwoord-IMAP verbinden (Microsoft heeft die weg uitgeschakeld) — de voorinstelling verwijst naar de tegel **Microsoft**. **Proton Mail** werkt alleen via de lokaal draaiende, betaalde Proton Mail Bridge (eigen voorinstelling). Voeg een SMTP-host toe om direct te verzenden.
 
 Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslagen; de toegangsgegevens komen terecht in de sleutelhanger van je besturingssysteem. De verbonden mailboxen en de vastleginstellingen vind je daarna in het gebied **E-mail**: de instelling **E-mailmap** bepaalt waar vastgelegde e-mails worden opgeslagen (standaard `Mail`).
 
@@ -137,3 +137,18 @@ Gmail-regels stel je nog steeds in Googles eigen instellingen in.
 ## Bestaande accounts uitbreiden
 
 Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
+
+<!-- gmail-oauth-2026-09-14 -->
+## Bij Gmail inloggen met Google
+
+Een ingestelde testbuild toont **Inloggen met Google · Test** bij e-mailaccounts. Deze toegang is nog niet algemeen beschikbaar. Desktop en iOS gebruiken de systeembrowser; Android gebruikt de eigen Google-accountkiezer. Plainva controleert het gekozen account en de verleende mailrechten voordat diensten worden toegevoegd. Een ander account, annuleren of geweigerde toestemming vervangt geen bestaande aanmelding.
+
+Google vereist volledige mailtoegang voor IMAP en SMTP. De aanmelding blijft op dit apparaat; OAuth-tokens worden niet met de kluis gesynchroniseerd. E-mail die je als notitie of EML-bestand opslaat, behoort wel tot de kluis en volgt de opslag-, deel- en synchronisatie-instellingen. Bestaande Gmail-appwachtwoorden blijven bruikbaar.
+
+## Meerdere berichten, bijlagen en toetsenbord
+
+Selecteer meerdere berichten om ze als gelezen of ongelezen te markeren, te verplaatsen of te verwijderen. Bevestigde wijzigingen werken de lijst bij. Onbevestigde berichten blijven geselecteerd met een afzonderlijk resultaat. Annuleren stopt na de huidige groep. Vernieuw de map voordat je een onzekere actie herhaalt. Als de server een gerichte actie niet ondersteunt, legt Plainva dit uit en blijven andere berichten behouden.
+
+**Met bijlagen** filtert geladen berichten. De melding toont hoeveel berichten bekende metadata hebben. Ontbrekende metadata betekent niet dat er geen bijlagen zijn; volgende pagina’s kunnen meer resultaten bevatten.
+
+Met een mobiel hardwaretoetsenbord verplaatsen Omhoog/Omlaag en Home/End de focus in de lijst. Enter opent of selecteert een bericht. Links/Rechts vouwen gesprekken in of uit; Escape verlaat de selectie of annuleert volgende groepen. Zoekvelden behouden hun bewerkingstoetsen.

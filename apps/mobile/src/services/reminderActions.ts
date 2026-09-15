@@ -38,7 +38,8 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
         const result = await setTaskDone(intent.uid, true);
         // Ticking off from a notification is the one case where nothing on
         // screen confirms it — so it says so itself.
-        if (result.spawnedDue) toast.info(i18n.t("tasks.repeatSpawned", { date: result.spawnedDue }));
+        if (result.spawnFailed) toast.error(i18n.t("tasks.repeatFailed"));
+        else if (result.spawnedDue) toast.info(i18n.t("tasks.repeatSpawned", { date: result.spawnedDue }));
         else if (result.changed) toast.info(i18n.t("reminders.taskDone"));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));

@@ -1,6 +1,6 @@
 # Opmerkingen en voorstellen
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
@@ -71,3 +71,9 @@ Desktop en mobiel gebruiken dezelfde opslag voor ondertekende opmerkingen in een
 Opmerkingen in de oude bestanden blijven bewaard en worden met beheer- en opmerkingsrechten geïmporteerd. **Uit eerdere geschiedenis** behoudt de oorspronkelijke naam en datum. Die vermeldingen bewijzen achteraf geen lidmaatschap van de werkruimte; de nieuwe handtekening bevestigt de import. Als rechten, de gesynchroniseerde doelnotitie of een geslaagde opslag ontbreken, blijft de oude opmerking zichtbaar. Antwoorden, verwijderen en suggestieacties blijven uitgeschakeld totdat het doel duurzaam is toegewezen. De import verstuurt de meldingen van de oude geschiedenis niet opnieuw.
 
 Als alleen de oudere geschiedenis is vergrendeld, opent de ontgrendelactie de invoer van de synchronisatiewachtzin; nieuwe opmerkingen blijven beschikbaar. Als de werkruimte zelf is vergrendeld, opent de actie de beveiligingsinstellingen. Suggestiehandelingen die vóór de update zijn gestart, behouden hun opgeslagen voortgang en kunnen met de huidige rechten verdergaan. De import verwijdert de oorspronkelijke opmerkingsbestanden niet.
+
+## Feedback op publicaties
+
+Ontvangers openen de publicatie als een eigen werkruimte. Leestoegang staat geen feedback toe; commentaarrechten staan opmerkingen toe en voorstelrechten ook wijzigingen in een kopie. Het origineel blijft alleen-lezen. Desktop en mobiel handhaven dezelfde rechten en bewaren niet-verzonden feedback voor een nieuwe poging.
+
+Feedback verschijnt bij de oorspronkelijke notitie op desktop en mobiel, per publicatie gegroepeerd met de namen van ontvangers. Toepasbare voorstellen uit een exacte kopie kunnen via de gewone gecontroleerde opslag worden toegepast of afgewezen. De beslissing wordt bij het origineel in je eigen kluis vastgelegd; er wordt geen antwoord naar ontvangers gestuurd. Opgeschoonde kopieën en passages die niet veilig terug te vinden zijn, bieden geen automatische toepassing. Feedback van huidige clients blijft voor de eigenaar leesbaar nadat toegang van een ontvanger is ingetrokken. Oude feedback die uitsluitend voor een verwijderde ontvangerssleutel was versleuteld, wordt niet herschreven. Een publicatie waarvan de sleutel op dit apparaat ontbreekt, blijft buiten beeld.

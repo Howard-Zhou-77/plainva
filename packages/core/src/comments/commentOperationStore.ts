@@ -17,7 +17,8 @@ export async function commentOperationStore(store: CommentStore, journal: Commen
   if (saved?.phase !== "completed") {
     const path = await route.resolvePath(operation.notePath, operation.createdAt, operation.markers[0].targetObjectId);
     const capabilities = await store.capabilities(path);
-    if (!capabilities?.includes("comment.create") || (operation.text && !capabilities.includes("content.write")))
+    if (!capabilities?.includes("comment.create") || (operation.text && !capabilities.includes("content.write"))
+      || (operation.markers.some(marker => marker.suggestion) && !capabilities.includes("comment.suggest")))
       throw new Error("workspace-comment-operation-not-permitted");
   }
   return route;

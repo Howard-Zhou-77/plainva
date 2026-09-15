@@ -1,5 +1,6 @@
 import type { SmtpSendArgs } from "../transport";
 import { LineSocket } from "./socket";
+import { MAIL_OAUTH_REJECTED, xoauth2Payload } from "./xoauth2";
 
 /**
  * SMTP submission over a raw socket (mail feinplan G2). Same reasoning as the
@@ -60,14 +61,21 @@ export async function smtpSend(args: SmtpSendArgs, mime: string, timeoutMs = 30_
   const sock = await LineSocket.connect(args.host, args.port, implicitTls, timeoutMs);
   try {
     await expect(sock, [220], "the mail server refused the connection");
-    const ehlo = await say(sock, `EHLO plainva`, [250], "EHLO failed");
+    let ehlo = await say(sock, `EHLO plainva`, [250], "EHLO failed");
     if (!implicitTls) {
       if (!/STARTTLS/i.test(ehlo)) throw new Error("the server offers no STARTTLS — refusing to send the password in the clear");
       await say(sock, "STARTTLS", [220], "STARTTLS failed");
       await sock.startTls();
       // The capability list must be re-read on the encrypted channel.
-      await say(sock, `EHLO plainva`, [250], "EHLO after STARTTLS failed");
+      ehlo = await say(sock, `EHLO plainva`, [250], "EHLO after STARTTLS failed");
     }
+    if (args.auth === "xoauth2") {
+      if (!/250[ -]AUTH[ =][^\r\n]*\bXOAUTH2\b/i.test(ehlo)) throw new Error("The mail server does not support XOAUTH2");
+      await sock.writeText(`AUTH XOAUTH2 ${xoauth2Payload(args.user, args.pass)}${CRLF}`);
+      let result = await reply(sock);
+      if (result.code === 334) { await sock.writeText(CRLF); result = await reply(sock); }
+      if (result.code !== 235) throw new Error(MAIL_OAUTH_REJECTED);
+    } else {
     // AUTH PLAIN is the common case; LOGIN is the fallback for servers without it.
     try {
       await say(sock, `AUTH PLAIN ${b64(`\0${args.user}\0${args.pass}`)}`, [235], "sign-in rejected");
@@ -75,6 +83,7 @@ export async function smtpSend(args: SmtpSendArgs, mime: string, timeoutMs = 30_
       await say(sock, "AUTH LOGIN", [334], "sign-in rejected");
       await say(sock, b64(args.user), [334], "sign-in rejected");
       await say(sock, b64(args.pass), [235], "sign-in rejected");
+    }
     }
     await say(sock, `MAIL FROM:<${args.from}>`, [250], "the server rejected the sender");
     const recipients = [args.to, args.cc ?? "", args.bcc ?? ""]

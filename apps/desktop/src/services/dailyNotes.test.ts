@@ -74,13 +74,12 @@ describe("listExistingDailyNotes", () => {
     expect(result).toEqual(new Set(["2024-03-05"]));
   });
 
-  it("skips dates whose existence check throws instead of failing the whole scan", async () => {
+  it("does not report a partial scan as a complete set of daily notes", async () => {
     const exists = vi.fn(async (p: string) => {
       if (p === "2024-03-06.md") throw new Error("fs error");
       return true;
     });
-    const result = await listExistingDailyNotes(dates, { vaultPath: VAULT, adapter: { exists } });
-    expect(result).toEqual(new Set(["2024-03-05", "2024-03-07"]));
+    await expect(listExistingDailyNotes(dates, { vaultPath: VAULT, adapter: { exists } })).rejects.toThrow("fs error");
   });
 
   it("returns an empty set when nothing exists", async () => {

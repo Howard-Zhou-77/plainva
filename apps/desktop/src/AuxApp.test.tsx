@@ -44,6 +44,7 @@ vi.mock("./services/windowBus", () => ({
     request: async (kind: string, args: unknown) => {
       busRequests.push([kind, args]);
       if (kind === "reveal-in-tree") return { where: "owner" };
+      if (kind === "bookmarks-list" || kind === "toggle-bookmark") return [];
       return undefined;
     },
     onBroadcast: async () => () => {},

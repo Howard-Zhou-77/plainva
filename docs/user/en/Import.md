@@ -1,8 +1,8 @@
 # Importing from another app
 
-Last reviewed: 2026-09-10
+Last reviewed: 2026-09-15
 
-Plainva can bring notes over from other note apps. The import always writes into the vault you currently have open, in a subfolder you name — so it never touches the rest of your vault, and you can move or delete the imported folder afterwards like any other folder.
+Plainva imports notes from other apps into a new vault or a newly named subfolder of the open vault. The rest of the vault stays unchanged; you can then move or delete the import folder.
 
 **Import runs on both devices, with the same sources.** On the desktop the start screen, the command palette and a folder's context menu lead into it; on the phone you find it under **Settings → Maintenance → Import from another app**. Sources that need an account with a service — Notion through its API — are available there too.
 
@@ -58,7 +58,7 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | **Google Keep (Takeout)** | The Takeout ZIP or the `.json` files | Notes, checklists, labels as tags, colour on the note header, pinned notes as a pinboard |
 | **Simplenote** | The exported `.json` file | Active notes and their tags |
 | **Logseq** | Your graph folder | The files, copied unchanged |
-| **Joplin** | The Markdown export folder or ZIP | Notes with their notebooks, frontmatter, tags and resources |
+| **Joplin** | JEX/TAR, RAW folder or Markdown export | Notes, notebooks, tags, resources, internal links and timestamps |
 | **Bear (TextBundle)** | The exported `.textbundle` folders | Notes with their images |
 | **Notesnook** | The Markdown export | Notes and their notebook folders; a note filed in two notebooks is imported once |
 | **Capacities** | The export folder or ZIP | Notes with their properties as frontmatter, plus media |
@@ -171,3 +171,12 @@ ZIP files are processed with limits per file, for the total size and for the num
 ## Occupied filenames
 
 The importer checks up to 1000 filename variants. If none is free, a target cannot be checked, or a reserved name has since been occupied, that entry is skipped with a reason. Other entries continue. In a Notion import, a failed reservation keeps links to the original source instead of assigning a local target. If the report itself cannot get a free name, the import shows an error; files already imported remain in the target folder.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX and RAW
+
+Select a decrypted JEX/TAR export or RAW folder. Preview counts notes, notebooks, tags and attachments. Empty notebooks survive; duplicate titles receive distinct names and links follow their IDs. Notes exported without their notebook go into the import root.
+
+Resource bytes are preserved. Original records, including unknown fields, also go into `_Joplin/Export.json`, counted as one attachment. Missing resources and unresolved links are reported, with original links retained. Read the report before deleting the export.
+
+JEX requires a fresh target. Invalid archives, conflicting paths, symbolic/hard links and TAR extensions such as PAX are rejected in full. Limits: 20,000 entries, 32 MiB per file, 2 MiB per text file, 256 MiB total payload, 64 MiB text and 64 MiB companion file. Desktop uses a private archive copy; mobile reads slices of the selected file. Cancelling analysis writes nothing to the vault. Cancelling import keeps files already written and a partial report; the whole folder is not rolled back automatically.

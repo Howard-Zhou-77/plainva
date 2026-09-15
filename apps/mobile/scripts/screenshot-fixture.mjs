@@ -421,13 +421,14 @@ export function fixtureStorage() {
       user: "anna@example.org",
       smtpHost: "smtp.example.org",
       smtpPort: 587,
-      kind: "imap",
+      kind: "microsoft",
+      clientId: "local-fixture-client",
     },
   ];
   const cloudAccounts = [
     {
       id: "acct-fixture-mail",
-      family: "fastmail",
+      family: "microsoft",
       label: "anna@example.org",
       services: { mail: { mailAccountId: "mail-fixture-1" } },
     },
@@ -495,31 +496,7 @@ export function fixtureStorage() {
      * nothing about this picture depends on a network answering.
      */
     [`secret_pim_${CLOUD_VAULT}_pim-fixture-team`]: { user: "anna", password: "fixture" },
-    /**
-     * An active encrypted workspace — status only, deliberately.
-     *
-     * This is what puts the STATUS CARD on *Security & Sharing* — the row
-     * that reads "active · Pixel (Fixture)". The runtime is NOT seeded: it is
-     * a serialized key pair, a malformed one throws during boot, and a real
-     * one would mean generating and committing key material for a screenshot.
-     *
-     * **The consequence was stated wrongly here until S12.** This comment
-     * claimed the group surfaces render and only their actions stay inert.
-     * They do not render at all: `SecurityAreaScreen` hangs every group, the
-     * team, the slices, the danger zone and the rekey row off `runtime`, so
-     * without one the screen ends after the status card. The picture was
-     * counted as covered for months while showing two rows — the same failure
-     * as the empty graph in N0.1, one layer up. The surface now declares
-     * itself UNVERIFIED and says why; see `screenshot-baseline.mjs`.
-     */
-    [`workspace_status_mobile_${CLOUD_VAULT}`]: {
-      version: 1,
-      workspaceId: "ws-fixture-team",
-      fingerprint: "3f7a91c2b8d45e60",
-      deviceName: "Pixel (Fixture)",
-      phase: "active",
-      lastError: null,
-    },
+    // A fresh workspace runtime/status is added by screenshot-services.mjs.
     [`mailAccounts_${b64(LOCAL_VAULT)}`]: mailAccounts,
     // One rule, so the editor can be photographed as itself (S16b). Without it
     // the rules section is an empty state and the capture would show a surface
@@ -552,7 +529,7 @@ export function fixtureStorage() {
     // the Microsoft refresh path for a Google account, and a mail secret under
     // the wrong field name read as "no password on this device".
     [`secret_pim_${LOCAL_VAULT}_pim-fixture-1`]: { kind: "google", clientId: "fixture-client", refreshToken: "fixture" },
-    [`secret_mail_mail-fixture-1_${b64(LOCAL_VAULT)}`]: { pass: "fixture" },
+    [`secret_mail_mail-fixture-1_${b64(LOCAL_VAULT)}`]: { refreshToken: "local-fixture-only" },
     [`mailRules_${b64(LOCAL_VAULT)}`]: [
       {
         id: "rule-fixture-1",
@@ -567,8 +544,8 @@ export function fixtureStorage() {
       },
     ],
     [`cloudAccounts_${LOCAL_VAULT}`]: cloudAccounts,
-    // Exactly one credential slot — see the note above.
-    [`secret_mail_${b64(LOCAL_VAULT)}_mail-fixture-1`]: { password: "fixture" },
+    // Current vault-bound mail slot; the legacy slot above exercises migration.
+    [`secret_mail_${b64(LOCAL_VAULT)}_mail-fixture-1`]: { refreshToken: "local-fixture-only" },
     // NOT the calendar account, deliberately (tried in S5 and reverted): a
     // seeded PIM slot makes the runtime attempt a real token refresh against
     // the provider, so the card turns from "not signed in" into "sign-in

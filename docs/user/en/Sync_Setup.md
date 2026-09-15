@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-09-10
+Last updated: 2026-09-15
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -183,3 +183,26 @@ Add files, calendar or email directly to the appropriate account. Plainva checks
 Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
 
 When adding files on mobile, Plainva shows the source, destination and collisions before transfer. Existing contents and services are preserved; an interrupted transfer can be retried.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Certificates for self-hosted servers
+
+Android also trusts certificate authorities you install in the system settings. This applies to all Plainva connections that use Android’s platform configuration, not just one WebDAV server. Desktop HTTP connections include system certificate authorities alongside public roots; iOS uses its system trust settings. Certificate validity and the server hostname are still checked. An expired, not-yet-valid or wrong-host certificate must be corrected on the server or in the configured address. Plainva never offers an option to accept every certificate. If the operating system does not identify the exact trust failure, Plainva reports that verification failed without guessing its cause. Native mobile HTTP failures appear in the diagnostic export as a method and error code, without credentials, certificate subjects or private server paths.
+
+<!-- workspace-retry-2026-09-14 -->
+## Automatic retries and missing sync history
+
+The connection is temporarily unavailable. Plainva will try again automatically; pending changes stay on this device.
+
+Sign in to the sync account again. Pending changes stay on this device until access is restored.
+
+Plainva cannot verify the encrypted workspace. Synchronization is paused; local data and pending changes are preserved. Open Security & Sharing, restore a verified copy if available, then check again.
+
+On a device that still holds the complete verified history, choose Sync now. Plainva can restore missing signed operations from that copy. Then check again on Plainva. If no valid copy exists, keep or export the local data; verification is never reset to bypass the gap.
+
+Unencrypted remark files from other devices remain on the server. Only their originating device can finish the conversion. Plainva does not delete another device's files.
+
+<!-- account-grants-destination-2026-09-14 -->
+Existing sign-ins are adopted only after verifying identity, the permissions actually granted, and secure storage. An account can retain separate grants; adding a service keeps the working sign-ins of other services. Microsoft mail can reuse a suitable files or calendar sign-in. Another device needs its own sign-in.
+
+In Sync settings, the Google Drive picker shows the current destination and a preview of the selected folder. Open folders with the same name and compare their files and modification dates. “Use this destination” stores the unique folder ID. If that folder later becomes unavailable, Plainva reports the error and creates no replacement. Other folders are not moved or deleted.

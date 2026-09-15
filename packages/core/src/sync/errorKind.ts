@@ -1,4 +1,6 @@
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
+import { connectionFailureCode } from "./connectionFailure.js";
+import { parseRetryAfterMs } from "./httpRetry.js";
 
 /**
  * Is a failure worth waiting out, or is it an answer? (mobile round 3.)
@@ -32,9 +34,14 @@ export type SyncErrorKind = "transient" | "fatal";
 
 /** A provider can identify a temporary cause even behind a normally fatal status. */
 export class SyncProviderError extends Error {
-  constructor(message: string, public readonly status: number, public readonly transient = false) {
+  constructor(message: string, public readonly status: number, public readonly transient = false, public readonly retryAfterMs?: number) {
     super(message); this.name = "SyncProviderError";
   }
+}
+
+/** Keep a server's retry delay when a provider turns a response into an error. */
+export function syncHttpError(message: string, response: Response): SyncProviderError {
+  return new SyncProviderError(message, response.status, false, parseRetryAfterMs(response.headers?.get?.("Retry-After") ?? null) ?? undefined);
 }
 
 /**
@@ -56,6 +63,8 @@ export class SyncProviderError extends Error {
 export function classifySyncError(error: unknown): SyncErrorKind {
   // A protocol/manifest refusal is the definition of "needs a human".
   if (error instanceof FatalSyncProtocolError) return "fatal";
+  const connection = connectionFailureCode(error);
+  if (connection?.startsWith("TLS_") || connection === "HTTP_ORIGIN_BLOCKED") return "fatal";
 
   const name = error instanceof Error ? error.name : "";
   const text = syncErrorMessage(error).toLowerCase();

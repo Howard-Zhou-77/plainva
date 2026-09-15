@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -7,6 +8,9 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  // The installed SDK has a deliberately smaller API. Both shells and every
+  // shared UI import use ONE source module in dev, tests and production builds.
+  resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },
 
   // Dependencies that only load through LAZY chunks (P2.8/P2.9/P3.4/P3.5).
   // Without pre-bundling, the dev server discovers them on first open,

@@ -85,6 +85,8 @@ export interface IndexScanReport {
 }
 
 export interface VaultIndexerOptions {
+  /** Cancels read-only reconciliation before any index mutation starts. */
+  scanSignal?: AbortSignal;
   onExternalModification?: (path: string, oldHash: string | null, newHash: string) => void;
   /**
    * Answers whether `sha256` is content the app's own adapter wrote to `path`
@@ -660,7 +662,21 @@ export class VaultIndexer {
    * Performance Optimized: Only processes modified or new files, removes deleted ones,
    * and wraps everything in a single bulk transaction.
    */
-  async indexVaultFull(): Promise<IndexScanReport> {
+  private fullScan: Promise<IndexScanReport> | null = null;
+
+  indexVaultFull(): Promise<IndexScanReport> {
+    if (this.fullScan) return this.fullScan;
+    const run = this.indexVaultFullInternal().finally(() => { if (this.fullScan === run) this.fullScan = null; });
+    this.fullScan = run;
+    return run;
+  }
+
+  /** The owner closes the shared database only after an already-started commit. */
+  async whenIdle(): Promise<void> { await this.fullScan?.catch(() => {}); }
+
+  private async indexVaultFullInternal(): Promise<IndexScanReport> {
+    const signal = this.options?.scanSignal;
+    signal?.throwIfAborted();
     const startedAt = Date.now();
     this.pendingNewLocalFiles = [];
     this.pendingExternalMods = [];
@@ -674,12 +690,13 @@ export class VaultIndexer {
     let skipped: VaultWalkSkip[] = [];
     let diskFiles: VaultFileInfo[];
     if (this.vaultAdapter.listDirReport) {
-      const listing = await this.vaultAdapter.listDirReport("", true);
+      const listing = await this.vaultAdapter.listDirReport("", true, { signal });
       diskFiles = listing.files;
       skipped = listing.skipped;
     } else {
-      diskFiles = await this.vaultAdapter.listDir("", true);
+      diskFiles = await this.vaultAdapter.listDir("", true, { signal });
     }
+    signal?.throwIfAborted();
     // The exclusion has to hold HERE, in the shared core, not only in an adapter:
     // only TauriVaultAdapter skips internal folders during the walk, so on mobile
     // (and any host whose adapter lists everything) a `node_modules/pkg/README.md`
@@ -713,6 +730,9 @@ export class VaultIndexer {
     const vanishedFromDisk: string[] = [];
     for (const dbPath of dbFileMap.keys()) {
       if (!diskFilePaths.has(dbPath)) {
+        // An incomplete walk cannot prove a deletion. Keep the known index and
+        // remote contents until this path's subtree can actually be inspected.
+        if (skipped.some(entry => !entry.path || dbPath === entry.path || dbPath.startsWith(`${entry.path}/`))) continue;
         filesToDelete.push(dbPath);
         if (!isInternalPath(dbPath)) vanishedFromDisk.push(dbPath);
       }
@@ -738,6 +758,7 @@ export class VaultIndexer {
     // One-query-per-table lookups for the whole pass (P2.4) instead of three
     // SELECT round-trips per file.
     const lookups = await this.loadBulkLookups(new Set(dbFileMap.keys()));
+    signal?.throwIfAborted();
 
     await this.dbAdapter.transaction(async () => {
       // The cold full-scan's writes (file/fts/links/tags/properties rows + the

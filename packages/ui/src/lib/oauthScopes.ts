@@ -2,6 +2,7 @@ import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES, GRAPH_CALENDAR_SCOPES, ONE
 
 export type OAuthFamily = "google" | "microsoft";
 export const GRAPH_MAIL_SCOPES = "User.Read Mail.ReadWrite Mail.Send offline_access";
+export const GOOGLE_MAIL_SCOPES = "openid email https://mail.google.com/";
 
 /** Provider-documented spellings, without guessing wider permissions. */
 export function normalizeOAuthScopes(scopes: string, family?: OAuthFamily): string[] {
@@ -30,6 +31,7 @@ export function oauthScopeFor(family: OAuthFamily, audience: string): string | n
   if (family === "google") {
     if (audience === "files") return DRIVE_DEFAULT_SCOPE;
     if (audience === "calendar") return GOOGLE_CALENDAR_SCOPES;
+    if (audience === "mail") return GOOGLE_MAIL_SCOPES;
     return null;
   }
   if (audience === "files") return ONEDRIVE_DEFAULT_SCOPE;

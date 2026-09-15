@@ -37,6 +37,7 @@ export async function releaseSocketSessions(user?: string): Promise<void> {
 
 export function createSocketMailTransport(): MailTransport {
   return {
+    bulkAction: (creds, args) => withConn(creds, c => c.bulkAction(args)),
     checkLogin: (creds) => withConn(creds, (c) => c.listMailboxes()),
 
     listEnvelopes: (creds, args) =>
@@ -108,6 +109,7 @@ export function createSocketMailTransport(): MailTransport {
     // ManageSieve is its own connection on its own port — it is not IMAP, and
     // the pooled IMAP session cannot carry it.
     sieveGet: async (creds, args) => {
+      if (creds.auth === "xoauth2") throw new Error("OAuth mail does not support ManageSieve");
       const session = await sieveConnect({ host: args.host, port: args.port, user: creds.user, pass: creds.pass });
       try {
         const name = activeScriptName(await session.listScripts());
@@ -120,6 +122,7 @@ export function createSocketMailTransport(): MailTransport {
     },
 
     sievePut: async (creds, args) => {
+      if (creds.auth === "xoauth2") throw new Error("OAuth mail does not support ManageSieve");
       const session = await sieveConnect({ host: args.host, port: args.port, user: creds.user, pass: creds.pass });
       try {
         await session.putScript(args.name, args.body);
@@ -131,9 +134,8 @@ export function createSocketMailTransport(): MailTransport {
 
     deleteMessage: (creds, args) =>
       withConn(creds, async (c) => {
-        await c.select(args.mailbox);
-        await c.store(args.uid, "\\Deleted", true);
-        await c.expunge(args.uid);
+        const [result] = await c.bulkAction({ mailbox: args.mailbox, uids: [args.uid], action: { kind: "delete" } });
+        if (result.status !== "done") throw new Error(result.reason === "unsupported" ? "MAIL_BULK_UNSUPPORTED" : "The mail server did not confirm the deletion");
       }),
 
     searchEnvelopes: (creds, args) =>

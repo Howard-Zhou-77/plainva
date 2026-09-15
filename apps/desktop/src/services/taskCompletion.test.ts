@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { toggleTaskDone, writeTaskNote, type TaskToggleDeps } from "./taskCompletion";
 import type { TaskCompletionModel } from "@plainva/ui";
+import { readFrontmatterPath } from "@plainva/core";
 
 /**
  * The tick-off path shared by the Tasks overview and the calendar surfaces
@@ -188,6 +189,94 @@ plainva:
 
 # Müll rausbringen
 `;
+
+describe("durable recurrence", () => {
+  it("keeps the planned due date when a failed copy is retried on another day", async () => {
+    const files: Record<string, string> = { "T/a.md": REPEATING_TASK };
+    const { deps } = makeDeps(files), write = deps.vaultAdapter.writeTextFile;
+    deps.vaultAdapter.writeTextFile = async (p, c) => { if (p !== "T/a.md") throw new Error("full"); await write(p, c); };
+    expect((await toggleTaskDone(deps, "T/a.md", true)).spawnFailed).toBe(true);
+    deps.vaultAdapter.writeTextFile = write;
+    try {
+      vi.setSystemTime(new Date("2026-09-10T12:00:00Z"));
+      expect((await toggleTaskDone(deps, "T/a.md", true)).spawnedDue).toBe("2026-08-17");
+      expect(Object.keys(files)).toEqual(["T/a.md", "T/a 2.md"]);
+    } finally { vi.setSystemTime(new Date("2026-08-10T12:00:00Z")); }
+  });
+  it("serializes concurrent completion and never repeats the predecessor twice", async () => {
+    const files: Record<string, string> = { "T/a.md": REPEATING_TASK };
+    const { deps } = makeDeps(files);
+    const results = await Promise.all([toggleTaskDone(deps, "T/a.md", true), toggleTaskDone(deps, "T/a.md", true)]);
+    expect(results.filter(r => r.spawnedDue)).toHaveLength(1);
+    await toggleTaskDone(deps, "T/a.md", false);
+    await toggleTaskDone(deps, "T/a.md", true);
+    expect(Object.keys(files)).toEqual(["T/a.md", "T/a 2.md"]);
+    expect(readFrontmatterPath(files["T/a.md"]!, ["plainva", "repeatNext", "complete"])).toBe(true);
+    // A deliberate deletion must not be undone by replaying its predecessor.
+    delete files["T/a 2.md"];
+    await toggleTaskDone(deps, "T/a.md", true);
+    expect(Object.keys(files)).toEqual(["T/a.md"]);
+  });
+
+  it.each(["copy", "receipt"])("recovers a crash after writing the %s without another child", async phase => {
+    const files: Record<string, string> = { "T/a.md": REPEATING_TASK };
+    const { deps } = makeDeps(files);
+    const realWrite = deps.vaultAdapter.writeTextFile;
+    let fail = true;
+    deps.vaultAdapter.writeTextFile = async (p, c) => {
+      const crash = fail && (phase === "copy" ? p === "T/a 2.md" : p === "T/a.md" && readFrontmatterPath(c, ["plainva", "repeatNext", "complete"]) === true);
+      if (phase === "receipt" && crash) { fail = false; throw new Error("interrupted before receipt"); }
+      await realWrite(p, c);
+      if (crash) { fail = false; throw new Error("interrupted after copy"); }
+    };
+    expect((await toggleTaskDone(deps, "T/a.md", true)).spawnFailed).toBe(true);
+    files["T/a 2.md"] += "\nA later edit of the successor\n";
+    expect((await toggleTaskDone(deps, "T/a.md", true)).spawnFailed).toBe(false);
+    expect(Object.keys(files)).toEqual(["T/a.md", "T/a 2.md"]);
+    expect(files["T/a 2.md"]).toContain("A later edit");
+    expect(readFrontmatterPath(files["T/a.md"]!, ["plainva", "repeatNext", "complete"])).toBe(true);
+  });
+
+  it("keeps a destination created after the plan and reports the conflict", async () => {
+    const files: Record<string, string> = { "T/a.md": REPEATING_TASK };
+    const { deps } = makeDeps(files);
+    const realWrite = deps.vaultAdapter.writeTextFile;
+    deps.vaultAdapter.writeTextFile = async (p, c) => {
+      await realWrite(p, c);
+      if (p === "T/a.md" && readFrontmatterPath(c, ["plainva", "repeatNext"])) files["T/a 2.md"] = "Someone else's new note";
+    };
+    expect((await toggleTaskDone(deps, "T/a.md", true)).spawnFailed).toBe(true);
+    expect(files["T/a 2.md"]).toBe("Someone else's new note");
+    expect(Object.keys(files)).toHaveLength(2);
+  });
+
+  it("does not guess new copy contents after a source edit during an interrupted copy", async () => {
+    const files: Record<string, string> = { "T/a.md": REPEATING_TASK };
+    const { deps } = makeDeps(files);
+    const realWrite = deps.vaultAdapter.writeTextFile;
+    deps.vaultAdapter.writeTextFile = async (p, c) => {
+      if (p !== "T/a.md") throw new Error("full");
+      await realWrite(p, c);
+    };
+    expect((await toggleTaskDone(deps, "T/a.md", true)).spawnFailed).toBe(true);
+    files["T/a.md"] += "\nChanged after completion\n";
+    deps.vaultAdapter.writeTextFile = realWrite;
+    expect((await toggleTaskDone(deps, "T/a.md", true)).spawnFailed).toBe(true);
+    expect(Object.keys(files)).toEqual(["T/a.md"]);
+    expect(files["T/a.md"]).toContain("Changed after completion");
+  });
+
+  it("gives the child its own recurrence receipt", async () => {
+    const files: Record<string, string> = { "T/a.md": REPEATING_TASK };
+    const { deps } = makeDeps(files);
+    await toggleTaskDone(deps, "T/a.md", true);
+    expect(readFrontmatterPath(files["T/a 2.md"]!, ["plainva", "repeatNext"])).toBeUndefined();
+    await toggleTaskDone(deps, "T/a 2.md", true);
+    await toggleTaskDone(deps, "T/a 2.md", true);
+    expect(Object.keys(files)).toEqual(["T/a.md", "T/a 2.md", "T/a 3.md"]);
+    expect(readFrontmatterPath(files["T/a 3.md"]!, ["faellig"])).toBe("2026-08-24");
+  });
+});
 
 describe("recurring tasks and dependencies", () => {
   // The failure this guards against is documented in Obsidian Tasks: a

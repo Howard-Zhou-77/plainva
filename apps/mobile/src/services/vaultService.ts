@@ -438,6 +438,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     (await adapter.listDir("")).length === 0 && !getMobileSettings().onboarded;
   let templateCreationClaimed = false;
   // Set when the full index pass is through — see MobileVault.indexSettled.
+  const indexAbort = new AbortController();
   let indexPassSettled = false;
 
   // Enqueue guards mirror the desktop: nothing enqueues before sync is
@@ -562,10 +563,11 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     syncRepo = new SyncStateRepository(db);
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
-    });
+    }, workspaceState ?? syncRepo);
     files = conflictAware;
 
     indexer = new VaultIndexer(files, db, {
+      scanSignal: indexAbort.signal,
       // The app's own save is never a foreign change (P1): a pass reading the
       // file between the write and its hash update asks the adapter first.
       isOwnWrite: (path, sha256) => conflictAware.wasWrittenByUs(path, sha256),
@@ -651,6 +653,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       }
     },
     dispose: async () => {
+      indexAbort.abort();
+      await indexer?.whenIdle();
       if (db) await db.close().catch(() => {});
     },
   };

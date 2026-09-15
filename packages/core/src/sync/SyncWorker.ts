@@ -11,6 +11,7 @@ import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, type SyncErrorKind } from "./errorKind.js";
 import type { DeletionJournal } from "./deletionJournal.js";
+import { withPathMutation } from "../vault/pathMutation.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -885,6 +886,15 @@ export class SyncWorker {
     changedPaths: string[],
     collisions?: NameCollision[]
   ): Promise<MirrorDeletionOutcome> {
+    return withPathMutation(this.stateRepo, [path], () => this.mirrorRemoteDeletionLocked(path, stateMap, changedPaths, collisions));
+  }
+
+  private async mirrorRemoteDeletionLocked(
+    path: string,
+    stateMap: Map<string, SyncState>,
+    changedPaths: string[],
+    collisions?: NameCollision[]
+  ): Promise<MirrorDeletionOutcome> {
     if (isLocalOnlyPath(path)) return "localOnly";
 
     // Never delete while a name collision is in play. Two known paths that differ
@@ -901,7 +911,7 @@ export class SyncWorker {
       return "collision";
     }
 
-    const state = stateMap.get(path) ?? null;
+    const state = await this.stateRepo.getSyncState(path);
     const localExists = await this.vault.exists(path);
     if (!localExists) {
       await this.stateRepo.deleteSyncState(path);
@@ -930,7 +940,7 @@ export class SyncWorker {
   private async reconcilePulledFile(
     path: string,
     remoteEtag: string,
-    state: SyncState | null,
+    _state: SyncState | null,
     now: number,
     changedPaths: string[],
     download?: () => Promise<Uint8Array | null>
@@ -953,6 +963,20 @@ export class SyncWorker {
 
     const contentBytes = await (download ? download() : this.target.download(path));
     if (!contentBytes) return;
+
+    await withPathMutation(this.stateRepo, [path], async () => {
+      if (await this.queue.hasPendingStructuralOp(path)) return;
+      // The listing snapshot can predate a local save or another window's
+      // conflict resolution. Re-read only after entering their shared gate.
+      const current = await this.stateRepo.getSyncState(path);
+      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths);
+    });
+  }
+
+  private async reconcileDownloadedFile(
+    path: string, contentBytes: Uint8Array, remoteEtag: string,
+    state: SyncState | null, now: number, changedPaths: string[]
+  ): Promise<void> {
 
     // Defensive end-to-end-encryption guard (A3): if the remote bytes are a PVE1
     // sealed blob, another device encrypted this vault and we cannot decrypt.

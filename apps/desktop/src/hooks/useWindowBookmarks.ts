@@ -1,0 +1,48 @@
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarksIO } from "@plainva/ui";
+import { getWindowBus } from "../services/windowBus";
+import { isOwnerWindow } from "../services/windowContext";
+import { loadDesktopBookmarks, publishBookmarks } from "../services/bookmarks";
+
+/** Every shell mirrors owner state; a client never writes a complete list. */
+export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | null) {
+  const { t } = useTranslation();
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const generation = useRef(0);
+  useEffect(() => {
+    let alive = true, updated = 0;
+    const epoch = ++generation.current;
+    setBookmarks([]);
+    if (!io || !vaultPath) return;
+    const accept = (paths: string[]) => { if (alive) { updated++; setBookmarks(paths); } };
+    const local = (event: Event) => {
+      const detail = (event as CustomEvent<{ vaultPath: string; bookmarks: string[] }>).detail;
+      if (detail?.vaultPath === vaultPath) accept(detail.bookmarks);
+    };
+    window.addEventListener("plainva-bookmarks-changed", local);
+    const off = isOwnerWindow() ? Promise.resolve(() => {}) : getWindowBus().then(bus => bus.onBroadcast("bookmarks-changed", value => accept(value.paths)));
+    const read = async () => {
+      await off;
+      const before = updated;
+      const paths = isOwnerWindow() ? await loadDesktopBookmarks(io) : await (await getWindowBus()).request("bookmarks-list", {}, { vaultPath });
+      if (alive && before === updated && generation.current === epoch) setBookmarks(paths);
+    };
+    void read().catch(() => { if (alive) toast.error(t("sidebar.bookmarkSaveFailed")); });
+    return () => { alive = false; window.removeEventListener("plainva-bookmarks-changed", local); void off.then(unsubscribe => unsubscribe()).catch(() => {}); };
+  }, [io, vaultPath, t]);
+  const mutate = async (kind: "toggle" | "remove", paths: string[]) => {
+    if (!io || !vaultPath) return;
+    const epoch = generation.current;
+    try {
+      const next = isOwnerWindow()
+        ? await (kind === "toggle" ? toggleBookmarkOnDisk(io, paths[0]) : removeBookmarksOnDisk(io, paths))
+        : await (kind === "toggle"
+          ? (await getWindowBus()).request("toggle-bookmark", { path: paths[0] }, { vaultPath })
+          : (await getWindowBus()).request("remove-bookmarks", { paths }, { vaultPath }));
+      if (isOwnerWindow()) publishBookmarks(vaultPath, next);
+      if (generation.current === epoch) setBookmarks(next);
+    } catch { if (generation.current === epoch) toast.error(t("sidebar.bookmarkSaveFailed")); }
+  };
+  return { bookmarks, toggleBookmark: (path: string) => { void mutate("toggle", [path]); }, removeBookmarks: (paths: string[]) => { void mutate("remove", paths); } };
+}

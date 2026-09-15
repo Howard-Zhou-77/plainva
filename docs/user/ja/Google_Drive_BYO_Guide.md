@@ -1,6 +1,6 @@
 # Google Drive同期の設定（Bring Your Own Credentials）
 
-最終更新: 2026-07-28
+最終更新: 2026-09-15
 
 Plainvaでローカル保管庫をGoogle Driveと同期するには、自前のGoogle API認証情報（Credentials）を使用できます。Plainvaはまだ（今のところ）Googleの中央CASA検証を通過していないため、この**Bring Your Own Credentials（BYO）**方式は、あなたの個人ファイルを安全に同期する方法を提供します。
 
@@ -66,10 +66,14 @@ Plainvaがあなたの認証情報を使用するには、同意画面（「OAut
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-上記のデスクトップクライアントの手順はデスクトップアプリ用です。モバイルではデバイスに対応する登録が必要です。**iOS** クライアントにはバンドルID `com.plainva.app`、**Android** クライアントにはパッケージ名 `com.plainva.app` とインストール済みビルドの署名証明書のSHA-1を使用します。通常、モバイルクライアントにクライアントシークレットは不要です。Plainvaのブラウザーからの戻り先は `com.plainva.app:/oauth2redirect` です。Googleは新しいAndroidクライアントでこの方式を標準で無効にしています。Googleが説明する例外は、Androidクライアントの詳細設定でカスタムURI方式を明示的に有効にすることです。この設定が利用できないクライアントでは、現在のブラウザー方式を使用できません。デスクトップのクライアントIDは代わりになりません。カレンダーには **Google Calendar API** と **Google Tasks API** も有効にしてください。不足する権限には新たな同意が必要で、既存のDriveへのログインだけでは足りません。
+上記のデスクトップ手順では、デスクトップ用クライアント ID と対応するシークレットを使います。Android は Google Identity Services を使います。パッケージ `com.plainva.app` と、実際にインストールするビルドの SHA-1 証明書を登録してください。Play ビルドはアプリ署名証明書を使い、ローカルビルドでは異なる場合があります。Android はブラウザーのリダイレクトやクライアントシークレットを使いません。iOS ではバンドル ID `com.plainva.app` と戻り先 `com.plainva.app:/oauth2redirect` を持つ iOS クライアントを使います。デスクトップ用クライアントはモバイル登録の代わりにはなりません。カレンダーには Google Calendar API と Google Tasks API も有効にしてください。
 
-[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+[Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
+
 
 適切なアカウントにファイル、カレンダー、メールを追加できます。選択したログインを確認し、不足している権限をリクエストします。
 
 Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。
+
+<!-- account-grants-destination-2026-09-14 -->
+一般的なログインエラーから Google プロジェクトの公開状態やテストユーザー一覧を判断することはできません。Google Cloud の設定と提供元の具体的なメッセージを確認してください。デスクトップ用にはクライアント ID と対応するシークレット値が必要です。モバイルの登録は OS とインストールされたビルドによって異なります。

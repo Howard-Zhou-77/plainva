@@ -1,6 +1,6 @@
 import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import { isTextFile } from "../sync/fileType.js";
-import type { SyncProgress, SyncStatus } from "../sync/SyncWorker.js";
+import type { SyncProgress, SyncStatus, SyncErrorReason } from "../sync/SyncWorker.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { createWorkspaceCatalog, openWorkspaceCatalog, type WorkspaceCatalogPayload } from "./catalog.js";
 import {
@@ -60,10 +60,16 @@ import { quarantineReasonCode } from "./quarantineReasons.js";
 import { splitDeviceChains } from "./deviceChains.js";
 import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
 import { recoverWorkspaceCommentDecisions } from "./commentDecisionRecovery.js";
+import { reconcileWorkspaceCommentRetractions } from "./commentRetractions.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
+import { syncErrorMessage } from "../sync/errorKind.js";
+import { connectionFailureCode } from "../sync/connectionFailure.js";
+import { restoreKnownOperationCopies } from "./operationRecovery.js";
+import { withPathMutation } from "../vault/pathMutation.js";
+import { classifyWorkspaceSyncFailure, isWorkspaceSyncAborted, workspaceSyncRetryDelay, type WorkspaceSyncFailureKind } from "./syncFailure.js";
 
 const STAGING_ROOT = ".plainva/workspace/staging";
 const DEFAULT_INTERVAL_MS = 15_000;
@@ -148,6 +154,9 @@ async function listAll(store: WorkspaceObjectStore, prefix: string, signal?: Abo
 
 export interface EncryptedWorkspaceWorkerOptions {
   intervalMs?: number;
+  /** Injectable clock/random source for deterministic scheduler checks. */
+  now?: () => number;
+  random?: () => number;
   sideband?: () => Promise<void>;
   /**
    * Reopens one publication's own runtime, or returns null when this device
@@ -174,7 +183,12 @@ export class EncryptedWorkspaceWorker {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private abort: AbortController | null = null;
   private pendingImmediate = false;
-  public onStatusChange?: (status: SyncStatus, error?: string) => void;
+  private pendingManualRetry = false;
+  private inspectKnownCopies = false;
+  private consecutiveFailures = 0;
+  private failureKind: WorkspaceSyncFailureKind | undefined;
+  private retryAt: number | undefined;
+  public onStatusChange?: (status: SyncStatus, error?: string, reason?: SyncErrorReason, retryAt?: number, failureKind?: WorkspaceSyncFailureKind) => void;
   public onProgress?: (progress: SyncProgress | null) => void;
   public onFilesChanged?: (paths: string[]) => void;
   /**
@@ -213,7 +227,8 @@ export class EncryptedWorkspaceWorker {
   start(): void {
     if (this.running) return;
     this.running = true;
-    this.triggerImmediate();
+    this.resetRetry();
+    this.scheduleImmediate();
   }
 
   /**
@@ -223,11 +238,14 @@ export class EncryptedWorkspaceWorker {
    */
   async runNow(): Promise<void> {
     if (!this.running) return;
+    this.inspectKnownCopies = true;
+    this.resetRetry();
     if (this.syncing) {
+      this.pendingManualRetry = true;
       this.pendingImmediate = true;
       await this.syncing.catch(() => undefined);
     } else {
-      this.triggerImmediate();
+      this.scheduleImmediate();
     }
     await this.syncing?.catch(() => undefined);
   }
@@ -235,6 +253,7 @@ export class EncryptedWorkspaceWorker {
   stop(): void {
     this.running = false;
     this.pendingImmediate = false;
+    this.pendingManualRetry = false;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.abort?.abort();
@@ -247,6 +266,22 @@ export class EncryptedWorkspaceWorker {
 
   triggerImmediate(): void {
     if (!this.running) return;
+    // Local edits do not bypass a provider delay or a stopped trust check.
+    // Explicit retry, foreground reconnect and runNow use retryFailed/runNow.
+    if (this.failureKind && (this.failureKind !== "transient" || (this.retryAt ?? 0) > this.now())) return;
+    this.scheduleImmediate();
+  }
+
+  private now(): number { return (this.options.now ?? Date.now)(); }
+
+  private resetRetry(): void {
+    this.consecutiveFailures = 0;
+    this.failureKind = undefined;
+    this.retryAt = undefined;
+  }
+
+  private scheduleImmediate(): void {
+    if (!this.running) return;
     if (this.syncing) { this.pendingImmediate = true; return; }
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
@@ -254,7 +289,14 @@ export class EncryptedWorkspaceWorker {
   }
 
   retryFailed(): void {
-    void this.state.retryFailed().then(() => this.triggerImmediate());
+    this.inspectKnownCopies = true;
+    void this.state.retryFailed().then(() => {
+      this.resetRetry();
+      if (this.syncing) this.pendingManualRetry = true;
+      this.scheduleImmediate();
+    }).catch((error: unknown) => {
+      this.onStatusChange?.("error", syncErrorMessage(error), undefined, undefined, "fatal");
+    });
   }
 
   /**
@@ -266,6 +308,7 @@ export class EncryptedWorkspaceWorker {
    */
   async publishQueuedComments(): Promise<void> {
     if (!this.running) return;
+    if (this.failureKind) { this.triggerImmediate(); return; }
     if (this.syncing) { this.pendingImmediate = true; return; }
     this.abort = new AbortController();
     const signal = this.abort.signal;
@@ -276,12 +319,12 @@ export class EncryptedWorkspaceWorker {
       } finally {
         this.flushCommentsChanged();
       }
-    })().catch((error: unknown) => {
-      if (!(error instanceof DOMException && error.name === "AbortError")) console.error("[EncryptedWorkspaceWorker] publishing queued comments failed", error);
+    })().catch(async (error: unknown) => {
+      if (!isWorkspaceSyncAborted(error, signal)) await this.recordCycleFailure(error);
     }).finally(() => {
       this.syncing = null;
       this.abort = null;
-      if (this.running && this.pendingImmediate) { this.pendingImmediate = false; this.triggerImmediate(); }
+      this.scheduleNext();
     });
     await this.syncing;
   }
@@ -318,6 +361,7 @@ export class EncryptedWorkspaceWorker {
       const object = await this.state.getObjectById(objectId);
       if (object && !object.deleted) this.commentPathsChanged.add(object.path);
     }
+    await this.reconcileCommentRetractions(signal);
     this.flushCommentsChanged();
     await this.push(signal);
     await resumeWorkspaceRekey(this.state);
@@ -327,6 +371,7 @@ export class EncryptedWorkspaceWorker {
     const meta = await this.requireMeta();
     meta.lastSyncAt = nowIso();
     meta.lastError = null;
+    meta.lastSyncFailure = null;
     if (meta.phase === "migrating" && (await this.state.listQueue(1)).length === 0 && !meta.pendingPublication) meta.phase = "active";
     await this.state.saveMeta(meta);
   }
@@ -339,6 +384,13 @@ export class EncryptedWorkspaceWorker {
       this.onCommentsChanged?.(paths);
     } catch (error) {
       console.error("[EncryptedWorkspaceWorker] onCommentsChanged consumer failed", error);
+    }
+  }
+
+  private async reconcileCommentRetractions(signal?: AbortSignal): Promise<void> {
+    for (const id of await reconcileWorkspaceCommentRetractions({ state: this.state, workspaceId: this.runtime.workspaceId, policies: this.acceptedPolicies, signal })) {
+      const object = await this.state.getObjectById(id);
+      if (object && !object.deleted) this.commentPathsChanged.add(object.path);
     }
   }
 
@@ -365,35 +417,73 @@ export class EncryptedWorkspaceWorker {
         await publishQueuedWorkspaceComment({ runtime: this.runtime, policy: this.activePolicy.payload, state: this.state, store: this.objectStore, entry, signal });
         await this.state.deleteCommentOutbox(entry.outboxId);
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") throw error;
+        if (isWorkspaceSyncAborted(error, signal)) throw error;
         const message = error instanceof Error ? error.message : String(error);
         await this.state.updateCommentOutbox(entry.outboxId, { attempts: entry.attempts + 1, lastError: message.slice(0, 500) });
         blocked.add(entry.commentId);
+        this.commentPathsChanged.add(entry.path);
+        // A provider outage or refused authentication affects the whole outbox.
+        // Keep all unsent entries and let the cycle scheduler control retries.
+        const failure = classifyWorkspaceSyncFailure(error);
+        if (failure === "transient" || failure === "authentication" || connectionFailureCode(error)) throw error;
       }
       this.commentPathsChanged.add(entry.path);
     }
+    await this.reconcileCommentRetractions(signal);
   }
 
   private async runScheduled(): Promise<void> {
     this.abort = new AbortController();
+    const signal = this.abort.signal;
     this.onStatusChange?.("syncing");
-    this.syncing = this.runCycle(this.abort.signal).then(
-      () => this.onStatusChange?.("idle"),
+    this.syncing = this.runCycle(signal).then(
+      () => { if (!signal.aborted) { this.resetRetry(); this.onStatusChange?.("idle"); } },
       async (error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        const meta = await this.state.loadMeta().catch(() => null);
-        if (meta) { meta.lastError = message.slice(0, 1000); await this.state.saveMeta(meta).catch(() => undefined); }
-        if (!(error instanceof DOMException && error.name === "AbortError")) this.onStatusChange?.("error", message);
+        if (!isWorkspaceSyncAborted(error, signal)) await this.recordCycleFailure(error);
       }
     ).finally(() => {
       this.onProgress?.(null);
       this.syncing = null;
       this.abort = null;
-      if (!this.running) return;
-      if (this.pendingImmediate) { this.pendingImmediate = false; this.triggerImmediate(); return; }
-      this.timer = setTimeout(() => this.triggerImmediate(), this.options.intervalMs ?? DEFAULT_INTERVAL_MS);
+      this.scheduleNext();
     });
     await this.syncing;
+  }
+
+  private async recordCycleFailure(error: unknown): Promise<void> {
+    const message = syncErrorMessage(error);
+    const kind = classifyWorkspaceSyncFailure(error);
+    this.failureKind = kind;
+    const at = this.now();
+    this.retryAt = kind === "transient"
+      ? at + workspaceSyncRetryDelay(error, ++this.consecutiveFailures, this.options.intervalMs ?? DEFAULT_INTERVAL_MS, at, (this.options.random ?? Math.random)())
+      : undefined;
+    const meta = await this.state.loadMeta().catch(() => null);
+    if (meta) {
+      meta.lastError = message.slice(0, 1000);
+      meta.lastSyncFailure = { kind, message: meta.lastError, at };
+      await this.state.saveMeta(meta).catch(() => undefined);
+    }
+    this.onStatusChange?.(kind === "transient" ? "retrying" : "error", message, undefined, this.retryAt, kind);
+  }
+
+  private scheduleNext(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    if (!this.running) return;
+    if (this.pendingManualRetry) {
+      this.pendingManualRetry = false;
+      this.pendingImmediate = false;
+      this.resetRetry();
+      this.scheduleImmediate();
+      return;
+    }
+    const immediate = this.pendingImmediate;
+    this.pendingImmediate = false;
+    if (this.failureKind && this.failureKind !== "transient") return;
+    if (!this.failureKind && immediate) { this.scheduleImmediate(); return; }
+    const delay = this.retryAt === undefined ? this.options.intervalMs ?? DEFAULT_INTERVAL_MS : Math.max(0, this.retryAt - this.now());
+    this.timer = setTimeout(() => { this.timer = null; this.scheduleImmediate(); }, delay);
   }
 
   private async requireMeta(): Promise<WorkspaceRuntimeMeta> {
@@ -526,17 +616,19 @@ export class EncryptedWorkspaceWorker {
     const policy = await this.verifyBootstrap(signal);
     const meta = await this.requireMeta();
     const visibleRefs = await this.loadVisibleCatalogRefs(policy, signal);
-    const operationInfos = await listAll(this.objectStore, ".pvws/operations/", signal);
-    // An operation whose entry is open but whose object left the remote is
-    // over: nothing will ever validate it, and nothing needs to.
-    const listedOperationKeys = new Set(operationInfos.map((info) => info.key));
-    for (const pendingKey of [...this.pendingQuarantine]) {
-      const [kind, remoteKey] = pendingKey.split("\0");
-      if (kind === "operation" && remoteKey && !listedOperationKeys.has(remoteKey)) await this.acceptArtifact("operation", remoteKey);
+    let operationInfos = await listAll(this.objectStore, ".pvws/operations/", signal);
+    if (this.inspectKnownCopies) {
+      const outcome = await restoreKnownOperationCopies({ state: this.state, store: this.objectStore, workspaceId: meta.workspaceId, policies: this.acceptedPolicies, listedKeys: new Set(operationInfos.map(info => info.key)), signal });
+      this.inspectKnownCopies = false;
+      if (outcome.restored > 0) operationInfos = await listAll(this.objectStore, ".pvws/operations/", signal);
     }
+    // Absence does not validate an open quarantine entry. Preserve it until
+    // an actual verified copy is observed again.
+    const listedOperationKeys = new Set(operationInfos.map((info) => info.key));
+    const recoveredBytes = new Map<string, Uint8Array>();
     const operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array; policy: WorkspacePolicyPayload }> = [];
     for (const info of operationInfos) {
-      const bytes = await this.objectStore.get(info.key, { signal });
+      const bytes = recoveredBytes.get(info.key) ?? await this.objectStore.get(info.key, { signal });
       if (!bytes) continue;
       // What the check knew when it failed, for the entry's explanation
       // (finding 2026-09-03): the device by name, the policy hashes.
@@ -580,6 +672,17 @@ export class EncryptedWorkspaceWorker {
         }
         protocolAssert(verifyWorkspaceDocumentSignatures(document, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null), "crypto", "operation signature verification failed");
         operations.push({ document, hash, key: info.key, bytes, policy: operationPolicy });
+        // A provider listing can omit an object that direct addressing still
+        // finds. Only a verified successor may name that bounded lookup.
+        const previous = document.payload.previousDeviceOperationHash;
+        if (previous && document.payload.sequence > 1 && recoveredBytes.size < 512 && !(await this.state.hasOperation(previous))) {
+          const key = `.pvws/operations/${device.deviceId}/${document.payload.sequence - 1}-${previous}.pvop`;
+          if (!listedOperationKeys.has(key)) {
+            listedOperationKeys.add(key);
+            const previousBytes = await this.objectStore.get(key, { signal });
+            if (previousBytes) { recoveredBytes.set(key, previousBytes); operationInfos.push({ key, size: previousBytes.length }); }
+          }
+        }
       } catch (error) {
         await this.quarantineArtifact("operation", info.key, bytes, error, details);
       }
@@ -698,12 +801,15 @@ export class EncryptedWorkspaceWorker {
     operationPolicy: WorkspacePolicyPayload,
     signal?: AbortSignal
   ): Promise<string[]> {
+    const acceptedMeta = meta;
+    meta = { ...meta, operationHeads: { ...meta.operationHeads } };
     const operation = document.payload;
     const current = await this.state.getObjectById(operation.objectId);
     const incomingHead = { sequence: operation.sequence, operationHash };
-    meta.operationHeads[operation.deviceId] = incomingHead;
+    if ((meta.operationHeads[operation.deviceId]?.sequence ?? 0) < incomingHead.sequence) meta.operationHeads[operation.deviceId] = incomingHead;
     meta.needsPublication = true;
     if (operation.operation === "delete") {
+      return withPathMutation(this.state, [current?.path ?? `deleted-${operation.objectId}`], async () => {
       const deleteSlices = current
         ? workspaceSliceIdsForObject(operationPolicy, { objectId: current.objectId, path: current.path, contentKind: current.contentKind })
         : [];
@@ -714,7 +820,9 @@ export class EncryptedWorkspaceWorker {
         ? { ...current, currentRevisionId: null, payloadHash: null, deleted: true, modifiedAt: operation.createdAt }
         : { objectId: operation.objectId, path: `deleted-${operation.objectId}`, currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
       await this.state.recordIncoming({ object, revision: null, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
+      Object.assign(acceptedMeta, meta);
       return setCurrent ? [object.path] : [];
+      });
     }
 
     protocolAssert(operation.payloadHash !== null && operation.revisionId !== null, "integrity", "content operation is missing payload references");
@@ -752,6 +860,7 @@ export class EncryptedWorkspaceWorker {
       const commentSlices = workspaceSliceIdsForObject(operationPolicy, { objectId: commentTarget.objectId, path: commentTarget.path, contentKind: commentTarget.contentKind });
       protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
       const body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: this.runtime.groupKeys });
+      if (body.suggestion) protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.suggest", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "suggestion capability is not granted");
       if (body.legacyOrigin) protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId,
         deviceId: operation.deviceId, capability: "workspace.manage" }).allowed,
       "authorization", "only workspace managers may import legacy history");
@@ -767,14 +876,19 @@ export class EncryptedWorkspaceWorker {
         await this.state.saveComment(record);
         if (!record.legacyOrigin && governs && retracted && retracted.authorMemberId !== record.authorMemberId) await this.state.retractComment(retracted.commentId, record.createdAt);
         this.commentPathsChanged.add(commentTarget.path);
+        await this.state.recordObservedOperation(operationHash, toBase64(encodeWorkspaceDocument(document)), operation.deviceId, operation.sequence, meta);
+        Object.assign(acceptedMeta, meta);
         return [];
       }
       await this.state.saveComment(record);
       this.commentPathsChanged.add(commentTarget.path);
       await this.state.recordObservedOperation(operationHash, toBase64(encodeWorkspaceDocument(document)), operation.deviceId, operation.sequence, meta);
+      Object.assign(acceptedMeta, meta);
       return [];
     }
     const targetPath = assertCanonicalVaultPath(opened.metadata.path);
+    const content = plaintext;
+    return withPathMutation(this.state, [targetPath, ...(current ? [current.path] : [])], async () => {
     const isDirectory = opened.metadata.mime === "inode/directory";
     const incomingSliceObject = sliceObjectWithContent(operation.objectId, targetPath, isDirectory ? "directory" : opened.metadata.contentKind, plaintext);
     const targetSlices = workspaceSliceIdsForObject(operationPolicy, incomingSliceObject);
@@ -786,7 +900,7 @@ export class EncryptedWorkspaceWorker {
     const pendingLocal = current ? await this.state.hasPendingForPath(current.path) : false;
     const setCurrent = fastForward && !pathCollision && !locallyChanged && !pendingLocal;
     const materializedPath = setCurrent ? targetPath : conflictPath(targetPath, operationHash);
-    await this.materializeContent(current, materializedPath, plaintext, isDirectory, setCurrent);
+    await this.materializeContent(current, materializedPath, content, isDirectory, setCurrent);
     const object: WorkspaceObjectRecord = {
       objectId: operation.objectId,
       path: targetPath,
@@ -800,9 +914,9 @@ export class EncryptedWorkspaceWorker {
       modifiedAt: opened.metadata.modifiedAt,
     };
     const revision: WorkspaceRevisionRecord = {
-      revisionId: operation.revisionId,
+      revisionId: operation.revisionId!,
       objectId: operation.objectId,
-      payloadHash: operation.payloadHash,
+      payloadHash: operation.payloadHash!,
       parentRevisionIds: operation.parentRevisionIds,
       operationHash,
       deviceId: operation.deviceId,
@@ -812,9 +926,11 @@ export class EncryptedWorkspaceWorker {
       createdAt: operation.createdAt,
     };
     await this.state.recordIncoming({ object, revision, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
+    Object.assign(acceptedMeta, meta);
     return setCurrent && current && current.path !== materializedPath
       ? [current.path, materializedPath]
       : [materializedPath];
+    });
   }
 
   private async localContentChanged(object: WorkspaceObjectRecord): Promise<boolean> {
@@ -860,6 +976,7 @@ export class EncryptedWorkspaceWorker {
         for (const queueId of prepared.absorbedQueueIds) absorbed.add(queueId);
         await this.uploadPrepared(item, prepared, signal);
       } catch (error) {
+        if (isWorkspaceSyncAborted(error, signal)) throw error;
         await this.state.markQueueFailed(item.id, error instanceof Error ? error.message : String(error));
         throw error;
       }
@@ -905,6 +1022,10 @@ export class EncryptedWorkspaceWorker {
   }
 
   private async prepareMutation(item: WorkspaceQueuedMutation, queue: WorkspaceQueuedMutation[]): Promise<PreparedWorkspaceMutation | null> {
+    return withPathMutation(this.state, [item.path, ...(item.newPath ? [item.newPath] : [])], () => this.prepareMutationLocked(item, queue));
+  }
+
+  private async prepareMutationLocked(item: WorkspaceQueuedMutation, queue: WorkspaceQueuedMutation[]): Promise<PreparedWorkspaceMutation | null> {
     const resolved = await this.resolveRenameChain(item, queue);
     item = resolved.item;
     const meta = await this.requireMeta();

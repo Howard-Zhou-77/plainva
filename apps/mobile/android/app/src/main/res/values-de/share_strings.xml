@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Auf diesem Gerät gespeichert. Öffne Plainva, um Vault und Zielordner zu wählen.</string>
+    <string name="share_failed">Nicht vollständig gespeichert. Bitte teile die ursprünglichen Inhalte erneut.</string>
+    <string name="share_limit">Höchstens 10 Dateien, 25 MiB pro Datei, 50 MiB insgesamt und 512 KiB Text.</string>
+    <string name="share_full">Die Warteschlange ist voll. Übernimm oder verwirf zuerst wartende Inhalte in Plainva.</string>
+</resources>

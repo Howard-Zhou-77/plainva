@@ -225,7 +225,10 @@ describe("modal, menu and bar grammar (E5)", () => {
       if (!/onContextMenu=/.test(src)) continue;
       const bearsMenu = menuBearers.test(src);
       // A no-op handler (`() => {}`) is a prop of a tab strip that owns no menu in that window.
-      const forwardsOnly = /onContextMenu=\{[^}]*(preventDefault|props\.|on[A-Z]\w*\?\.|on[A-Z]\w*\(|\(\) => \{\})/.test(src);
+      // A directly forwarded callback prop needs no wrapper lambda either
+      // (AuxTitleBar -> AuxApp -> TabContextMenu is the same menu boundary).
+      const forwardsOnly = /onContextMenu=\{on[A-Z]\w*\}/.test(src)
+        || /onContextMenu=\{[^}]*(preventDefault|props\.|on[A-Z]\w*\?\.|on[A-Z]\w*\(|\(\) => \{\})/.test(src);
       expect(bearsMenu || forwardsOnly, `${rel} handles the context-menu gesture without a menu surface`).toBe(true);
     }
   });

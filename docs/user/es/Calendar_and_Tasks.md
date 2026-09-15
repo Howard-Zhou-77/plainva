@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-09-11
+Última actualización: 2026-09-15
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -144,3 +144,5 @@ El asistente móvil abre directamente la conexión adecuada. Después de iniciar
 Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el servicio que falta. Los servicios existentes siguen conectados. Gmail conserva su acceso de correo o contraseña de aplicación. Cancelar el asistente no desconecta servicios completados. La transferencia móvil conserva el vault de origen y considera un destino existente que coincida o prepara un contenedor separado. Los archivos en colisión se comparan individualmente y se conservan ambos contenidos. Los destinos cifrados se abren mediante el emparejamiento existente.
 
 [Google — Tu propio registro de aplicación](Google_Drive_BYO_Guide.md)
+
+Pulsa el período en la cabecera del calendario para elegir una fecha. Los puntos indican notas diarias existentes según la carpeta y el formato de nombre configurados, incluidos los nombres con puntos. Selecciona un día y después elige **Ir a una fecha** o **Abrir nota diaria** / **Crear nota diaria**. La creación utiliza la misma plantilla que la barra lateral y la vista Hoy. Las marcas se actualizan al cambiar de mes o modificar notas. Los eventos de varios días mantienen sus filas estables y se extienden hacia la derecha desde su inicio; las fechas fuera del período visible se recortan.

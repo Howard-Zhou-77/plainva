@@ -1,6 +1,6 @@
 # Comentarios y sugerencias
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Los comentarios y las sugerencias existen en **todo** vault — con o sin sincronización, con o sin cifrado. En un workspace cifrado son objetos firmados (ver [Seguridad y uso compartido](Security_and_Sharing.md)); en todos los demás llevan el nombre de **Tu nombre (anotaciones y revisiones)** en los ajustes. Una sugerencia es un comentario con un texto de reemplazo: ambos pasan por el mismo almacén, la misma columna, la misma hoja. Si falta el nombre, Plainva lo pregunta una vez en el primer comentario; sin respuesta, el dispositivo firma con su propia etiqueta (por ejemplo «Dispositivo Windows 4f3a»). Tus propias anotaciones aparecen como **Tú**.
 
@@ -71,3 +71,9 @@ Escritorio y móvil utilizan el mismo almacén de comentarios firmados en un esp
 Los comentarios de los archivos anteriores se conservan y se importan con permisos de administración y de comentarios. **Del historial anterior** mantiene el nombre y la fecha originales. Estos datos no acreditan retroactivamente la pertenencia al espacio de trabajo; la nueva firma confirma la importación. Si faltan permisos, la nota de destino sincronizada o un guardado correcto, el comentario anterior sigue visible. Hasta que su destino quede asignado de forma duradera, no ofrece acciones de respuesta, eliminación ni sugerencias. La importación no vuelve a enviar las notificaciones del historial anterior.
 
 Si solo está bloqueado el historial anterior, la acción de desbloqueo abre el flujo de la frase de contraseña de sincronización; los nuevos comentarios del espacio de trabajo siguen disponibles. Si está bloqueado el propio espacio de trabajo, abre los ajustes de seguridad. Las operaciones de sugerencias iniciadas antes de la actualización conservan su progreso guardado y pueden continuar con los permisos actuales. La importación no elimina los archivos originales de comentarios.
+
+## Comentarios sobre publicaciones
+
+Los destinatarios abren la publicación como un espacio de trabajo independiente. El acceso de lectura no permite enviar comentarios; comentar permite anotaciones y sugerir también permite proponer cambios en una copia. El original sigue siendo de solo lectura. Escritorio y móvil aplican los mismos permisos y conservan los envíos pendientes para reintentarlos.
+
+Los comentarios aparecen junto a la nota original en escritorio y móvil, agrupados por publicación y con los nombres de los destinatarios. Las propuestas aplicables de una copia exacta se pueden aceptar o rechazar mediante el proceso habitual de guardado verificado. La decisión se registra con el original en tu propio vault; no envía una respuesta a los destinatarios. Las copias depuradas y los pasajes que no se pueden localizar con seguridad no permiten la aplicación automática. Los comentarios creados con los clientes actuales siguen siendo legibles para el propietario tras revocar a un destinatario. Los comentarios antiguos cifrados solo para una clave de destinatario eliminada no se reescriben. Si falta la clave de una publicación en este dispositivo, su sección sigue sin mostrarse.

@@ -55,10 +55,13 @@ describe("account tokens are written from the grant", () => {
 
   it("bindRunTokenToAccount records the granted scope, never the requested union", () => {
     const source = read("connectConsent.ts");
-    expect(source).toContain("reviewAccountGrant(broker, covered,");
-    expect(source).toContain("creds.grantedScope)");
-    expect(source).toContain("completeAccountGrant({");
-    expect(source).toContain("save: (token) => saveAccountToken(vaultId, record.id, token, null)");
+    // Legacy names are normalized first. Validation reads the normalized
+    // granted scopes; the migration coordinator owns the verified write.
+    expect(source).toContain("legacyOAuthToken(provider.creds");
+    expect(source).toContain("reviewAccountGrant(broker, covered, creds, unionScopeFor(broker, covered), creds.scopes)");
+    expect(source).toContain("requireCompleteAccountGrant(review)");
+    expect(source).toContain('await migrateLegacyAccountGrant(vaultId, record, "files", covered)');
+    expect(source).not.toContain("saveAccountToken(");
   });
 
   it("the account-login handler does the same", () => {

@@ -4,6 +4,8 @@ Last reviewed: 2026-07-04 (Themes/LCARS master plan of 2026-07-04 — internal p
 
 Plainva theming is purely CSS-token-based. Components consume CSS variables exclusively — a theme can reshape the colors, radii and fonts of the entire app without ever touching a single component.
 
+The paired custom theme, legacy mood preservation and optional member-scoped synchronization are described in [Personal design](Personal_Design.md).
+
 ## Three axes on the `<html>` element
 
 | Attribute | Values | Source |

@@ -22,7 +22,7 @@ function vaultFailingOn(badPath: string) {
       if (path === badPath) throw new Error('disk said no');
       files.set(path, content);
     },
-    async createFolder() {
+    async createDir() {
       /* implicit */
     },
   };
@@ -92,7 +92,7 @@ describe('the report exists even when the run stops early', () => {
         }
         files.set(path, content);
       },
-      async createFolder() {
+      async createDir() {
         /* implicit */
       },
     };

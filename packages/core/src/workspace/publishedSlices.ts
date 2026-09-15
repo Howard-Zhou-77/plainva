@@ -39,7 +39,7 @@ export interface PublishedSliceProjection {
 export function publishedSliceAccessCapabilities(access: PublishedSliceAccess): WorkspaceCapability[] {
   const capabilities: WorkspaceCapability[] = ["comment.read", "content.read", "history.read"];
   if (access === "comment" || access === "suggest") capabilities.push("comment.create");
-  if (access === "suggest") capabilities.push("content.create");
+  if (access === "suggest") capabilities.push("comment.suggest");
   return capabilities.sort();
 }
 

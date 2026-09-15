@@ -1,3 +1,4 @@
+import { projectPublicationFeedbackForOwner } from "@plainva/core";
 import {
   acceptWorkspacePairing,
   approveWorkspacePairing,
@@ -656,9 +657,11 @@ export async function listAllMobilePublicationComments(input: {
   store: WorkspaceObjectStore;
   runtime: PersonalWorkspaceRuntime;
   vaultId: string;
+  path?: string;
 }): Promise<Map<string, Array<PublicationComment & { publicationName: string }>>> {
   const byPath = new Map<string, Array<PublicationComment & { publicationName: string }>>();
-  const known = new Set((await input.state.listObjects()).map((object) => object.objectId));
+  const known = new Map((await input.state.listObjects()).filter(object => !input.path || object.path === input.path).map((object) => [object.objectId, object.path]));
+  const localDecisions = await input.state.listRawComments();
   for (const record of await input.state.listPublications()) {
     const sourceObjectIds = record.manifest.objects
       .map((entry) => entry.sourceObjectId)
@@ -675,11 +678,12 @@ export async function listAllMobilePublicationComments(input: {
         mode: record.config.mode,
         sourceObjectIds,
       });
-      for (const entry of found) {
-        const withName = { ...entry, publicationName: record.config.name };
-        const list = byPath.get(entry.path);
+      for (const entry of projectPublicationFeedbackForOwner(found, localDecisions)) {
+        const path = known.get(entry.comment.targetObjectId)!;
+        const withName = { ...entry, path, publicationName: record.config.name };
+        const list = byPath.get(path);
         if (list) list.push(withName);
-        else byPath.set(entry.path, [withName]);
+        else byPath.set(path, [withName]);
       }
     } catch {
       continue;

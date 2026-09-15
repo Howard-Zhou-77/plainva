@@ -3,6 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
+import { useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
@@ -35,6 +36,7 @@ function phaseLabel(t: ReturnType<typeof useTranslation>["t"], phase: string): s
 /** Desktop P3-P11 security centre for personal and team encrypted workspaces. */
 export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ selectedVault, isActiveVault, hasSyncConnection, securityArea, onOpenSecurityArea }) => {
   const { t } = useTranslation();
+  const foreignLegacyComments = useForeignLegacyComments(selectedVault);
   const {
     workspaceSecurityStatus,
     preparePersonalWorkspace,
@@ -736,6 +738,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         />
       )}
 
+      {status && foreignLegacyComments > 0 && <Banner kind="info" rounded>{t("workspaceSync.foreignLegacy")}</Banner>}
       {status && diagnostics && diagnostics.legacyPlaintextPaths > 0 && (
         <SettingCard label={t("workspaceSecurity.cleanupCard")}>
           <Banner kind="warning" rounded>{t("workspaceSecurity.cleanupWarning", { n: diagnostics.legacyPlaintextPaths })}</Banner>

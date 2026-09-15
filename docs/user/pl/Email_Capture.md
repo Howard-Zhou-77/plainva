@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-09-07
+Stan na: 2026-09-15
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -12,7 +12,7 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 
 - **Microsoft** — dla Outlook.com i Microsoft 365: w kroku wyboru usług zaznacz **E-mail** (na życzenie razem z **Pliki** i **Kalendarz i zadania** — jedno konto, jedno logowanie) i zaloguj się bezpośrednio w przeglądarce, całkowicie bez hasła aplikacji i bez IMAP. Plainva korzysta w tym celu z centralnej rejestracji aplikacji Plainva (własny identyfikator aplikacji możesz opcjonalnie podać w szczegółach konta). Czytanie skrzynki, przechwytywanie i **bezpośrednie wysyłanie** odbywają się przez logowanie Microsoft.
 - **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — dedykowane kafelki: adres e-mail plus **hasło aplikacji**, serwery są już wypełnione (przy większości tych kafelków w tym samym kroku można też zaznaczyć **Kalendarz i zadania** — jedno hasło aplikacji dla wszystkich wybranych usług). Asystent za każdym razem linkuje oficjalną instrukcję dostawcy dotyczącą tworzenia hasła aplikacji.
-- **Serwer e-mail (IMAP)** — dla wszystkich innych dostawców: host, port i hasło lub **hasło aplikacji**. Gotowe ustawienia wstępne obejmują dostawców z całego świata — od **web.de**/**GMX** i **T-Online**, przez **Orange**, **Libero**, **WP**, **Seznam** i **Comcast**, po **QQ Mail**, **NetEase**, **Naver** i **Yahoo! JAPAN**; lista **Dostawca** ma do tego linię wyszukiwania, a wpisanie adresu automatycznie wybiera pasujące ustawienie wstępne. Tam, gdzie dostawca ma swoje osobliwości, asystent informuje o tym tuż pod formularzem: niektórzy wymagają **hasła aplikacji** lub **kodu autoryzacyjnego** zamiast hasła konta, u innych trzeba najpierw włączyć IMAP w ustawieniach dostawcy — zawsze z linkiem do oficjalnej instrukcji. Dla Gmaila to `imap.gmail.com`, port `993`, z hasłem aplikacji z [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (wymaga uwierzytelniania dwuskładnikowego) — bez OAuth, bez weryfikacji; asystent sam zwraca na to uwagę przy adresach Gmail. **Skrzynek Outlook.com** nie da się już połączyć przez IMAP z hasłem (Microsoft wyłączył tę drogę) — ustawienie wstępne wskazuje na kafelek **Microsoft**. **Proton Mail** działa tylko przez lokalnie uruchomiony, płatny Proton Mail Bridge (ma własne ustawienie wstępne). Do bezpośredniego wysyłania można podać host SMTP.
+- **Serwer e-mail (IMAP)** — dla wszystkich innych dostawców: host, port i hasło lub **hasło aplikacji**. Gotowe ustawienia wstępne obejmują dostawców z całego świata — od **web.de**/**GMX** i **T-Online**, przez **Orange**, **Libero**, **WP**, **Seznam** i **Comcast**, po **QQ Mail**, **NetEase**, **Naver** i **Yahoo! JAPAN**; lista **Dostawca** ma do tego linię wyszukiwania, a wpisanie adresu automatycznie wybiera pasujące ustawienie wstępne. Tam, gdzie dostawca ma swoje osobliwości, asystent informuje o tym tuż pod formularzem: niektórzy wymagają **hasła aplikacji** lub **kodu autoryzacyjnego** zamiast hasła konta, u innych trzeba najpierw włączyć IMAP w ustawieniach dostawcy — zawsze z linkiem do oficjalnej instrukcji. Dla Gmaila to `imap.gmail.com`, port `993`, z hasłem aplikacji z [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (wymaga uwierzytelniania dwuskładnikowego) — osobne logowanie hasłem aplikacji; asystent sam zwraca na to uwagę przy adresach Gmail. **Skrzynek Outlook.com** nie da się już połączyć przez IMAP z hasłem (Microsoft wyłączył tę drogę) — ustawienie wstępne wskazuje na kafelek **Microsoft**. **Proton Mail** działa tylko przez lokalnie uruchomiony, płatny Proton Mail Bridge (ma własne ustawienie wstępne). Do bezpośredniego wysyłania można podać host SMTP.
 
 Łączenie sprawdza logowanie, zanim cokolwiek zostanie zapisane; dane dostępowe trafiają do pęku kluczy Twojego systemu operacyjnego. Połączone skrzynki i ustawienia przechwytywania znajdziesz później w obszarze **E-mail**: ustawienie **Folder e-mail** określa, gdzie są przechowywane przechwycone e-maile (domyślnie `Mail`).
 
@@ -137,3 +137,18 @@ Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.
 ## Rozszerz istniejące konta
 
 Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
+
+<!-- gmail-oauth-2026-09-14 -->
+## Logowanie do Gmaila przez Google
+
+Skonfigurowana wersja testowa pokazuje **Zaloguj przez Google · Test** w kontach pocztowych. Ten dostęp nie jest jeszcze powszechnie dostępny. Komputer i iOS używają przeglądarki systemowej, a Android natywnego wyboru konta Google. Plainva sprawdza wybrane konto i faktycznie przyznane uprawnienia przed dodaniem usług. Inne konto, anulowanie lub odmowa zgody nie zastępują istniejącego logowania.
+
+Google wymaga pełnego dostępu do poczty przez IMAP i SMTP. Logowanie pozostaje na tym urządzeniu; tokeny OAuth nie są synchronizowane ze skarbcem. Wiadomości zapisane jako notatki lub pliki EML stają się zawartością skarbca i podlegają jego przechowywaniu, udostępnianiu i synchronizacji. Dotychczasowe hasła aplikacji Gmail nadal działają.
+
+## Wiele wiadomości, załączniki i klawiatura
+
+Wybierz kilka wiadomości, aby oznaczyć je jako przeczytane lub nieprzeczytane, przenieść albo usunąć. Potwierdzone zmiany aktualizują listę. Niepotwierdzone wiadomości pozostają zaznaczone i mają osobny wynik. Anulowanie zatrzymuje pracę po bieżącej partii. Odśwież folder przed ponowieniem operacji o nieznanym wyniku. Jeśli serwer nie obsługuje operacji na wybranych wiadomościach, Plainva wyjaśnia to i zachowuje pozostałe.
+
+**Z załącznikami** filtruje wczytane wiadomości. Informacja podaje liczbę wiadomości ze znanymi metadanymi. Brak metadanych nie oznacza braku załączników; kolejne strony mogą zawierać dalsze wyniki.
+
+Na zewnętrznej klawiaturze mobilnej strzałki Góra/Dół i Home/End przesuwają fokus na liście. Enter otwiera lub zaznacza wiadomość. Lewo/Prawo zwijają lub rozwijają rozmowy; Escape kończy zaznaczanie lub anuluje kolejne partie. Pola wyszukiwania zachowują zwykłe klawisze edycji.

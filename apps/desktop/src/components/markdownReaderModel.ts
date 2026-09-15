@@ -53,6 +53,42 @@ interface MdastNodeLike {
   value?: unknown;
   children?: MdastNodeLike[];
   data?: { hName?: string };
+  position?: { start: { line: number; column: number; offset: number }; end: { line: number; column: number; offset: number } };
+}
+
+/** Preserve parser positions when splitting a literal text node. */
+function slicedText(node: MdastNodeLike, from: number, to: number): MdastNodeLike {
+  const value = String(node.value ?? "");
+  const result: MdastNodeLike = { type: "text", value: value.slice(from, to) };
+  if (!node.position || node.position.end.offset - node.position.start.offset !== value.length) return result;
+  const point = (at: number) => {
+    const before = value.slice(0, at), lines = before.split("\n");
+    return { offset: node.position!.start.offset + at, line: node.position!.start.line + lines.length - 1, column: lines.length > 1 ? lines[lines.length - 1].length + 1 : node.position!.start.column + at };
+  };
+  result.position = { start: point(from), end: point(to) };
+  return result;
+}
+
+/** Soft breaks retain the source address on each side of the rendered break. */
+export function remarkMappedBreaks() {
+  return (tree: MdastNodeLike) => {
+    const walk = (node: MdastNodeLike) => {
+      if (!node.children) return;
+      node.children = node.children.flatMap((child) => {
+        if (child.type !== "text" || typeof child.value !== "string" || !child.value.includes("\n")) { walk(child); return [child]; }
+        const pieces: MdastNodeLike[] = [];
+        let start = 0;
+        for (const match of child.value.matchAll(/\n/g)) {
+          if (match.index > start) pieces.push(slicedText(child, start, match.index));
+          pieces.push({ type: "break", position: slicedText(child, match.index, match.index + 1).position });
+          start = match.index + 1;
+        }
+        if (start < child.value.length) pieces.push(slicedText(child, start, child.value.length));
+        return pieces;
+      });
+    };
+    walk(tree);
+  };
 }
 
 /**
@@ -94,12 +130,12 @@ export function remarkStripHighlightMarks() {
           let last = 0;
           HIGHLIGHT_RE.lastIndex = 0;
           for (let m = HIGHLIGHT_RE.exec(value); m; m = HIGHLIGHT_RE.exec(value)) {
-            if (m.index > last) parts.push({ type: "text", value: value.slice(last, m.index) });
-            parts.push({ type: "emphasis", data: { hName: "mark" }, children: [{ type: "text", value: m[1] }] });
+            if (m.index > last) parts.push(slicedText(child, last, m.index));
+            parts.push({ type: "emphasis", data: { hName: "mark" }, position: slicedText(child, m.index, m.index + m[0].length).position, children: [slicedText(child, m.index + 2, m.index + 2 + m[1].length)] });
             last = m.index + m[0].length;
           }
           if (parts.length > 0) {
-            if (last < value.length) parts.push({ type: "text", value: value.slice(last) });
+            if (last < value.length) parts.push(slicedText(child, last, value.length));
             node.children.splice(i, 1, ...parts);
             i += parts.length - 1;
             continue;

@@ -7,6 +7,12 @@ import {
   createWorkspaceObjectId,
   initializePersonalWorkspaceMigration,
   personalWorkspaceRuntime,
+  prepareWorkspaceComment,
+  workspaceCommentRecord,
+  workspaceDocumentHash,
+  encodeWorkspaceDocument,
+  toBase64,
+  reconcileWorkspaceCommentRetractions,
   type IVaultAdapter,
   type VaultFileInfo,
   type WorkspaceCommentOutboxEntry,
@@ -47,7 +53,7 @@ async function syncedWorkspace() {
   const worker = new EncryptedWorkspaceWorker(store, state, raw, runtime);
   await worker.runCycle();
   const object = (await state.getObjectByPath("note.md"))!;
-  return { runtime, state, worker, object };
+  return { runtime, state, worker, object, store, raw };
 }
 
 function entry(over: Partial<WorkspaceCommentOutboxEntry> & { targetObjectId: string; body: string }): WorkspaceCommentOutboxEntry {
@@ -67,6 +73,48 @@ function stored(over: Partial<WorkspaceCommentRecord> & { commentId: string; aut
 }
 
 describe("comment retraction", () => {
+  it("rebuilds an accepted manager marker before its target and after restart without reviving replays", async () => {
+    const { runtime, state, object, store, raw } = await syncedWorkspace();
+    const root = stored({ commentId: "91".repeat(16), authorMemberId: "another-member", targetObjectId: object.objectId, body: "Arrives later" });
+    const group = runtime.groupKeys[0], meta = (await state.loadMeta())!;
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy),
+      sequence: meta.sequence + 1, previousDeviceOperationHash: meta.previousOperationHash,
+      targetObjectId: object.objectId, targetRevisionId: object.currentRevisionId!, body: "", retractsCommentId: root.commentId,
+      recipients: [{ groupId: group.groupId, keyEpoch: group.keyEpoch, publicKey: group.hpke.publicKey }], now: "2026-09-03T10:00:00.000Z" });
+    const marker = workspaceCommentRecord(prepared.comment, prepared.operation, prepared.operationHash);
+    await state.saveComment(marker);
+    await state.recordObservedOperation(prepared.operationHash, toBase64(encodeWorkspaceDocument(prepared.operation)), marker.authorDeviceId, prepared.operation.payload.sequence, meta);
+    const input = { state, workspaceId: runtime.workspaceId, policies: new Map([[workspaceDocumentHash(runtime.policy), runtime.policy.payload]]) };
+    expect(await reconcileWorkspaceCommentRetractions(input)).toEqual([]);
+    await state.saveComment(root);
+    // No dependency on an in-memory arrival callback from the earlier worker.
+    const reopened = new EncryptedWorkspaceWorker(store, state, raw, runtime);
+    await reopened.runCycle();
+    expect(await state.listComments(object.objectId)).toEqual([]);
+    await state.saveComment(root); // repeated raw delivery preserves the tombstone
+    expect(await state.listComments(object.objectId)).toEqual([]);
+    expect(await reconcileWorkspaceCommentRetractions(input)).toEqual([]);
+  });
+
+  it("never promotes an unsigned, unaccepted or differently targeted marker into moderation", async () => {
+    const { runtime, state, object } = await syncedWorkspace();
+    const root = stored({ commentId: "92".repeat(16), authorMemberId: "another-member", targetObjectId: object.objectId, body: "Keep me" });
+    const group = runtime.groupKeys[0], meta = (await state.loadMeta())!;
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy),
+      sequence: meta.sequence + 1, previousDeviceOperationHash: meta.previousOperationHash,
+      targetObjectId: object.objectId, targetRevisionId: object.currentRevisionId!, body: "", retractsCommentId: root.commentId,
+      recipients: [{ groupId: group.groupId, keyEpoch: group.keyEpoch, publicKey: group.hpke.publicKey }], now: "2026-09-03T10:00:00.000Z" });
+    const marker = workspaceCommentRecord(prepared.comment, prepared.operation, prepared.operationHash);
+    await state.saveComment(root); await state.saveComment(marker);
+    const input = { state, workspaceId: runtime.workspaceId, policies: new Map([[workspaceDocumentHash(runtime.policy), runtime.policy.payload]]) };
+    expect(await reconcileWorkspaceCommentRetractions(input)).toEqual([]);
+    await state.recordObservedOperation(prepared.operationHash, toBase64(encodeWorkspaceDocument(prepared.operation)), marker.authorDeviceId, prepared.operation.payload.sequence, meta);
+    expect(await reconcileWorkspaceCommentRetractions({ ...input, policies: new Map() })).toEqual([]);
+    await state.saveComment({ ...marker, targetObjectId: "99".repeat(16) });
+    expect(await reconcileWorkspaceCommentRetractions(input)).toEqual([]);
+    expect((await state.listComments(object.objectId)).map(c => c.body)).toEqual(["Keep me"]);
+  });
+
   it("takes the author's own remark and its replies off the list once the marker is published", async () => {
     const { state, worker, object } = await syncedWorkspace();
     const root = entry({ targetObjectId: object.objectId, body: "Not what the PDF says." });

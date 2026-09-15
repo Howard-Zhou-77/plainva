@@ -147,6 +147,7 @@ export const BUNDLE_COMMENT_CAPABILITIES: readonly WorkspaceCapability[] = [
   "content.write",
   "comment.read",
   "comment.create",
+  "comment.suggest",
 ];
 
 /**

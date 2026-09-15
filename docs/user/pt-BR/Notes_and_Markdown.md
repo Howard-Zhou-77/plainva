@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-09-10
+Última revisão: 2026-09-15
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -187,3 +187,9 @@ Tudo permanece Markdown padrão com frontmatter padrão. O Obsidian abre os arqu
 Quando uma seleção abrange várias linhas, **negrito**, *itálico*, tachado, destaque e código em linha são aplicados separadamente a cada linha não vazia. Prefixos de lista, citação, título e tarefa ficam fora dos marcadores. Links continuam em uma linha porque um rótulo multilinha não é Markdown portátil.
 
 Um título ATX e uma tarefa GFM são tipos de bloco alternativos. O Plainva não grava uma combinação inválida. A formatação em linha funciona nos dois; use `- [ ] **Tarefa importante**` para destacar o título.
+
+## Incorporar seções e blocos
+
+`![[Nota#Título]]` exibe a seção e seus subtítulos até o próximo título do mesmo nível ou superior. `![[Nota#^block-id]]` exibe o parágrafo, item de lista ou bloco anterior a um ID em uma linha separada. Um link comum `[[Nota#^block-id]]` também salta até esse ponto no modo de leitura.
+
+Para títulos repetidos, use uma hierarquia única (`#Projeto#Resultado`) ou uma âncora numerada (`#resultado-1`). Destinos ausentes ou ambíguos mostram uma mensagem, e a origem continua acessível. O aninhamento é limitado; exemplos de código não executam incorporações. No telefone, seções e blocos não são cortados nas quatro linhas da prévia geral de notas. Os arquivos existentes permanecem inalterados.

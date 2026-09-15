@@ -246,8 +246,21 @@ fn auth_mechanisms(ehlo: &str) -> Vec<String> {
         .collect()
 }
 
-fn authenticate(stream: &mut SmtpStream, ehlo: &str, user: &str, pass: &str) -> Result<(), String> {
+fn authenticate(stream: &mut SmtpStream, ehlo: &str, user: &str, pass: &str, auth: Option<crate::mail_imap::MailAuth>) -> Result<(), String> {
     let mechanisms = auth_mechanisms(ehlo);
+    if auth == Some(crate::mail_imap::MailAuth::Xoauth2) {
+        if !mechanisms.iter().any(|m| m == "XOAUTH2") { return Err("The mail server does not support XOAUTH2".into()); }
+        let payload = base64::engine::general_purpose::STANDARD.encode(crate::mail_imap::oauth_payload(user, pass)?);
+        stream.write_all(format!("AUTH XOAUTH2 {payload}\r\n").as_bytes()).map_err(|_| "SMTP authentication connection failed".to_string())?;
+        stream.flush().map_err(|_| "SMTP authentication connection failed".to_string())?;
+        let (mut code, _) = read_reply(stream).map_err(|_| "SMTP authentication connection failed".to_string())?;
+        if code == 334 {
+            stream.write_all(b"\r\n").map_err(|_| "SMTP authentication connection failed".to_string())?;
+            stream.flush().map_err(|_| "SMTP authentication connection failed".to_string())?;
+            code = read_reply(stream).map_err(|_| "SMTP authentication connection failed".to_string())?.0;
+        }
+        return if code == 235 { Ok(()) } else { Err("MAIL_OAUTH_REJECTED".into()) };
+    }
     if mechanisms.iter().any(|m| m == "PLAIN") {
         let payload = base64::engine::general_purpose::STANDARD.encode(format!("\0{user}\0{pass}").as_bytes());
         stream.write_all(format!("AUTH PLAIN {payload}\r\n").as_bytes()).map_err(|e| format!("smtp write failed: {e}"))?;
@@ -292,6 +305,7 @@ pub async fn mail_send(
     port: u16,
     user: String,
     pass: String,
+    auth: Option<crate::mail_imap::MailAuth>,
     from: String,
     to: String,
     subject: String,
@@ -355,7 +369,7 @@ pub async fn mail_send(
             ehlo = cmd(&mut stream, &format!("EHLO {}", client_ident()), 250)?;
         }
 
-        authenticate(&mut stream, &ehlo, &user, &pass)?;
+        authenticate(&mut stream, &ehlo, &user, &pass, auth)?;
 
         cmd(&mut stream, &format!("MAIL FROM:<{}>", envelope_addr(&from)), 250)?;
         for rcpt in &recipients {

@@ -39,6 +39,7 @@ export type VacationSupport =
  */
 export function vacationSupport(account: MailAccountConfig): VacationSupport {
   if (mailAccountKind(account) === "microsoft") return { kind: "graph" };
+  if (mailAccountKind(account) === "gmail") return { kind: "none" };
   if (account.sieveHost) return { kind: "sieve", host: account.sieveHost, port: account.sievePort ?? SIEVE_PORT };
   return { kind: "none" };
 }

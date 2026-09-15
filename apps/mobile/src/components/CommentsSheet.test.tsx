@@ -37,6 +37,29 @@ vi.mock("react-i18next", async () => {
  * failed. The sheet has to say what is going on and offer the way out.
  */
 describe("the comments sheet, locked", () => {
+  it("shows the owner's publication feedback and reviews only an applicable proposal with source rights", async () => {
+    const comment: WorkspaceCommentRecord = { commentId: "91".repeat(16), targetObjectId: "92".repeat(16), parentCommentId: null,
+      authorMemberId: "reviewer", authorDeviceId: "phone", body: "Please clarify", anchor: null, resolvedCommentId: null, resolvedAt: null,
+      createdAt: "2026-09-15T08:00:00.000Z", suggestion: { replacement: "New words", appliedAt: null, appliedBy: null, declinedAt: null } };
+    const entry = { comment, publicationId: "93".repeat(16), publicationName: "External review", path: "note.md", authorDisplayName: "Reviewer", authorActive: true, suggestionApplicable: true };
+    const host = document.createElement("div"); document.body.appendChild(host); const root = createRoot(host);
+    const onApplySuggestion = vi.fn(), onDeclineSuggestion = vi.fn();
+    const props = { comments: [], publicationComments: [entry], memberNames: new Map<string, string>(), selfMemberId: "owner",
+      canComment: true, canWrite: true, onSubmit: async () => {}, onResolve: () => {}, onApplySuggestion, onDeclineSuggestion,
+      onPromoteToTask: () => {}, onRevealAnchor: () => {}, onClose: () => {} };
+    await act(async () => { root.render(<CommentsSheet {...props} />); });
+    expect(host.textContent).toContain("External review");
+    expect(host.textContent).toContain("Reviewer");
+    expect(host.querySelector(".pv-comment-column__empty")).toBeNull();
+    const section = host.querySelector(".pv-comment-returns")!;
+    await act(async () => { [...section.querySelectorAll("button")].find(button => button.textContent === tr("comments.suggestionApply"))!.click(); });
+    expect(onApplySuggestion).toHaveBeenCalledWith(comment);
+    await act(async () => { root.render(<CommentsSheet {...props} publicationComments={[{ ...entry, suggestionApplicable: false }]} />); });
+    expect([...section.querySelectorAll("button")].some(button => button.textContent === tr("comments.suggestionApply"))).toBe(false);
+    await act(async () => { root.render(<CommentsSheet {...props} canWrite={false} canComment={false} />); });
+    expect(section.querySelectorAll("button")).toHaveLength(0);
+    await act(async () => { root.unmount(); }); host.remove();
+  });
   it("shows conflicting decisions with the same explicit review action as desktop", async () => {
     const proposal: WorkspaceCommentRecord = { commentId: "ab".repeat(16), targetObjectId: "note.md", parentCommentId: null,
       authorMemberId: "phone", authorDeviceId: "phone", body: "Proposal", anchor: null, resolvedCommentId: null, resolvedAt: null,

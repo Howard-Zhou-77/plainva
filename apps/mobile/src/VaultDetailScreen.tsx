@@ -5,6 +5,7 @@ import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
   changeRemoteFolder,
+  openDriveDestination,
   getStoredProvider,
   getSyncStatus,
   listProviderFolders,
@@ -31,6 +32,7 @@ import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
 import { Banner, Button, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 import { syncStateLabel } from "./components/syncSubtitle";
+import { DriveDestinationDialog } from "@plainva/ui";
 
 /* The provider NAME comes from the shared family table (N5.1). This file kept
    its own map, which is how the phone ended up with two spellings of the same
@@ -78,6 +80,7 @@ export function VaultDetailScreen({
   const [zipLast, setZipLast] = useState(() => backupState(vaultId).lastRun);
   /** H2d: change the remote folder of an existing connection. */
   const [folderPick, setFolderPick] = useState<MobileSyncProvider | null>(null);
+  const [drivePicker, setDrivePicker] = useState<(Awaited<ReturnType<typeof openDriveDestination>> & { vault: MobileVault }) | null>(null);
   // The folder as it is CONFIGURED, for the confirmation text. Since the
   // finding of 2026-08-19 it lives in the settings, not the credential blob.
   const [pickStart, setPickStart] = useState("");
@@ -325,7 +328,7 @@ export function VaultDetailScreen({
             </Button>
           )}
         </div>
-        {isActive && status.message && <Banner kind="error" rounded>{status.message}</Banner>}
+        {isActive && status.message && <Banner kind={status.status === "retrying" ? "info" : "error"} rounded>{status.message}</Banner>}
         {isActive && status.collisions.length > 0 && (
           // A decision, not a failure: the sync keeps running for every other
           // file. It used to arrive as one English sentence inside the error
@@ -345,7 +348,7 @@ export function VaultDetailScreen({
             </ul>
           </Banner>
         )}
-        {isActive && status.errorKind === "pair-required" && (
+        {isActive && (status.errorKind === "pair-required" || status.errorKind === "workspace-integrity") && (
           <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
             {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
           </Button>
@@ -420,10 +423,11 @@ export function VaultDetailScreen({
                       void getStoredProvider(vaultId)
                         .then(async (stored) => {
                           if (!stored) return;
+                          if (stored.provider === "drive") { setDrivePicker({ ...await openDriveDestination(vaultId), vault: activeVault }); return; }
                           setPickStart(await readSyncRootFolder(vaultId, stored.provider, stored));
                           setFolderPick(stored);
                         })
-                        .finally(() => setBusy(false));
+                        .catch(error => toast.warning(String(error))).finally(() => setBusy(false));
                     }}
                     title={t("mobile.changeCloudFolder")}
                   />
@@ -675,6 +679,8 @@ export function VaultDetailScreen({
           </>
         )}
       </div>
+      {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
+        onSave={selected => changeRemoteFolder(drivePicker.vault, selected.path, selected.id)} />}
       {folderPick && (
         <CloudFolderPickerSheet
           title={t("mobile.changeCloudFolder")}

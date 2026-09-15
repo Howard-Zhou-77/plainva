@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, FileArchive, FolderOpen } from "lucide-react";
 import { Browser } from "@capacitor/browser";
@@ -67,6 +67,11 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
   const [report, setReport] = useState<ImportReport | null>(null);
   const [progress, setProgress] = useState<{ percent: number; message: string }>({ percent: 0, message: "" });
   const [controller, setController] = useState<AbortController | null>(null);
+  useEffect(() => () => controller?.abort(), [controller]);
+  const importError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    return t(message, { defaultValue: message });
+  };
   /**
    * The credential for an API source.
    *
@@ -100,8 +105,11 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
     const files = await pickImportFiles(mode);
     if (files.length === 0) return; // dismissed — a file input has no cancel event
     setStep("analyzing");
+    const ac = new AbortController();
+    setController(ac); setProgress({ percent: 0, message: "" });
     try {
-      const selection = await analyzeSelection(files);
+      const selection = await analyzeSelection(files, { signal: ac.signal, onProgress: percent => setProgress({ percent, message: "" }) });
+      if (ac.signal.aborted) { setStep("select"); return; }
       setArchive(selection.archive);
       if (selection.detected) setSourceId(selection.detected.id);
       const chosen = selection.detected ?? sources.find((s) => s.id === sourceId);
@@ -112,12 +120,15 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
         return;
       }
       setVaultName((n) => n || suggestVaultName(t(`import.sources.${chosen.id}`, { defaultValue: chosen.name }), t("import.targetNewVault")));
-      const built = await chosen.analyze(selection.archive.files, await buildOptions(null, null));
+      const built = await chosen.analyze(selection.archive.files, await buildOptions(ac.signal, null));
+      if (ac.signal.aborted) { setStep("select"); return; }
       setPlan(built);
       setStep("preview");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      if (!ac.signal.aborted) toast.error(importError(error));
       setStep("select");
+    } finally {
+      setController(null);
     }
   };
 
@@ -139,7 +150,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
       setPlan(built);
       setStep("preview");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(importError(error));
       setStep("select");
     }
   };
@@ -209,7 +220,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(importError(error));
       setStep("preview");
     } finally {
       setController(null);
@@ -358,6 +369,8 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
       {step === "analyzing" && (
         <div className="m-card">
           <p>{t("import.analyzingTitle")}</p>
+          <p role="status">{progress.percent}%</p>
+          {controller && <Button variant="ghost" onClick={() => controller.abort()}>{t("common.cancel")}</Button>}
         </div>
       )}
 
@@ -375,6 +388,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
               {t("import.statTarget")}: {targetLabel}
             </p>
             <p>{t("import.step3Hint")}</p>
+            {plan.totalFolders !== undefined && <p>{t("import.statFolders")}: {plan.totalFolders} · {t("import.statTags")}: {plan.totalTags ?? 0}</p>}
           </div>
           {/* An import into a connected vault is a bulk UPLOAD (BS1). A brand
               new vault has no provider, so there is nothing to warn about. */}
@@ -383,7 +397,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
           )}
           {plan.warnings.map((warning, i) => (
             <Banner key={i} kind="warning">
-              {warning}
+              {t(warning, { defaultValue: warning })}
             </Banner>
           ))}
           {archive && archive.skipped.length > 0 && (
@@ -433,7 +447,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
         <>
           <div className="m-card">
             <p>
-              <b>{t(report.skippedCount > 0 ? "import.reportTitlePartial" : "import.reportTitleDone")}</b>
+              <b>{t(report.skippedCount > 0 || report.degradedCount > 0 ? "import.reportTitlePartial" : "import.reportTitleDone")}</b>
             </p>
             <p>
               {t("import.statNotes")}: {report.importedNotesCount} · {t("import.statAttachments")}:{" "}

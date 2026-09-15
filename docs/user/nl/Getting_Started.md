@@ -1,8 +1,10 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-07
+Laatst bijgewerkt: 2026-09-15
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
+
+**Communitypakket voor Arch Linux:** [plainva in de AUR](https://aur.archlinux.org/packages/plainva) wordt onafhankelijk onderhouden. Bekijk de PKGBUILD vóór het bouwen; Plainva controleert deze communitybuilds niet. De toepassing blijft gelicentieerd onder AGPL-3.0-only.
 
 ## Systeemvereisten
 
@@ -167,7 +169,8 @@ Deze indeling hoort bij de vault en reist mee naar je andere apparaten via [Sync
 - **Zijbalken tonen/verbergen** via de twee knoppen in de titelbalk of `Ctrl+Alt+B` (links) / `Ctrl+Alt+R` (rechts) — ideaal om geconcentreerd te schrijven. Plainva onthoudt de status.
 - **Opdrachtenpalet**: `Ctrl+P` opent **Opdrachten** — typ en druk op `Enter` om uit te voeren (nieuwe notitie, dagnotitie, splitsen, zijbalken, **Nu back-uppen**, en meer).
 - **Dichtheid**: onder **Instellingen → App → Weergave** kies je tussen **Comfortabel** en **Compact** — Compact maakt lijsten, menu's en tabelrijen krapper; notitie-inhoud blijft ongewijzigd.
-- **Eigen thema**: de kaart **Mijn thema** onder **Instellingen → App → Weergave** kiest het thema en het potlood erop opent de bijbehorende pagina: grondtoon (licht/donker), een achtergrond uit een begrensd helderheidsbereik, een vrij accent, de hoeken (de lettertypen kies je op de kaart **Lettertypen** op dezelfde pagina). Plainva leidt de tekstkleuren af zodat tekst nooit in de achtergrond verdwijnt; een te bleek accent wordt tot minstens 3:1 gecorrigeerd, en de editor zegt dat. Op de telefoon staan dezelfde knoppen in het scherm **Weergave**.
+- **Eigen thema**: de kaart **Mijn thema** onder **Instellingen → App → Weergave** kiest het thema en het potlood erop opent de bijbehorende pagina: grondtoon (licht/donker), een achtergrond uit een begrensd helderheidsbereik, een vrij accent, de hoeken (de lettertypen kies je op de kaart **Lettertypen** op dezelfde pagina). Plainva leidt de tekstkleuren af zodat tekst nooit in de achtergrond verdwijnt; een te bleek accent wordt tot minstens 3:1 gecorrigeerd, en de editor zegt dat. Op de telefoon staan dezelfde knoppen in het scherm **Weergave**. De lichte en donkere sfeer behouden hun eigen kleuren; hoeken zijn gedeeld. Een eerder opgeslagen sfeer blijft behouden. De tegenhanger begint als voorstel en wordt pas na uitdrukkelijk overnemen opgeslagen. Met beide sferen volgt **Systeem** het apparaat.
+- **Persoonlijke ontwerpsynchronisatie**: schakel op de pagina van je eigen thema uitdrukkelijk **Via deze kluis synchroniseren** in. Kies op elk apparaat een ontgrendelde kluis en zet synchronisatie van instellingen aan. Eén kluis levert je persoonlijke ontwerp; andere leden hoeven het niet te gebruiken. Een al ontvangen ontwerp wordt overgenomen, anders wordt je lokale ontwerp gedeeld. Gelijktijdige wijzigingen behouden beide varianten om uit te kiezen. Uitschakelen bewaart je lokale ontwerp. Lettertypen en de keuze van een ander thema worden hiermee niet gesynchroniseerd.
 - **Lettertypen**: onder **Instellingen → App → Weergave** stelt de kaart **Lettertypen** de lettertypen van **Interface**, **Inhoud** en **Code** in (themastandaard, serif, sans-serif, monospace of de naam van een geïnstalleerd lettertype) en de **Lettergrootte van inhoud** (12–24 px) — de grootte schaalt alleen editor en leesweergave; de interface blijft ongewijzigd.
 - **Lettertypelijst**: onder **Aangepast…** staat een lijst met de lettertypen van je systeem, elke regel in zijn eigen lettertype; wat niet is geïnstalleerd zegt dat en is niet te kiezen. Het naamveld eronder accepteert elk ander geïnstalleerd lettertype.
 - **Interfacezoom**: schaalt de HELE interface tussen 80 % en 150 % — onder **Instellingen → App → Weergave** of via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` herstelt).
@@ -194,3 +197,7 @@ De rechterzijbalk kan niet onder **200 px** komen — geen enkele sectie is daar
 - [Notities & Markdown](Notes_and_Markdown.md) — alles over het schrijven
 - [Sneltoetsen](Keyboard_Shortcuts.md)
 - [FAQ & probleemoplossing](FAQ.md)
+
+## Een tabblad terugplaatsen
+
+Klik in een apart of tweede volledig venster met rechts op het tabblad en kies **Terug naar het hoofdvenster**. Tekst, selectie, weergave, scrollpositie, geschiedenis en vastzetten blijven behouden. Het brontabblad sluit pas na bevestiging. Zonder bevestiging blijven tabblad en concept beschikbaar. Wijzigingen in bladwijzers verschijnen in alle vensters.

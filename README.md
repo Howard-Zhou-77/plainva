@@ -19,6 +19,8 @@ Plainva is an open-source, local-first Markdown vault editor for Windows, macOS 
   <img src="docs/assets/screenshot-graph.png" alt="Plainva's vault map / graph view" width="49%" />
 </p>
 
+**Arch Linux community package:** [plainva in the AUR](https://aur.archlinux.org/packages/plainva) is maintained independently. Review its PKGBUILD before building; Plainva does not verify these community builds. The application’s licence remains AGPL-3.0-only.
+
 ## Highlights
 
 - **Real Markdown editor** — live preview (Obsidian- or Notion-style syntax display), slash menu, tables with inline cell editing, callouts, wiki links with fuzzy autocomplete, block drag handles, math (KaTeX), Mermaid diagrams, footnotes, clickable task checkboxes in read mode, print/PDF export.
@@ -104,6 +106,8 @@ pnpm --filter desktop smoke:prod    # production-build smoke (vite build + previ
 ```
 
 The repo is a pnpm/Turborepo monorepo: `apps/desktop` (Tauri v2 + React + CodeMirror 6), `packages/core` (vault logic: indexing, sync, merge — UI-free and heavily unit-tested), `docs/` (user guide, ADRs, engineering notes).
+
+The experimental [Core SDK](packages/core/README.md) can also be packed for use outside the monorepo, with separate browser, Node filesystem and optional SQLite entry points. Its README describes the public API, isolated consumer checks and publication procedure.
 
 ## Contributing
 

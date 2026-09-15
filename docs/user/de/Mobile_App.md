@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-09-11
+Stand: 2026-09-15
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -28,6 +28,8 @@ Es ist eine frühe Version: Halte eine Sicherung Deines Vaults bereit und sag Be
 
 Notizen öffnen **gerendert und schreibgeschützt**; der Stift oben rechts wechselt ins Bearbeiten (mit Werkzeugleiste über der Tastatur: Formatierung, Listen, Wiki-Link, Slash-Befehle, Foto einfügen). `![[Notiz]]`-Einbettungen erscheinen als antippbare Vorschau-Karten.
 
+Halte ein Wort gedrückt, um Text zu markieren. Die Auswahlleiste bietet **Kopieren** und **Alles auswählen**; damit lässt sich auch eine lange Notiz vollständig kopieren. Verborgene YAML-Eigenschaften und Markdown-Formatzeichen werden dabei nicht mitkopiert. **Bearbeiten** wechselt genau an der markierten Stelle ins Schreiben, sofern Du die Notiz bearbeiten darfst.
+
 Ordner lassen sich über die Werkzeugzeile über der Liste **durchsuchen** und **sortieren** — nach **Titel**, **Zuletzt geändert** oder **Erstellt**, die zweite Wahl kehrt die Richtung um; die Sortierung merkt sich das Gerät. Beim Kaltstart öffnet die App, was Du zuletzt offen hattest — Notiz, Ordner oder Datenbank-Ansicht samt Reiter — und jede Notiz öffnet an der Stelle, an der Du sie verlassen hast; Einrichtungs-Assistenten und eine angefangene Mail werden nicht wiederhergestellt. Listen mit Untereinträgen klappst Du mit einem Tipp auf ihren Punkt ein und wieder aus.
 
 Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Menü) öffnet das Kontext-Blatt der Notiz: Eigenschaften (direkt editierbar), Backlinks, Gliederung, Graph und der **Versionsverlauf** — jede Bearbeitung erzeugt automatisch Snapshots, die Du ansehen, vergleichen und wiederherstellen kannst. Markdown-Quelltext und die Suche in der Notiz erreichst Du über das ⋮-Menü.
@@ -42,13 +44,13 @@ Die Zuordnungen **Ordner → Vorlage** und **Notiztyp → Vorlage** legst Du am 
 
 ## Datenbanken (`.base`)
 
-`.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitachse), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften.
+`.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitleiste), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften.
 
-Die **Kalenderansicht** kennt drei Zeiträume: **Monat**, **Woche**, **Tag**. Der Monat bleibt der Einstieg — er ist der einzige, der auf einem Telefonschirm noch eine Form zeigt; Woche und Tag sind Listen, weil sieben Spalten Inhalt dort nicht mehr lesbar wären. Ein Eintrag über mehrere Tage erscheint als **Balken** statt an jedem Tag erneut, und Uhrzeiten stehen vor dem Titel. Die **Zeitachse** zeigt eine **Zeile je Eintrag** mit einem Balken von Anfang bis Ende: an beiden Enden lässt sich der Balken **mit dem Finger ziehen** und schreibt damit das Datumsfeld der Notiz. Unter **Konfigurieren** wählst Du Datums- und Enddatumsfeld sowie **Farbe nach** — dieselbe Einstellung, dieselbe Datei wie am Rechner. Relationen-Schema (Ziele, Kardinalität) pflegst Du weiterhin am Desktop.
+Die **Kalenderansicht** kennt drei Zeiträume: **Monat**, **Woche**, **Tag**. Der Monat bleibt der Einstieg — er ist der einzige, der auf einem Telefonschirm noch eine Form zeigt; Woche und Tag sind Listen, weil sieben Spalten Inhalt dort nicht mehr lesbar wären. Ein Eintrag über mehrere Tage erscheint als **Balken** statt an jedem Tag erneut, und Uhrzeiten stehen vor dem Titel. Die **Zeitleiste** zeigt eine **Zeile je Eintrag** mit einem Balken von Anfang bis Ende: an beiden Enden lässt sich der Balken **mit dem Finger ziehen** und schreibt damit das Datumsfeld der Notiz. Unter **Konfigurieren** wählst Du Datums- und Enddatumsfeld sowie **Farbe nach** — dieselbe Einstellung, dieselbe Datei wie am Rechner. Relationen-Schema (Ziele, Kardinalität) pflegst Du weiterhin am Desktop.
 
 **Mehrere Einträge auf einmal**: Halte eine Zeile gedrückt und wähle **Mehrere auswählen** — der erste Eintrag im Blatt. Danach wählt ein Tipp aus statt zu öffnen, und eine Leiste unten zeigt, wie viele es sind. Dort kannst Du die Auswahl **löschen** (eine Frage, nicht zwölf — mit demselben Überblick über Zusammenhänge wie beim einzelnen Löschen) oder mit **Wert setzen…** eine Eigenschaft für alle auf einmal setzen: erst die Eigenschaft wählen, dann den Wert. Steht neben einer Eigenschaft **derzeit gemischt**, tragen die ausgewählten Einträge verschiedene Werte. Ein leerer Wert entfernt die Eigenschaft. Beim Setzen läuft ein Fortschritt mit, der sich abbrechen lässt; bereits Geschriebenes bleibt. Tags, Listen, Mehrfachauswahl und Relationen sind bewusst nicht dabei — dort hieße „alle auf X setzen", dass jeder bestehende Wert verschwindet.
 
-Eine **Pinnwand**-Ansicht zeigt die Notizen als zweispaltiges Brett aus Zetteln: Tippen öffnet die Notiz, langes Drücken zeigt die Aktionen (Anpinnen, Labels, Farbe, Löschen), Ziehen nach langem Drücken ordnet um, und Kontrollkästchen lassen sich direkt auf der Karte abhaken. Das Eingabefeld oben erfasst einen neuen Zettel. Tipp: Zeigt die Datenbank auf Deinen Eingangsordner (**Einstellungen** → **Inhalt & Struktur**), landen auch die ＋-Schnellnotizen und aus anderen Apps geteilte Texte direkt auf dem Brett.
+Eine **Pinnwand**-Ansicht zeigt die Notizen als zweispaltiges Brett aus Zetteln: Tippen öffnet die Notiz, langes Drücken zeigt die Aktionen (Anpinnen, Labels, Farbe, Löschen), Ziehen nach langem Drücken ordnet um, und Kontrollkästchen lassen sich direkt auf der Karte abhaken. Das Eingabefeld oben erfasst einen neuen Zettel. Tipp: Zeigt die Datenbank auf Deinen Eingangsordner (**Einstellungen** → **Inhalt & Struktur**), landen auch die ＋-Schnellnotizen und aus anderen Apps geteilte Texte direkt auf dem Brett. Wähle bei geteilten Inhalten zuerst diesen Ordner und bestätige die Übernahme.
 
 ## Aufgaben
 
@@ -205,7 +207,9 @@ Die **Unterschiede** öffnen dieselbe Vergleichsfläche wie am Desktop: links di
 
 ## Teilen und Verknüpfungen
 
-Auf Android und iOS landen geteilter Text und URLs als neue Notiz im Eingangsordner; geteilte Bilder und Dateien werden als Anhänge übernommen (maximal 25 MB pro Datei). Auf Android bietet das gedrückt gehaltene App-Symbol zusätzlich **Neue Notiz** und **Heute**.
+Teile Text, Links, Bilder oder Dateien aus einer anderen App mit Plainva. Plainva bewahrt zunächst eine private lokale Kopie auf. Öffne Plainva, prüfe **Geteilte Inhalte**, wähle Vault und Ordner und bestätige **Übernehmen**. **Später übernehmen**, Schließen des Blatts, Sperren des Vaults oder ein Neustart erhalten die wartenden Inhalte. Ein begonnener Import behält beim Wiederholen sein ursprüngliches Ziel. Eine unvollständige Quellübertragung muss erneut geteilt werden; verwirf ihren wartenden Eintrag, wenn Du ihn nicht mehr brauchst.
+
+Grenzen je Übergabe: 10 Dateien, 25 MiB je Datei, insgesamt 50 MiB und 512 KiB Text einschließlich Betreff. Die Warteschlange enthält höchstens 20 wartende Übergaben und reserviert Platz innerhalb eines Anhangbudgets von 200 MiB. Plainva entfernt die zwischengespeicherte Kopie erst nach geschriebenen und geprüften Notizen und Anhängen oder nach ausdrücklichem Verwerfen. Verwerfen entfernt keine bereits ins Vault übernommenen Dateien. Auf Android bietet langes Drücken des App-Symbols **Neue Notiz** und **Heute**. Am Desktop stehen die vorhandenen Einfüge- und Dateiimport-Aktionen bereit.
 
 ## Ordner, Fotos und Kalender
 
@@ -244,7 +248,7 @@ Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe
 
 ## Datenbanken im Kalender
 
-Über den Kalenderansichten steht eine Reihe von Chips: jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitachse** mit benanntem Datumsfeld lässt sich dort einblenden. Eingeblendete Einträge erscheinen in Tages- und Agenda-Liste zwischen den Terminen — mit **Raute und gestrichelter Kante**, damit eine Notiz nie wie ein Termin aussieht; im Monatsraster als **hohler Punkt**. Ein Tipp öffnet die Notiz.
+Über den Kalenderansichten steht eine Reihe von Chips: jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitleiste** mit benanntem Datumsfeld lässt sich dort einblenden. Eingeblendete Einträge erscheinen in Tages- und Agenda-Liste zwischen den Terminen — mit **Raute und gestrichelter Kante**, damit eine Notiz nie wie ein Termin aussieht; im Monatsraster als **hohler Punkt**. Ein Tipp öffnet die Notiz.
 
 **Die Auswahl gehört zum Vault**, nicht zum Gerät: Was Du am Rechner einblendest, findest Du hier vor, sobald die Einstellungs-Synchronisation gelaufen ist. Terminieren geht am Telefon über das Blatt des Eintrags — Ziehen bleibt dem Rechner vorbehalten.
 

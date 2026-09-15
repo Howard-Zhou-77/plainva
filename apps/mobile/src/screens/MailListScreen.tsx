@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, CheckSquare, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { Ban, CheckSquare, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
+import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
+import { useFloatingSelectionSpace } from "../hooks/useFloatingSelectionSpace";
 import { mailStatus } from "./mail/mailStatus";
 import { undoMoveToTrash } from "./mail/undoMove";
 import { SwipeRow } from "../components/SwipeRow";
@@ -13,6 +15,7 @@ import { SwipeHint } from "../components/SwipeHint";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
   cacheEnvelopes,
+  forgetCachedMessages,
   cachedEnvelopes,
   cacheMessage,
   cachedMessage,
@@ -48,7 +51,7 @@ import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
-import { bulkTargets, runBulk, toggleSelected } from "./mail/mailBulk";
+import { bulkTargets, toggleSelected } from "./mail/mailBulk";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
 import { SheetGrip } from "../components/SheetGrip";
@@ -177,10 +180,20 @@ export function MailListScreen({
    *  side of the exchange, as if you had never answered. */
   const [sentRows, setSentRows] = useState<MailEnvelope[]>([]);
   const [selection, setSelection] = useState<Set<string> | null>(null);
+  const selectionBarRef = useFloatingSelectionSpace(!!selection);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkReport, setBulkReport] = useState<MailBulkReportItem[]>([]);
+  const [attachmentsOnly, setAttachmentsOnly] = useState(false);
+  const bulkAbort = useRef<AbortController | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const vault = mailVaultId();
+  const bulkContext = useRef("");
+  useLayoutEffect(() => {
+    bulkContext.current = JSON.stringify([vault, accountId, mailbox]);
+    return () => { bulkAbort.current?.abort(); };
+  }, [vault, accountId, mailbox]);
   const vaultRef = vaultObj;
 
   /**
@@ -555,6 +568,8 @@ export function MailListScreen({
     error,
     unreadOnly,
     isUnread: (m: MailEnvelope) => !m.seen,
+    attachmentsOnly,
+    hasAttachment: (m: MailEnvelope) => m.hasAttachments === true,
   });
   // Snoozed messages leave the list until their time (S22). Only in the folder
   // they were put aside in — a snooze says "not in my way", not "gone".
@@ -594,7 +609,7 @@ export function MailListScreen({
         : [],
     [threadMode, searching, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows]
   );
-  const showThreads = threadMode && !searching && threads.length > 0;
+  const showThreads = !attachmentsOnly && threadMode && !searching && threads.length > 0;
 
   /**
    * Flagged is a QUERY, not a filter: it replaces the list with everything the
@@ -670,29 +685,39 @@ export function MailListScreen({
   };
 
 
-  /** Applies a bulk action to the chosen ids, one at a time, then refreshes. */
-  /**
-   * `action` is given the message's own folder, not the screen's: in the
-   * conversation view a selection legitimately spans INBOX and Sent, and a uid
-   * only means something inside its folder.
-   */
-  const runOnSelection = async (action: (box: string, uid: string) => Promise<void>, after: (done: string[]) => void) => {
-    if (!selection || selection.size === 0 || chosen.length === 0) return;
-    setBulkBusy(true);
+  /** Preserve account, mailbox and epoch for every selected UID. */
+  const runOnSelection = async (action: MailBulkAction, after: (done: string[]) => void) => {
+    const owner = accountById(accountId);
+    if (!vault || !owner || !selection?.size || bulkBusy) return;
+    const controller = new AbortController(); bulkAbort.current = controller;
+    const context = bulkContext.current;
+    setBulkBusy(true); setBulkRunning(true); setBulkReport([]);
+    const report: MailBulkReportItem[] = [];
     try {
-      const ids = [...selection].filter((id) => selectable.has(id));
+      const ids = [...selection].filter(id => selectable.has(id));
       const targets = bulkTargets(ids, mailbox || "");
-      const outcome = await runBulk(ids, async (_id, i) => {
-        await action(targets[i].box, targets[i].uid);
+      const groups = new Map<string, Array<{ id: string; uidValidity?: number; selectionId: string; label: string }>>();
+      ids.forEach((id, index) => {
+        const target = targets[index], row = selectable.get(id)!;
+        const group = groups.get(target.box) ?? [];
+        group.push({ id: target.uid, uidValidity: row.uidValidity, selectionId: id, label: (row.subject || t("mail.noSubject")) + " · " + target.box });
+        groups.set(target.box, group);
       });
-      after(outcome.done.map((id) => parseUnifiedId(id)?.uid ?? id));
-      if (outcome.failed.length > 0) {
-        toast.error(t("mail.bulkPartial", { n: outcome.failed.length, error: outcome.error ?? "" }));
+      for (const [box, rows] of groups) {
+        const result = await applyMailBulk(vault, owner, box, rows, action, controller.signal);
+        if (context !== bulkContext.current) return;
+        if (action.kind === "move" || action.kind === "delete") await forgetCachedMessages(vaultRef.db, owner.id, box, result.filter(r => r.status === "done").map(r => r.id)).catch(() => toast.error(t("mail.cacheUpdateFailed")));
+        for (const item of result) {
+          const row = rows.find(r => r.id === item.id)!;
+          report.push({ ...item, id: row.selectionId, label: row.label });
+        }
+        setBulkReport([...report]);
+        if (result.some(r => r.status === "uncertain")) controller.abort();
       }
-      setSelection(null);
-    } finally {
-      setBulkBusy(false);
-    }
+      after(report.filter(r => r.status === "done").map(r => r.id));
+      const remaining = report.filter(r => r.status !== "done").map(r => r.id);
+      setSelection(remaining.length ? new Set(remaining) : null);
+    } finally { setBulkBusy(false); setBulkRunning(false); }
   };
 
   const bulkSeen = () => {
@@ -700,12 +725,13 @@ export function MailListScreen({
     if (!vault || !account || !mailbox) return;
     const target = chosen.some((m) => !m.seen);
     void runOnSelection(
-      (box, uid) => setMessageSeen(vault, account, box, uid, target),
+      { kind: "seen", value: target },
       (done) => {
         const set = new Set(done);
-        setRows((prev) => prev.map((m) => (set.has(m.id) ? { ...m, seen: target } : m)));
-        setSentRows((prev) => prev.map((m) => (set.has(m.id) ? { ...m, seen: target } : m)));
-        setUnseen((n) => Math.max(0, target ? n - done.length : n + done.length));
+        setRows((prev) => prev.map((m) => (set.has(selId(m, mailbox)) ? { ...m, seen: target } : m)));
+        setSentRows((prev) => prev.map((m) => (set.has(selId(m, sentBox)) ? { ...m, seen: target } : m)));
+        const changed = rows.filter(m => set.has(selId(m, mailbox)) && m.seen !== target).length;
+        setUnseen(n => Math.max(0, n + (target ? -changed : changed)));
       },
     );
   };
@@ -887,10 +913,10 @@ export function MailListScreen({
     });
     if (!target) return;
     void runOnSelection(
-      (box, uid) => moveMessage(vault, account, box, uid, target),
+      { kind: "move", target },
       (done) => {
-        setRows((prev) => prev.filter((m) => !done.includes(m.id)));
-        setSentRows((prev) => prev.filter((m) => !done.includes(m.id)));
+        setRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
+        setSentRows((prev) => prev.filter((m) => !done.includes(selId(m, sentBox))));
       },
     );
   };
@@ -908,10 +934,10 @@ export function MailListScreen({
     }
     if (inTrash && !(await mConfirm({ title: t("mail.deleteForeverConfirm"), message: t("mobile.selectedCount", { n: chosen.length }), danger: true }))) return;
     void runOnSelection(
-      (box, uid) => (inTrash ? deleteMessagePermanently(vault, account, box, uid) : moveMessage(vault, account, box, uid, trash!)),
+      inTrash ? { kind: "delete" } : { kind: "move", target: trash! },
       (done) => {
-        setRows((prev) => prev.filter((m) => !done.includes(m.id)));
-        setSentRows((prev) => prev.filter((m) => !done.includes(m.id)));
+        setRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
+        setSentRows((prev) => prev.filter((m) => !done.includes(selId(m, sentBox))));
       },
     );
   };
@@ -1020,6 +1046,26 @@ export function MailListScreen({
     if (done > 0) toast.success(t("mail.threadMovedToTrash", { n: done }));
   };
 
+  const onMailKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("input, textarea, select, [contenteditable=true]") || event.ctrlKey || event.metaKey || event.altKey) return;
+    const list = event.currentTarget;
+    const buttons = Array.from(list.querySelectorAll<HTMLButtonElement>("button.m-mailrow, button.m-mailthread-head"));
+    const current = target.closest("button") as HTMLButtonElement | null;
+    const index = current ? buttons.indexOf(current) : -1;
+    if (event.key === "Escape") { event.preventDefault(); if (bulkBusy) bulkAbort.current?.abort(); else setSelection(null); return; }
+    if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && current?.hasAttribute("aria-expanded")) {
+      event.preventDefault();
+      if ((current.getAttribute("aria-expanded") === "true") !== (event.key === "ArrowRight")) current.click();
+      return;
+    }
+    const delta = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : delta ? Math.max(0, Math.min(buttons.length - 1, index + delta)) : -1;
+    if (next >= 0 && buttons[next]) { event.preventDefault(); buttons[next].focus(); buttons[next].scrollIntoView({ block: "nearest" }); }
+    // Enter/Space use the native button click, including the current selection
+    // mode. Text inputs and other screens never enter this handler.
+  };
+
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, load);
 
@@ -1049,7 +1095,7 @@ export function MailListScreen({
   }
 
   return (
-    <div className="m-page" ref={ptrRef}>
+    <div className="m-page m-page--mail-list" ref={ptrRef}>
       {backHeader}
       {ptrIndicator}
 
@@ -1060,6 +1106,8 @@ export function MailListScreen({
           about a state you cannot otherwise see, and when the whole surface is
           that state, saying it twice makes the offer harder to find, not the
           warning louder. */}
+      <MailBulkReport items={bulkReport} busy={bulkRunning} onCancel={() => bulkAbort.current?.abort()} onDismiss={() => setBulkReport([])} />
+      {attachmentsOnly && <Banner kind="info">{t("mail.attachmentsLoaded", { known: (unified ? unifiedRows : flaggedRows ?? rows).filter(m => m.hasAttachments !== undefined).length, loaded: (unified ? unifiedRows : flaggedRows ?? rows).length })}</Banner>}
       {status && !error && (
         <Banner kind={status.kind === "info" ? "info" : status.kind} rounded>
           {status.raw ?? t(status.key, status.values)}
@@ -1088,6 +1136,7 @@ export function MailListScreen({
         >
           <Mail size={ICON.head} />
         </IconButton>
+        <IconButton label={t("mail.filterAttachments")} active={attachmentsOnly} data-testid="mail-filter-attachments" onClick={() => setAttachmentsOnly(v => !v)}><Paperclip size={ICON.head} /></IconButton>
         {!unified && (
           <IconButton
             label={t("mail.filterFlagged")}
@@ -1145,8 +1194,8 @@ export function MailListScreen({
           <div className="m-scroll">
             <DeviceSignInCard
               accountLabel={account?.label ?? ""}
-              providerLabel={account ? (mailAccountKind(account) === "microsoft" ? "Microsoft" : account.host) : ""}
-              oauth={account ? mailAccountKind(account) === "microsoft" : false}
+              providerLabel={account ? (account.kind === "gmail" ? "Gmail" : mailAccountKind(account) === "microsoft" ? "Microsoft" : account.host) : ""}
+              oauth={account ? mailAccountKind(account) !== "imap" : false}
               state={signInState}
               reason={error}
               onSignIn={onOpenAccounts}
@@ -1175,21 +1224,21 @@ export function MailListScreen({
         <EmptyState
           action={
             view.isEmptyByFilter ? (
-              <Button data-testid="mail-empty-showall" onClick={() => setUnreadOnly(false)} variant="tonal">
+              <Button data-testid="mail-empty-showall" onClick={() => { setUnreadOnly(false); setAttachmentsOnly(false); }} variant="tonal">
                 {t("mail.showAll")}
               </Button>
             ) : undefined
           }
           icon={<Mail size={ICON.head} />}
         >
-          {view.isEmptyByFilter ? t("mail.noUnread") : t("mail.folderEmpty")}
+          {view.isEmptyByFilter ? t(attachmentsOnly ? "mail.noAttachmentMatches" : "mail.noUnread") : t("mail.folderEmpty")}
         </EmptyState>
       ) : (
         <>
         {/* Above the list, once per vault (R1.1). Not inside the <ul>: a hint
             is not a message. */}
         <SwipeHint />
-        <ul className="m-maillist">
+        <ul className="m-maillist" onKeyDown={onMailKeyDown}>
           {showThreads
             ? threads.map((row) => {
                 const open = openThreads.has(row.thread.key);
@@ -1402,7 +1451,7 @@ export function MailListScreen({
       )}
 
       {selection && (
-        <div className="m-selectbar">
+        <div className="m-selectbar m-selectbar--mail" ref={selectionBarRef}>
           <span>{t("mobile.selectedCount", { n: selection.size })}</span>
           <span className="m-headactions">
             <IconButton
@@ -1433,7 +1482,7 @@ export function MailListScreen({
             >
               <Trash2 size={ICON.head} />
             </IconButton>
-            <IconButton label={t("common.cancel")} onClick={() => setSelection(null)}>
+            <IconButton label={t("common.cancel")} onClick={() => { if (bulkBusy) bulkAbort.current?.abort(); else setSelection(null); }}>
               <X size={ICON.head} />
             </IconButton>
           </span>

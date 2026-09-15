@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-15
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -90,3 +90,7 @@ These files belong to different tasks. Recurring tasks with the same title can b
 A file changed after you opened it. The comparison has been reloaded. Review the current contents and choose again.
 
 Merging line by line is a desktop tool; here you take one version whole or keep both.
+
+## Comparing a selected snapshot
+
+The selected version shows added and removed lines against the current note, including when the diff is hidden. On desktop, **Open in new window** keeps that exact snapshot selected. If it disappears, Plainva reports that it is unavailable. Large files may have no line count; binary files have no text diff. Mobile provides the same counts in the full comparison screen.

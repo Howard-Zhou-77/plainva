@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-09-11
+Última atualização: 2026-09-15
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -28,6 +28,8 @@ O app mobile está em **teste aberto** no Google Play. No **Android** você entr
 
 As notas abrem **renderizadas e somente leitura**; o lápis no canto superior direito muda para o modo de edição (com uma barra de ferramentas acima do teclado: formatação, listas, link wiki, comandos de barra, inserir foto). Incorporações `![[Nota]]` aparecem como cartões de pré-visualização tocáveis.
 
+Mantenha uma palavra pressionada para selecionar texto. A barra de seleção oferece **Copiar** e **Selecionar tudo**, inclusive para copiar o texto completo de uma nota longa. As propriedades YAML ocultas e os marcadores de formatação Markdown não são copiados. **Editar** permite escrever no trecho selecionado se você tiver permissão para editar a nota.
+
 Pastas podem ser **pesquisadas** e **ordenadas** pela barra acima da lista — por **Título**, **Última alteração** ou **Criação**; escolher de novo inverte a direção, e a ordenação é lembrada no dispositivo. Em uma inicialização a frio o app abre o que você deixou aberto por último — nota, pasta ou visualização de banco de dados, aba incluída — e cada nota abre onde você a deixou; assistentes de configuração e um e-mail inacabado não são restaurados. Listas com subitens dobram e desdobram com um toque no marcador.
 
 O botão **Detalhes da nota** no cabeçalho (entre o marcador e o menu ⋮) abre o painel de contexto da nota: propriedades (diretamente editáveis), backlinks, estrutura, grafo e o **histórico de versões** — cada edição cria automaticamente snapshots que você pode inspecionar, comparar e restaurar. O código-fonte Markdown e a busca na nota ficam no menu ⋮.
@@ -48,7 +50,7 @@ A **visualização de calendário** tem três períodos: **mês**, **semana**, *
 
 **Vários itens de uma vez**: mantenha uma linha pressionada e escolha **Selecionar vários** — a primeira opção dessa folha. Depois disso, um toque seleciona em vez de abrir, e uma barra na parte de baixo mostra quantos itens estão selecionados. A partir daí você pode **excluir** a seleção (uma única pergunta, não doze — com a mesma visão geral das conexões que uma exclusão isolada oferece) ou usar **Definir valor…** para definir uma propriedade em todos de uma vez: escolha primeiro a propriedade, depois o valor. Onde uma propriedade mostra **atualmente misto**, os itens selecionados têm valores diferentes. Um valor vazio remove a propriedade. Enquanto roda, você vê o progresso e pode cancelar; o que já foi gravado permanece. Tags, listas, seleção múltipla e relações ficam de fora de propósito — ali, "definir tudo como X" significaria que todo valor existente desaparece.
 
-Uma visualização **Mural** mostra as notas como um quadro de duas colunas com cartões adesivos: tocar abre a nota, tocar e segurar mostra as ações (fixar, marcadores, cor, excluir), arrastar após tocar e segurar reordena, e as caixas de seleção são marcadas direto no cartão. O campo de entrada no topo captura uma nova nota. Dica: aponte o banco de dados para a sua pasta de entrada (**Configurações** → **Conteúdo e estrutura**) e as notas rápidas do ＋, assim como os textos compartilhados de outros apps, caem direto no mural.
+Uma visualização **Mural** mostra as notas como um quadro de duas colunas com cartões adesivos: tocar abre a nota, tocar e segurar mostra as ações (fixar, marcadores, cor, excluir), arrastar após tocar e segurar reordena, e as caixas de seleção são marcadas direto no cartão. O campo de entrada no topo captura uma nova nota. Dica: aponte o banco de dados para a sua pasta de entrada (**Configurações** → **Conteúdo e estrutura**) e as notas rápidas do ＋, assim como os textos compartilhados de outros apps, caem direto no mural. Para conteúdo compartilhado, selecione primeiro essa pasta e confirme a importação.
 
 ## Tarefas
 
@@ -205,7 +207,9 @@ Snapshots (histórico de versões), um diário de rascunhos (depois de uma falha
 
 ## Compartilhamento e atalhos
 
-No Android e no iOS, o texto e as URLs compartilhados viram uma nova nota na pasta de entrada; as imagens e os arquivos compartilhados são importados como anexos (até 25 MB por arquivo). No Android, toque e segure o ícone do app para os atalhos adicionais **Nova nota** e **Hoje**.
+Compartilhe texto, links, imagens ou arquivos com o Plainva a partir de outro app. O Plainva primeiro mantém uma cópia local privada. Abra o Plainva, confira o conteúdo compartilhado, escolha um vault e uma pasta e confirme a importação. Importar depois, fechar o painel, bloquear o vault ou reiniciar o app preserva o conteúdo pendente. Uma importação iniciada mantém o destino original ao tentar novamente. Uma transferência incompleta da origem precisa ser compartilhada novamente; descarte sua entrada pendente quando não precisar mais dela.
+
+Limites por transferência: 10 arquivos, 25 MiB por arquivo, 50 MiB no total e 512 KiB de texto incluindo o assunto. A fila aceita no máximo 20 transferências pendentes e reserva espaço dentro de um orçamento de anexos de 200 MiB. A cópia temporária só é removida após gravar e conferir a nota e os anexos, ou após descartar explicitamente a entrada. Descartar não remove arquivos já importados para o vault. No Android, toque e segure o ícone do app para **Nova nota** e **Hoje**. No desktop, use as ações existentes de colar e importar arquivos.
 
 ## Pastas, fotos e calendário
 

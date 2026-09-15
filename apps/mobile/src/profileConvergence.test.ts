@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PROFILE_SYNC_PATH, stableStringify, type IVaultAdapter, type PimAccountRow } from "@plainva/core";
-import { canonicalizeProfileValues, setPlatformServices, shouldAnnounceProfileImport, storeBackedFields, type ISettingsStore } from "@plainva/ui";
+import { canonicalizeProfileValues, defaultCustomThemeDesign, reviseCustomThemeProfile, setPlatformServices, shouldAnnounceProfileImport, storeBackedFields, type ISettingsStore } from "@plainva/ui";
 import { CountingSyncTarget, profileHarnessDevice, runProfileCycle } from "../../../packages/core/test/support/settingsSyncHarness";
 
 /**
@@ -126,6 +126,7 @@ function fullProfile(): Record<string, unknown> {
   values.bookmarks = ["Projekte/Plainva.md", "Journal/2026-09-04.md"];
   values.mailAccounts = [];
   values.cloudAccounts = [];
+  values.personalDesign = reviseCustomThemeProfile(null, "fixture-device", defaultCustomThemeDesign());
   return values;
 }
 
@@ -155,7 +156,7 @@ describe("mobile profile port round trip (2026-09-04)", () => {
     for (const field of storeBackedFields("mobile")) {
       expect(first[field.logical], field.logical).toEqual(canonical[field.logical]);
     }
-    for (const key of ["folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "bookmarks"]) {
+    for (const key of ["folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "bookmarks", "personalDesign"]) {
       expect(first, key).toHaveProperty(key);
     }
   });
@@ -187,6 +188,27 @@ describe("mobile profile port round trip (2026-09-04)", () => {
     expect(quiet(devA.exchanges)).toEqual({ applied: [], uploaded: [] });
     expect(quiet(devB.exchanges)).toEqual({ applied: [], uploaded: [] });
     expect(target.remote.has(PROFILE_SYNC_PATH)).toBe(true);
+
+    // Thirty minutes of idle polling and repeated device switches must not
+    // turn a normalized round trip into another settings-import announcement.
+    for (let cycle = 0; cycle < 60; cycle++) {
+      const device = cycle % 2 === 0 ? devA : devB;
+      install(cycle % 2 === 0 ? storeA : storeB);
+      await runProfileCycle(target, device, new Date(Date.parse("2026-09-14T08:00:00Z") + cycle * 30_000).toISOString());
+      expect(quiet(device.exchanges)).toEqual({ applied: [], uploaded: [] });
+    }
+    install(storeA);
+    await devA.port.applyValues({ ...await devA.port.exportValues(), dailyNotesFolder: "Journal/Changed" });
+    await runProfileCycle(target, devA, "2026-09-14T08:31:00Z");
+    install(storeB);
+    await runProfileCycle(target, devB, "2026-09-14T08:31:30Z");
+    expect(devB.exchanges[devB.exchanges.length - 1]?.applied?.names).toContain("dailyNotesFolder");
+    for (let cycle = 0; cycle < 8; cycle++) {
+      const device = cycle % 2 === 0 ? devA : devB;
+      install(cycle % 2 === 0 ? storeA : storeB);
+      await runProfileCycle(target, device, new Date(Date.parse("2026-09-14T08:32:00Z") + cycle * 30_000).toISOString());
+      expect(quiet(device.exchanges)).toEqual({ applied: [], uploaded: [] });
+    }
   });
 
   it("keeps the 'already announced' memory in the settings store, across a restart", async () => {

@@ -23,6 +23,8 @@ export interface IncrementalIndexQueue {
   enqueue(paths: string[]): void;
   /** Resolves once all work pending at call time has drained (test hook). */
   whenIdle(): Promise<void>;
+  /** Discards future work; an already-running index operation may finish. */
+  stop(): void;
 }
 
 const segmentCount = (p: string) => p.replace(/\\/g, "/").split("/").length;
@@ -58,6 +60,7 @@ export function createIncrementalIndexQueue(opts: {
   const maxIncremental = opts.maxIncremental ?? 50;
   const pending = new Set<string>();
   let running = false;
+  let stopped = false;
   const idleWaiters: Array<() => void> = [];
 
   const runBatch = async (batch: string[]): Promise<IndexBatchResult> => {
@@ -113,7 +116,7 @@ export function createIncrementalIndexQueue(opts: {
         pending.clear();
         const result = await runBatch(batch);
         try {
-          opts.onBatchDone(result);
+          if (!stopped) opts.onBatchDone(result);
         } catch (e) {
           console.error("[incrementalIndexQueue] onBatchDone failed", e);
         }
@@ -126,6 +129,7 @@ export function createIncrementalIndexQueue(opts: {
 
   return {
     enqueue(paths: string[]) {
+      if (stopped) return;
       for (const p of paths) pending.add(p);
       if (!running && pending.size > 0) void drain();
     },
@@ -133,5 +137,6 @@ export function createIncrementalIndexQueue(opts: {
       if (!running && pending.size === 0) return Promise.resolve();
       return new Promise((resolve) => idleWaiters.push(resolve));
     },
+    stop() { stopped = true; pending.clear(); },
   };
 }

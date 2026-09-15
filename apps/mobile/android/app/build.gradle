@@ -45,7 +45,16 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        // Isolated native TLS fixture: production network config and a
+        // non-debuggable app, signed locally only. Never distributed.
+        tlsTest {
+            initWith release
+            applicationIdSuffix '.tlstest'
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
     }
+    if (project.hasProperty('tlsInstrumentation')) testBuildType 'tlsTest'
 }
 
 repositories {
@@ -63,9 +72,16 @@ dependencies {
     // WebDavHttpPlugin: arbitrary HTTP methods (PROPFIND & friends) that
     // HttpURLConnection-based CapacitorHttp cannot send.
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    implementation "com.google.android.gms:play-services-auth:22.0.0"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    androidTestImplementation "com.squareup.okhttp3:mockwebserver:4.12.0"
+    androidTestImplementation "com.squareup.okhttp3:okhttp-tls:4.12.0"
+    // Same runtime driver as capacitor-community/sqlite; the native storage
+    // instrumentation test needs its Java API on the test compile classpath.
+    androidTestImplementation 'net.zetetic:sqlcipher-android:4.17.0@aar'
+    androidTestImplementation 'androidx.sqlite:sqlite:2.4.0'
     implementation project(':capacitor-cordova-android-plugins')
 }
 

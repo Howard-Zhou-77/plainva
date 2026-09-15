@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef, type HTMLAttributes } from "react";
 import { Bold, Italic, Strikethrough, Code, Highlighter, Link } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { EditorView } from "@codemirror/view";
@@ -13,6 +13,50 @@ interface Props {
   /** Render above the selection (true) or below it (near the top edge). */
   above: boolean;
   onAction: (action: FormatAction) => void;
+}
+
+/** Both shells measure the real toolbar instead of assuming that its labels
+ * fit to the right of a selected word. The visual viewport also accounts for
+ * the phone's keyboard, zoom and changing orientation. */
+export function SelectionToolbarSurface({ x, y, above, className = "", children, ...props }: {
+  x: number; y: number; above: boolean;
+} & Omit<HTMLAttributes<HTMLDivElement>, "style">) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const viewport = window.visualViewport;
+    const measure = () => {
+      const margin = 8;
+      const leftEdge = viewport?.offsetLeft ?? 0;
+      const topEdge = viewport?.offsetTop ?? 0;
+      const width = viewport?.width ?? window.innerWidth;
+      const height = viewport?.height ?? window.innerHeight;
+      const styles = getComputedStyle(el);
+      const inset = (edge: string) => Math.max(margin, parseFloat(styles.getPropertyValue(`--selection-safe-${edge}`)) || 0);
+      const minX = leftEdge + inset("left"), maxX = leftEdge + width - inset("right");
+      const minY = topEdge + inset("top"), maxY = topEdge + height - inset("bottom");
+      el.style.maxWidth = `${Math.max(0, maxX - minX)}px`;
+      el.style.maxHeight = `${Math.max(0, maxY - minY)}px`;
+      const left = Math.max(minX, Math.min(x, maxX - el.offsetWidth));
+      const top = Math.max(minY, Math.min(above ? y - el.offsetHeight : y, maxY - el.offsetHeight));
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+    window.addEventListener("resize", measure);
+    viewport?.addEventListener("resize", measure);
+    viewport?.addEventListener("scroll", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      viewport?.removeEventListener("resize", measure);
+      viewport?.removeEventListener("scroll", measure);
+    };
+  }, [x, y, above]);
+  return <div {...props} ref={ref} className={`pv-popover--fixed pv-seltoolbar ${className}`}>{children}</div>;
 }
 
 /**
@@ -36,13 +80,14 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
   ];
 
   return (
-    <div
+    <SelectionToolbarSurface
       role="toolbar"
       aria-label={t("editor.fmtToolbar", { defaultValue: "Formatierung" })}
       onMouseDown={(e) => e.preventDefault()}
-      className={`pv-popover--fixed pv-seltoolbar${above ? " is-above" : ""}`}
       onPointerDown={(e) => e.preventDefault()}
-      style={{ left: x, top: y }}
+      x={x}
+      y={y}
+      above={above}
     >
       {items.map((it) => (
         <button
@@ -56,7 +101,7 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
           {it.icon}
         </button>
       ))}
-    </div>
+    </SelectionToolbarSurface>
   );
 };
 

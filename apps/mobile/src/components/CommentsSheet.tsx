@@ -1,5 +1,5 @@
 import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
-import { CommentLegacyLock } from "@plainva/ui";
+import { PublicationFeedback, publicationFeedbackCounts, CommentLegacyLock, type PublicationFeedbackEntry } from "@plainva/ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
@@ -20,6 +20,7 @@ import { SheetGrip } from "./SheetGrip";
  */
 export interface CommentsSheetProps {
   comments: readonly WorkspaceCommentRecord[];
+  publicationComments?: readonly PublicationFeedbackEntry[];
   operationStatus?: ReactNode;
   memberNames: ReadonlyMap<string, string>;
   /** Who this device is - the member id in a workspace, the device id otherwise. */
@@ -108,6 +109,7 @@ function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | 
 
 export function CommentsSheet({
   comments,
+  publicationComments = [],
   operationStatus,
   memberNames,
   selfMemberId,
@@ -159,12 +161,13 @@ export function CommentsSheet({
   const kindTouched = useRef(false);
   const openByKind = useMemo(() => {
     const all = groupSuggestionRounds(threads);
-    return { comments: all.threads.filter((thread) => isCommentThreadOpen(thread.root)).length, suggestions: all.rounds.reduce((n, round) => n + round.open, 0) };
-  }, [threads]);
+    const incoming = publicationFeedbackCounts(publicationComments);
+    return { comments: all.threads.filter((thread) => isCommentThreadOpen(thread.root)).length + incoming.comments, suggestions: all.rounds.reduce((n, round) => n + round.open, 0) + incoming.suggestions };
+  }, [threads, publicationComments]);
   useEffect(() => {
     if (kindTouched.current) return;
-    if (openByKind.comments === 0 && openByKind.suggestions > 0) setKind("suggestions");
-  }, [openByKind]);
+    if (openByKind.comments === 0 && (grouped.rounds.length > 0 || publicationComments.some(entry => entry.comment.suggestion))) setKind("suggestions");
+  }, [openByKind, grouped, publicationComments]);
   // A card named from the text shows on ITS tab and scrolls into view
   // (finding 2026-09-03) - the tap is explicit intent and wins over the tab
   // and the "open" filter the reader chose. Same rule as the desktop column.
@@ -389,9 +392,9 @@ export function CommentsSheet({
             {t(locked.workspace ? "comments.workspaceLocked" : "comments.commentsLocked")}
           </EmptyState>
         )}
-        {!locked && kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
+        {!locked && kind === "comments" && grouped.threads.length === 0 && !publicationComments.some(entry => !entry.comment.suggestion) && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
         <div className="pv-comment-list">
-          {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("comments.suggestionsNone")}</p>}
+          {!locked && kind === "suggestions" && grouped.rounds.length === 0 && !publicationComments.some(entry => entry.comment.suggestion) && <p className="pv-comment-column__empty">{t("comments.suggestionsNone")}</p>}
           {kind === "suggestions" && grouped.rounds.map((round) => (
             <section key={round.batchId} className="pv-comment-round">
               {!round.batchId.startsWith("single:") && (
@@ -410,6 +413,9 @@ export function CommentsSheet({
             </section>
           ))}
           {kind === "comments" && grouped.threads.map(renderThread)}
+          {!locked && <PublicationFeedback entries={publicationComments} kind={kind} canWrite={canWrite} canComment={canComment}
+            onApplySuggestion={onApplySuggestion} onDeclineSuggestion={onDeclineSuggestion} onReviewDecision={onReviewDecision}
+            onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
         </div>
         {canComment && !locked && (
           <div className="pv-comment-compose">

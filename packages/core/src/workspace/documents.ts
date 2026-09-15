@@ -91,6 +91,7 @@ export type WorkspaceCapability =
   | "content.delete"
   | "comment.read"
   | "comment.create"
+  | "comment.suggest"
   | "history.read"
   | "keys.rotate"
   | "recovery.manage";
@@ -217,6 +218,7 @@ const CAPABILITIES: ReadonlySet<string> = new Set([
   "content.delete",
   "comment.read",
   "comment.create",
+  "comment.suggest",
   "history.read",
   "keys.rotate",
   "recovery.manage",

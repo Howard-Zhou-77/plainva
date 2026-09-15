@@ -7,6 +7,7 @@ import {
   type CloudAccountRecord,
   type CloudServiceId,
   GroupCard,
+  GmailSignInButton,
   type GuidedAccountRepairPlan,
   ICON,
   IconButton,
@@ -33,6 +34,7 @@ import { AccountClientIdSheet } from "../components/AccountClientIdSheet";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
 import { ConnectRunSummary } from "../components/ConnectRunBanner";
+import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
@@ -217,6 +219,9 @@ export function CloudAccountsScreen({
       <div className="m-settings">
       <ConnectRunSummary />
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
+      {mobileGmailClient() && <GroupCard>
+        <GmailSignInButton onSignIn={async () => { await signInGmail((await getActiveVaultEntry()).id); reload(); }} />
+      </GroupCard>}
 
       {repairNeeds.length > 0 && (
         <>

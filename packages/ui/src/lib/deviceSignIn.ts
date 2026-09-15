@@ -136,5 +136,5 @@ export function accountRowState(signIn: DeviceSignInState, lastError?: string | 
  * not "this can never be synced". The distinction matters for the wording.
  */
 export function isOAuthProvider(provider: string): boolean {
-  return provider === "google" || provider === "microsoft";
+  return provider === "google" || provider === "microsoft" || provider === "gmail";
 }

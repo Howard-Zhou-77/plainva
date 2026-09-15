@@ -1,3 +1,4 @@
+import { syncHttpError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
@@ -150,12 +151,15 @@ export class OneDriveSyncTarget implements ISyncTarget {
     return this.refreshInFlight;
   }
 
+  private pendingRefresh: Awaited<ReturnType<typeof refreshOneDriveAccessToken>> | null = null;
+
   private async doRefreshAccessToken(): Promise<void> {
-    const result = await refreshOneDriveAccessToken(
+    const result = this.pendingRefresh ?? await refreshOneDriveAccessToken(
       { clientId: this.creds.clientId, refreshToken: this.creds.refreshToken },
       this.fetchFn
     );
-    this.accessToken = result.accessToken;
+    this.pendingRefresh = result;
+    this.accessToken = undefined;
     if (result.refreshToken) {
       this.creds.refreshToken = result.refreshToken;
     }
@@ -164,6 +168,8 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // the next app start out of sync — surface that as a cycle error now.
       await this.onTokensRefreshed(result.accessToken, result.refreshToken, result.expiresIn);
     }
+    this.accessToken = result.accessToken;
+    this.pendingRefresh = null;
   }
 
   /** Authenticated request with a single 401 refresh-retry (Drive pattern). */
@@ -214,7 +220,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
     const names: string[] = [];
     while (url) {
       const res = await this.authedFetch("GET", url);
-      if (!res.ok) throw new Error(`OneDrive folder listing failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`OneDrive folder listing failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as { value?: GraphItem[]; "@odata.nextLink"?: string };
       for (const item of json.value ?? []) {
         if (item.folder) names.push(item.name);
@@ -246,7 +252,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
         body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
       });
       if (!res.ok && res.status !== 409) {
-        throw new Error(`OneDrive folder create failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`OneDrive folder create failed: ${res.status} ${res.statusText}`, res);
       }
       parentRel = parentRel ? `${parentRel}/${name}` : name;
     }
@@ -293,7 +299,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
       });
       // 201 created, 409 already exists — both fine; anything else is a real error.
       if (!res.ok && res.status !== 409) {
-        throw new Error(`OneDrive folder create failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`OneDrive folder create failed: ${res.status} ${res.statusText}`, res);
       }
       // Only the root is worth reporting, and only when it did not exist: 409
       // is the ordinary case on every later call.
@@ -330,7 +336,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
       body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "replace" } }),
     });
     if (!sessionRes.ok) {
-      throw new Error(`OneDrive upload session failed: ${sessionRes.status} ${sessionRes.statusText}`);
+      throw syncHttpError(`OneDrive upload session failed: ${sessionRes.status} ${sessionRes.statusText}`, sessionRes);
     }
     const session = (await sessionRes.json()) as { uploadUrl: string };
 
@@ -354,7 +360,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
             body: (content!.subarray(start, end) as unknown) as BodyInit,
           });
       if (!res.ok) {
-        throw new Error(`OneDrive chunk upload failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`OneDrive chunk upload failed: ${res.status} ${res.statusText}`, res);
       }
       if (res.status === 200 || res.status === 201) {
         item = (await res.json()) as GraphItem;
@@ -382,7 +388,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
         await this.ensureFolder(this.parentFolderOf(op.file_path));
         res = await this.uploadSmall(op.file_path, content);
       }
-      if (!res.ok) throw new Error(`OneDrive upload failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`OneDrive upload failed: ${res.status} ${res.statusText}`, res);
       const item = (await res.json()) as GraphItem;
       return { etag: this.itemEtag(item), remoteId: item.id };
     }
@@ -390,7 +396,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
     if (op.operation === "delete") {
       const res = await this.authedFetch("DELETE", this.itemUrl(op.file_path));
       if (!res.ok && res.status !== 404) {
-        throw new Error(`OneDrive delete failed: ${res.status} ${res.statusText}`);
+        throw syncHttpError(`OneDrive delete failed: ${res.status} ${res.statusText}`, res);
       }
       return;
     }
@@ -413,7 +419,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // Source gone remotely: NOT a success — the engine re-uploads at the new
       // path, otherwise the file would exist under no remote path at all.
       if (res.status === 404) return { renameSourceMissing: true };
-      if (!res.ok) throw new Error(`OneDrive rename failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`OneDrive rename failed: ${res.status} ${res.statusText}`, res);
       const item = (await res.json()) as GraphItem;
       return { etag: this.itemEtag(item), remoteId: item.id };
     }
@@ -448,7 +454,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
    */
   public async getStartCursor(): Promise<string> {
     const res = await this.authedFetch("GET", this.itemUrl("", "delta") + "?token=latest");
-    if (!res.ok) throw new Error(`OneDrive delta token failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`OneDrive delta token failed: ${res.status} ${res.statusText}`, res);
     const json = (await res.json()) as { "@odata.deltaLink"?: string };
     if (!json["@odata.deltaLink"]) throw new Error("OneDrive delta returned no deltaLink");
     return json["@odata.deltaLink"];
@@ -462,7 +468,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
     let nextCursor = cursor;
     while (url) {
       const res: Response = await this.authedFetch("GET", url);
-      if (!res.ok) throw new Error(`OneDrive delta failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`OneDrive delta failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as {
         value?: GraphItem[];
         "@odata.nextLink"?: string;
@@ -504,7 +510,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
     while (url) {
       const res: Response = await this.authedFetch("GET", url);
       if (res.status === 404) return false;
-      if (!res.ok) throw new Error(`OneDrive list failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`OneDrive list failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as { value?: GraphItem[]; "@odata.nextLink"?: string };
       for (const item of json.value || []) {
         const path = relFolder ? `${relFolder}/${item.name}` : item.name;
@@ -525,7 +531,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id,name,cTag,eTag,lastModifiedDateTime,size,folder,file`);
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`OneDrive metadata lookup failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`OneDrive metadata lookup failed: ${res.status} ${res.statusText}`, res);
     const item = (await res.json()) as GraphItem;
     if (item.folder) return null;
     const modifiedAt = item.lastModifiedDateTime ? Date.parse(item.lastModifiedDateTime) : Number.NaN;
@@ -541,7 +547,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
     // fetch follows the 302 to the pre-signed download URL transparently.
     const res = await this.authedFetch("GET", this.itemUrl(filePath, "content"));
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`OneDrive download failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`OneDrive download failed: ${res.status} ${res.statusText}`, res);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
   }

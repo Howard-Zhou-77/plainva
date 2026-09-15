@@ -3,6 +3,9 @@ import type { AppendDraftArgs, ImapCreds } from "../transport";
 import { LineSocket } from "./socket";
 import { decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage, previewFromBodyPrefix } from "./mime";
 import { classifyFolderRole, decodeImapUtf7 } from "../mailOut";
+import { MAIL_OAUTH_REJECTED, xoauth2Payload } from "./xoauth2";
+import { validatedUids, type ImapBulkArgs, type ImapBulkResult } from "../bulkActions";
+import { bodyStructureAttachments } from "./bodyStructure";
 
 /**
  * IMAP over a raw socket (mail feinplan G2) — written once in shared code so
@@ -14,7 +17,7 @@ import { classifyFolderRole, decodeImapUtf7 } from "../mailOut";
  * Rust surface), no more. A small client for known commands is easier to audit
  * than a general-purpose library, which is why we build rather than pull one in.
  *
- * A fresh connection per operation, like the desktop — no pooling (E-G6).
+ * The socket transport serializes operations through its existing session pool.
  */
 
 const CRLF = "\r\n";
@@ -71,6 +74,7 @@ export function encodeImapUtf7(name: string): string {
 
 /** Quotes a string for an IMAP command argument. */
 function q(s: string): string {
+  if (/[\r\n\0]/.test(s)) throw new Error("Invalid IMAP argument");
   return '"' + s.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
 }
 
@@ -85,6 +89,7 @@ interface Response {
 
 export class ImapConnection {
   private tag = 0;
+  private uidValidity?: number;
 
   private constructor(private readonly sock: LineSocket) {}
 
@@ -107,12 +112,32 @@ export class ImapConnection {
       }
       await sock.startTls();
     }
-    const login = await conn.command(`LOGIN ${q(creds.user)} ${q(creds.pass)}`);
+    const login = creds.auth === "xoauth2"
+      ? await conn.authenticateOAuth(creds.user, creds.pass).catch(async error => { await sock.close(); throw error; })
+      : await conn.command(`LOGIN ${q(creds.user)} ${q(creds.pass)}`);
     if (!login.ok) {
       await sock.close();
-      throw new Error(login.text || "login rejected by the mail server");
+      throw new Error(creds.auth === "xoauth2" ? MAIL_OAUTH_REJECTED : login.text || "login rejected by the mail server");
     }
     return conn;
+  }
+
+  private async authenticateOAuth(user: string, accessToken: string): Promise<Response> {
+    const payload = xoauth2Payload(user, accessToken);
+    const capability = await this.command("CAPABILITY");
+    if (!capability.ok || !capability.lines.some(line => /\bAUTH=XOAUTH2\b/i.test(line))) {
+      throw new Error("The mail server does not support XOAUTH2");
+    }
+    // Use the continuation form; SASL-IR is optional. A second challenge is an
+    // OAuth error and must receive an empty response before the tagged failure.
+    const tag = `a${++this.tag}`;
+    await this.sock.writeText(`${tag} AUTHENTICATE XOAUTH2${CRLF}`);
+    let challenges = 0;
+    const result = await this.readResponse(tag, async () => {
+      if (++challenges > 2) throw new Error(MAIL_OAUTH_REJECTED);
+      await this.sock.writeText((challenges === 1 ? payload : "") + CRLF);
+    });
+    return challenges === 1 ? result : { ...result, ok: false };
   }
 
   async close(): Promise<void> {
@@ -149,11 +174,12 @@ export class ImapConnection {
     return this.readResponse(tag);
   }
 
-  private async readResponse(tag: string): Promise<Response> {
+  private async readResponse(tag: string, continuation?: () => Promise<void>): Promise<Response> {
     const lines: string[] = [];
     const literals: string[] = [];
     for (;;) {
       let line = await this.sock.readLine();
+      if (line.startsWith("+") && continuation) { await continuation(); continue; }
       // Inline any counted literal that terminates the line.
       let m = /\{(\d+)\}$/.exec(line);
       while (m) {
@@ -204,17 +230,19 @@ export class ImapConnection {
       const v = /UIDVALIDITY\s+(\d+)/i.exec(line);
       if (v) uidValidity = Number(v[1]);
     }
+    this.uidValidity = uidValidity || undefined;
     return { exists, uidValidity };
   }
 
   async select(mailbox: string): Promise<void> {
     const res = await this.command(`SELECT ${q(encodeImapUtf7(mailbox))}`);
     if (!res.ok) throw new Error(res.text || `could not open ${mailbox}`);
+    this.uidValidity = Number(/UIDVALIDITY\s+(\d+)/i.exec(res.lines.join(" "))?.[1]) || undefined;
   }
 
   async searchUids(criteria: string): Promise<number[]> {
     const res = await this.command(`UID SEARCH ${criteria}`);
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error("The mail server could not complete the search");
     for (const line of res.lines) {
       const m = /^\*\s+SEARCH\s*(.*)$/i.exec(line);
       if (m) {
@@ -245,7 +273,7 @@ export class ImapConnection {
   async fetchEnvelopes(uids: number[]): Promise<RawImapEnvelope[]> {
     if (uids.length === 0) return [];
     const res = await this.command(
-      `UID FETCH ${uids.join(",")} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE MESSAGE-ID IN-REPLY-TO REFERENCES)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
+      `UID FETCH ${uids.join(",")} (UID FLAGS BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE MESSAGE-ID IN-REPLY-TO REFERENCES)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
     );
     if (!res.ok) throw new Error(res.text || "could not read the message list");
     const out: RawImapEnvelope[] = [];
@@ -268,6 +296,8 @@ export class ImapConnection {
       const h = parseHeaders(header);
       out.push({
         uid: Number(uidM[1]),
+        uidValidity: this.uidValidity,
+        hasAttachments: bodyStructureAttachments(line),
         subject: decodeWords(h.get("subject") ?? ""),
         from: headerAddresses(h.get("from")),
         dateTs: headerDate(h.get("date")),
@@ -331,20 +361,68 @@ export class ImapConnection {
   }
 
   async move(uid: number, target: string): Promise<void> {
+    const capabilities = await this.command("CAPABILITY");
+    if (!capabilities.ok || !/\bMOVE\b/i.test(capabilities.lines.join(" "))) throw new Error("MAIL_BULK_UNSUPPORTED");
     const moved = await this.command(`UID MOVE ${uid} ${q(encodeImapUtf7(target))}`);
-    if (moved.ok) return;
-    // Servers without MOVE (RFC 6851): copy, mark deleted, expunge.
-    const copied = await this.command(`UID COPY ${uid} ${q(encodeImapUtf7(target))}`);
-    if (!copied.ok) throw new Error(copied.text || "could not move the message");
-    await this.store(uid, "\\Deleted", true);
-    await this.expunge(uid);
+    if (!moved.ok) throw new Error("The mail server did not confirm the move");
   }
 
-  async expunge(uid?: number): Promise<void> {
-    // UID EXPUNGE only removes the message asked for; without UIDPLUS the plain
-    // EXPUNGE is the only option and removes every \Deleted message in the box.
-    const res = uid !== undefined ? await this.command(`UID EXPUNGE ${uid}`) : { ok: false, text: "" } as Response;
-    if (!res.ok) await this.command("EXPUNGE");
+  async expunge(uid: number): Promise<void> {
+    validatedUids([uid]);
+    const res = await this.command(`UID EXPUNGE ${uid}`);
+    if (!res.ok) throw new Error("The mail server did not confirm the deletion");
+  }
+
+  /** Exactly one bounded set; a rejected or disconnected MOVE is never
+   * followed by COPY, which could duplicate messages already moved by the server. */
+  async bulkAction(args: ImapBulkArgs): Promise<ImapBulkResult[]> {
+    const uids = validatedUids(args.uids);
+    if (!uids.length) return [];
+    const result = new Map<number, ImapBulkResult>();
+    let started = false;
+    const flagsFor = async (set: number[]) => {
+      const response = await this.command(`UID FETCH ${set.join(",")} (UID FLAGS)`);
+      if (!response.ok) throw new Error("Could not verify message flags");
+      const flags = new Map<number, string>();
+      for (const line of response.lines) {
+        const uid = /\bUID\s+(\d+)/i.exec(line);
+        const found = /\bFLAGS\s+\(([^)]*)\)/i.exec(line);
+        if (uid && found) flags.set(Number(uid[1]), found[1].toLowerCase());
+      }
+      return flags;
+    };
+    try {
+      await this.select(args.mailbox);
+      if (args.uidValidity !== undefined && args.uidValidity !== this.uidValidity) return uids.map(uid => ({ uid, status: "failed", reason: "changed" }));
+      const capability = await this.command("CAPABILITY");
+      const caps = capability.lines.join(" ");
+      const action = args.action;
+      if (!capability.ok || (action.kind === "move" && !/\bMOVE\b/i.test(caps)) || (action.kind === "delete" && !/\bUIDPLUS\b/i.test(caps))) return uids.map(uid => ({ uid, status: "failed", reason: "unsupported" }));
+      const before = await flagsFor(uids);
+      const present = uids.filter(uid => before.has(uid));
+      for (const uid of uids) if (!before.has(uid)) result.set(uid, { uid, status: "failed", reason: "missing" });
+      if (!present.length) return uids.map(uid => result.get(uid)!);
+      const set = present.join(",");
+      let command: string;
+      if (action.kind === "move") {
+        if (action.target === args.mailbox) return uids.map(uid => result.get(uid) ?? { uid, status: "done" });
+        command = `UID MOVE ${set} ${q(encodeImapUtf7(action.target))}`;
+      } else command = `UID STORE ${set} ${action.kind === "delete" || action.value ? "+" : "-"}FLAGS (\\${action.kind === "delete" ? "Deleted" : action.kind === "seen" ? "Seen" : "Flagged"})`;
+      started = true;
+      let response = await this.command(command);
+      if (action.kind === "delete" && response.ok) response = await this.command(`UID EXPUNGE ${set}`);
+      const after = await flagsFor(present);
+      for (const uid of present) {
+        const flags = after.get(uid);
+        const applied = action.kind === "seen" || action.kind === "flagged"
+          ? flags !== undefined && flags.includes(action.kind === "seen" ? "\\seen" : "\\flagged") === action.value
+          : response.ok && flags === undefined;
+        result.set(uid, applied ? { uid, status: "done" } : { uid, status: action.kind === "move" || action.kind === "delete" ? "uncertain" : "failed", reason: "rejected" });
+      }
+    } catch {
+      for (const uid of uids) if (!result.has(uid)) result.set(uid, { uid, status: started ? "uncertain" : "failed", reason: "connection" });
+    }
+    return uids.map(uid => result.get(uid)!);
   }
 
   async append(args: AppendDraftArgs, mime: Uint8Array): Promise<void> {

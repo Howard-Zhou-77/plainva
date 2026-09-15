@@ -3,7 +3,7 @@ import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncCon
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
-import { fetchWithRetry } from "./httpRetry.js";
+import { fetchWithRetry, parseRetryAfterMs } from "./httpRetry.js";
 import { SyncProviderError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
@@ -23,6 +23,24 @@ export interface DriveCredentials {
    * nested path ("Apps/Plainva") since 2026-07-06 — resolved segment by
    * segment from My Drive's root, creating missing folders. */
   rootFolderName?: string;
+  /** Explicitly selected existing folder. Missing access never creates a replacement. */
+  rootFolderId?: string;
+}
+
+export interface DriveFolderSelection { path: string; id: string }
+export function readDriveFolderSelection(value: unknown): DriveFolderSelection | null {
+  if (value === undefined || value === null || typeof value === "string") return null;
+  const selection = value as Partial<DriveFolderSelection>;
+  if (typeof selection.path !== "string" || !selection.path.trim() || typeof selection.id !== "string" || !/^[\w-]+$/.test(selection.id)) {
+    throw new Error("The stored Google Drive destination is invalid");
+  }
+  return { path: selection.path, id: selection.id };
+}
+export interface DriveFolderPreview {
+  id: string;
+  name: string;
+  items: Array<{ id: string; name: string; folder: boolean; modifiedTime?: string }>;
+  nextPageToken?: string;
 }
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -91,7 +109,7 @@ function driveFailure(res: Response): Promise<DriveFailure> {
 
 async function driveResponseError(operation: string, res: Response): Promise<Error> {
   const failure = await driveFailure(res);
-  return new SyncProviderError(`Google Drive ${operation} failed (HTTP ${res.status}): ${failure.detail}`, res.status, failure.rateLimited);
+  return new SyncProviderError(`Google Drive ${operation} failed (HTTP ${res.status}): ${failure.detail}`, res.status, failure.rateLimited, parseRetryAfterMs(res.headers?.get?.("Retry-After") ?? null) ?? undefined);
 }
 
 /**
@@ -283,6 +301,12 @@ export class DriveSyncTarget implements ISyncTarget {
 
   private async getRootFolderId(): Promise<string> {
     if (this.rootFolderId) return this.rootFolderId;
+    if (this.creds.rootFolderId) {
+      const folder = await this.readFolderMetadata(this.creds.rootFolderId);
+      this.rootFolderId = folder.id;
+      this.cacheFolder("", folder.id);
+      return folder.id;
+    }
     // Since 2026-07-06 the folder setting may be a NESTED path ("Apps/Plainva",
     // written by the settings folder picker): resolve segment by segment,
     // creating as needed. A plain name ("Plainva") is the one-segment case and
@@ -331,6 +355,45 @@ export class DriveSyncTarget implements ISyncTarget {
     return names.sort((a, b) => a.localeCompare(b));
   }
 
+  private async readFolderMetadata(id: string): Promise<{ id: string; name: string }> {
+    if (!/^[\w-]+$/.test(id)) throw new Error("Invalid Google Drive folder id");
+    const response = await this.authedFetch("GET", `${DRIVE_API}/files/${encodeURIComponent(id)}?fields=id,name,mimeType,trashed`);
+    if (!response.ok) throw await driveResponseError("folder preview", response);
+    const folder = await response.json() as { id?: string; name?: string; mimeType?: string; trashed?: boolean };
+    if (!folder.id || typeof folder.name !== "string" || folder.mimeType !== FOLDER_MIME || folder.trashed !== false) {
+      throw new Error("The selected Google Drive folder is unavailable");
+    }
+    return { id: folder.id, name: folder.name };
+  }
+
+  /** Read-only, bounded metadata page. No download or folder creation. */
+  public async previewFolder(id: string, pageToken?: string): Promise<DriveFolderPreview> {
+    const folder = await this.readFolderMetadata(id);
+    const params = new URLSearchParams({ q: `'${folder.id.replace(/'/g, "\\'")}' in parents and trashed=false`,
+      fields: "nextPageToken,files(id,name,mimeType,modifiedTime)", pageSize: "100", orderBy: "name" });
+    if (pageToken) params.set("pageToken", pageToken);
+    const response = await this.authedFetch("GET", `${DRIVE_API}/files?${params}`);
+    if (!response.ok) throw await driveResponseError("folder preview", response);
+    const page = await response.json() as { files?: DriveFile[]; nextPageToken?: string };
+    if (!Array.isArray(page.files) || page.files.some(file => !file.id || typeof file.name !== "string")) throw new Error("Invalid Google Drive folder preview");
+    return { ...folder, items: page.files.map(file => ({ id: file.id, name: file.name, folder: file.mimeType === FOLDER_MIME,
+      ...(file.modifiedTime ? { modifiedTime: file.modifiedTime } : {}) })), nextPageToken: page.nextPageToken };
+  }
+
+  /** Inspect the old destination without materializing a missing default. */
+  public async previewConfiguredFolder(): Promise<DriveFolderPreview> {
+    let id = this.creds.rootFolderId;
+    if (!id) {
+      id = "root";
+      for (const segment of this.rootName.replace(/\\/g, "/").split("/").filter(Boolean)) {
+        const child = await this.findFolder(segment, id);
+        if (!child) throw new Error(`Drive folder not found: ${segment}`);
+        id = child;
+      }
+    }
+    return this.previewFolder(id);
+  }
+
   /**
    * Creates (or finds) the folder chain for `path` in MY DRIVE — picker
    * "new folder" support (2026-07-13). Same coordinate system as listFolders.
@@ -354,8 +417,9 @@ export class DriveSyncTarget implements ISyncTarget {
 
     // Drive resolves the name query case-insensitively, so a lookup of "Efforts"
     // also returns "efforts". Prefer the byte-exact folder.
-    const exact = candidates.find((f) => f.name === name);
-    if (exact) return exact.id;
+    const exact = candidates.filter((f) => f.name === name);
+    if (exact.length > 1) throw new Error(`Google Drive has several folders named "${name}". Select the existing destination in Sync settings.`);
+    if (exact.length === 1) return exact[0].id;
 
     // Only near-misses. Unlike files, adopting one is harmless (a folder carries no
     // content that could be overwritten) and staying tolerant keeps existing vaults
@@ -686,6 +750,13 @@ export class DriveSyncTarget implements ISyncTarget {
    * `nextCursor`.
    */
   public async pull(cursor?: string): Promise<PullResult> {
+    // A selected folder can disappear between cycles. Validate before touching
+    // caches or processing changes; an empty listing must never stand in for a
+    // missing root and trigger local deletions.
+    if (this.creds.rootFolderId) {
+      if (this.rootFolderId) await this.readFolderMetadata(this.creds.rootFolderId);
+      else await this.getRootFolderId();
+    }
     if (cursor) return this.pullChanges(cursor);
     return this.pullFullListing();
   }

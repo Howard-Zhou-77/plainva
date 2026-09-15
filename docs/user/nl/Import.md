@@ -1,8 +1,8 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-09-10
+Laatst bijgewerkt: 2026-09-15
 
-Plainva kan notities overnemen uit andere notitie-apps. De import schrijft altijd naar de vault die je op dat moment hebt geopend, in een submap die je zelf benoemt — zo raakt hij de rest van je vault nooit aan, en kun je de geïmporteerde map achteraf verplaatsen of verwijderen als elke andere map.
+Plainva importeert notities uit andere apps in een nieuwe vault of een nieuw benoemde submap van de geopende vault. De rest blijft ongewijzigd; je kunt de importmap daarna verplaatsen of verwijderen.
 
 **Importeren werkt op beide apparaten, met dezelfde bronnen.** Op de desktop leiden het startscherm, het opdrachtenpalet en het contextmenu van een map ernaartoe; op de telefoon vind je het onder **Instellingen → Onderhoud → Importeren uit een andere app**. Ook bronnen die toegang tot een dienst nodig hebben — Notion via de API — zijn daar beschikbaar.
 
@@ -58,7 +58,7 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | **Google Keep (Takeout)** | Het Takeout-ZIP of de `.json`-bestanden | Notities, checklists, labels als tags, kleur in de notitiekop, vastgezette notities als prikbord |
 | **Simplenote** | Het geëxporteerde `.json`-bestand | Actieve notities en hun tags |
 | **Logseq** | Je graph-map | De bestanden, ongewijzigd gekopieerd |
-| **Joplin** | De map of ZIP van de Markdown-export | Notities met hun notitieboeken, frontmatter, tags en bronnen |
+| **Joplin** | JEX/TAR, RAW-map of Markdown-export | Notities, notitieboeken, tags, bronnen, interne links en datums |
 | **Bear (TextBundle)** | De geëxporteerde `.textbundle`-mappen | Notities met hun afbeeldingen |
 | **Notesnook** | De Markdown-export | Notities en hun notitieboekmappen; een notitie in twee notitieboeken wordt één keer geïmporteerd |
 | **Capacities** | De map of ZIP van de export | Notities met hun eigenschappen als frontmatter, plus media |
@@ -171,3 +171,12 @@ ZIP-bestanden worden verwerkt met limieten per bestand, voor de totale grootte e
 ## Bezette bestandsnamen
 
 De import controleert maximaal 1000 naamvarianten. Als geen naam vrij is, een doel niet kan worden gecontroleerd of een gereserveerde naam inmiddels bezet is, wordt die vermelding overgeslagen met een reden. Andere vermeldingen gaan door. Bij Notion blijven koppelingen na een mislukte reservering naar de oorspronkelijke bron wijzen in plaats van een lokaal doel toe te wijzen. Als ook het rapport geen vrije naam krijgt, toont de import een fout; al geïmporteerde bestanden blijven in de doelmap.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX en RAW
+
+Selecteer een ontsleutelde JEX/TAR-export of RAW-map. De voorvertoning telt notities, notitieboeken, tags en bijlagen. Lege notitieboeken blijven; gelijke titels krijgen verschillende namen en links volgen hun ID’s. Notities zonder meegeëxporteerd notitieboek komen in de importhoofdmap.
+
+Bronbestanden blijven bytegelijk. Oorspronkelijke records, inclusief onbekende velden, staan ook in `_Joplin/Export.json`, geteld als één bijlage. Het verslag meldt ontbrekende bronnen en onopgeloste links; oorspronkelijke links blijven staan. Lees het voordat je de export verwijdert.
+
+JEX vereist een nieuw doel. Ongeldige archieven, conflicterende paden, symbolische/harde links en TAR-uitbreidingen zoals PAX worden volledig geweigerd. Grenzen: 20.000 items, 32 MiB per bestand, 2 MiB per tekstbestand, 256 MiB totaal, 64 MiB tekst en 64 MiB begeleidend bestand. Desktop gebruikt een privékopie; mobiel leest delen van het bestand. Analyse annuleren schrijft niets naar de vault. Tijdens import blijven geschreven bestanden en een gedeeltelijk verslag behouden; de hele map wordt niet automatisch teruggedraaid.

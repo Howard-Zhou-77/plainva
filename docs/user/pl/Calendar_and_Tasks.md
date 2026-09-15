@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-09-11
+Stan na: 2026-09-15
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -144,3 +144,5 @@ Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybiera
 Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
 
 [Google — Własna rejestracja aplikacji](Google_Drive_BYO_Guide.md)
+
+Kliknij lub dotknij okresu w nagłówku kalendarza, aby wybrać datę. Kropki oznaczają istniejące notatki dzienne według ustawionego folderu i formatu nazwy, także z kropkami w nazwie. Wybierz dzień, a następnie **Przejdź do daty** albo **Otwórz notatkę dzienną** / **Utwórz notatkę dzienną**. Tworzenie używa tego samego szablonu co panel boczny i widok Dzisiaj. Oznaczenia odświeżają się po zmianie miesiąca lub notatek. Wydarzenia wielodniowe zachowują stałe wiersze i rozciągają się w prawo od początku; daty poza widocznym okresem są przycinane.

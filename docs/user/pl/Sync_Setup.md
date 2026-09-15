@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-09-10
+Stan na: 2026-09-15
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -183,3 +183,26 @@ Dodawaj pliki, kalendarz lub pocztę do właściwego konta. Plainva sprawdza wyb
 Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
 
 Podczas dodawania plików na telefonie Plainva pokazuje źródło, cel i kolizje przed przeniesieniem. Istniejąca zawartość i usługi zostają zachowane; przerwany transfer można ponowić.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Certyfikaty własnych serwerów
+
+Android ufa również urzędom certyfikacji zainstalowanym w ustawieniach systemu. Dotyczy to wszystkich połączeń Plainva korzystających z tej konfiguracji, nie tylko jednego serwera WebDAV. Na komputerze HTTP używa urzędów systemowych i publicznych certyfikatów głównych; iOS korzysta z własnych ustawień zaufania. Ważność i nazwa serwera są nadal sprawdzane. Popraw certyfikaty wygasłe, jeszcze nieważne lub dotyczące innego serwera. Plainva nigdy nie pozwala akceptować wszystkich certyfikatów. Jeśli system nie podaje dokładnej przyczyny, Plainva zgłasza błąd weryfikacji bez zgadywania. Diagnostyka HTTP na urządzeniu mobilnym zawiera metodę i kod błędu, bez danych logowania, nazw certyfikatów ani prywatnych ścieżek.
+
+<!-- workspace-retry-2026-09-14 -->
+## Automatyczne ponawianie i brakująca historia synchronizacji
+
+Połączenie jest chwilowo niedostępne. Plainva spróbuje ponownie automatycznie; oczekujące zmiany pozostają na tym urządzeniu.
+
+Zaloguj się ponownie do konta synchronizacji. Oczekujące zmiany pozostają na tym urządzeniu do czasu przywrócenia dostępu.
+
+Plainva nie może zweryfikować zaszyfrowanego skarbca. Synchronizacja jest wstrzymana; dane lokalne i oczekujące zmiany są zachowane. Otwórz Bezpieczeństwo i udostępnianie, przywróć weryfikowalną kopię, jeśli jest dostępna, i sprawdź ponownie.
+
+Na urządzeniu z pełną weryfikowalną historią wybierz Synchronizuj teraz. Plainva może z tej kopii przywrócić brakujące podpisane operacje. Następnie sprawdź ponownie na Plainva. Jeśli nie ma prawidłowej kopii, zachowaj lub wyeksportuj dane lokalne; weryfikacja nigdy nie jest resetowana w celu pominięcia luki.
+
+Niezaszyfrowane pliki uwag z innych urządzeń pozostają na serwerze. Tylko urządzenie źródłowe może zakończyć konwersję. Plainva nie usuwa plików innych urządzeń.
+
+<!-- account-grants-destination-2026-09-14 -->
+Istniejące logowania są przejmowane po sprawdzeniu tożsamości, faktycznie przyznanych uprawnień i bezpiecznego zapisu. Konto może zachować oddzielne zgody; dodanie usługi zachowuje logowania pozostałych. Poczta Microsoft może użyć odpowiedniego logowania plików lub kalendarza. Inne urządzenie wymaga własnego logowania.
+
+W ustawieniach synchronizacji wybór Dysku Google pokazuje obecny folder i podgląd wybranego. Otwórz foldery o tej samej nazwie i porównaj pliki oraz daty. „Użyj tego folderu” zapisuje unikatowy identyfikator. Jeśli folder przestanie być dostępny, Plainva zgłosi błąd bez tworzenia zastępczego. Inne foldery nie są przenoszone ani usuwane.

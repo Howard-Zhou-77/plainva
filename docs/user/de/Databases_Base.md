@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-09-06
+Stand: 2026-09-15
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -39,16 +39,16 @@ Eine Datenbank kann beliebig viele Ansichten haben; jede hat einen **Ansichtstyp
 | **Galerie** | Karten mit optionalem **Titelbild** |
 | **Board** | Kanban-Spalten, gruppiert nach einer Eigenschaft (**Gruppieren nach**) — Karten per Drag verschieben ändert den Wert; eine **Spaltenüberschrift** per Drag ordnet die Spalten um |
 | **Kalender** | Einträge nach **Datumsfeld** in **Monat**, **Woche** oder **Tag**, Einträge per Drag verschiebbar |
-| **Zeitachse** | Zeitstrahl mit **Startdatum** und optionalem **Enddatum** |
+| **Zeitleiste** | Zeitstrahl mit **Startdatum** und optionalem **Enddatum** |
 | **Pinnwand** | Notizzettel-Brett im Google-Keep-Stil — Karten zeigen den gerenderten Notiz-Inhalt (eigener Abschnitt unten) |
 
-**Ansicht hinzufügen** legt neue an; über **Ansichts-Optionen** kannst Du **Umbenennen**, **Duplizieren**, **Löschen** und die Reihenfolge per Drag ändern. Welche Ansicht zuletzt aktiv war, merkt sich Plainva pro Datei. Kalender und Zeitachse brauchen ein Datumsfeld (**Nur Datum** oder **Datum & Uhrzeit** als **Format**); Einträge zeigen die in den **Eigenschaften** aktivierten Felder an.
+**Ansicht hinzufügen** legt neue an; über **Ansichts-Optionen** kannst Du **Umbenennen**, **Duplizieren**, **Löschen** und die Reihenfolge per Drag ändern. Welche Ansicht zuletzt aktiv war, merkt sich Plainva pro Datei. Kalender und Zeitleiste brauchen ein Datumsfeld (**Nur Datum** oder **Datum & Uhrzeit** als **Format**); Einträge zeigen die in den **Eigenschaften** aktivierten Felder an.
 
 ## Konfigurieren: Reiter für Ansicht, Spalten, Filter, Sortierung, Datenquelle
 
 Der Knopf **Konfigurieren** (oben rechts) öffnet das Panel **neben** der laufenden Ansicht — so siehst Du jede Änderung sofort in der Tabelle bzw. dem Board. Oben wählst Du über **Reiter** einen Bereich; es ist immer nur einer sichtbar, statt einer langen Liste. Eine kleine Marke zeigt je Bereich, ob er **Diese Ansicht** oder die **Ganze Datenbank** betrifft:
 
-- **Ansicht** — der **Ansichtstyp** als Kachel-Auswahl mit Symbolen (Tabelle, Liste, Karte, Board, Galerie, Kalender, Zeitachse, Pinnwand) samt seinen typ-eigenen Optionen: Board-Gruppierung und Spaltenfarbe, Datumsfeld für Kalender/Zeitachse, Galerie-Titelbild, Unterelemente, Datumsformat. Diese Auswahlfelder bieten nur Eigenschaften des **passenden Typs** an: das **Datumsfeld** nur Datums-Eigenschaften, **Gruppieren nach** nur Auswahl-/Status-/Mehrfachauswahl-/Relations-Eigenschaften, das **Titelbild** nur Text-/URL-Eigenschaften. Beim Ansichtstyp **Graph** entfällt der Reiter **Eigenschaften** — der Graph zeigt keine Spalten (Farbe/Größe/Kanten steuerst Du in seiner eigenen Leiste).
+- **Ansicht** — der **Ansichtstyp** als Kachel-Auswahl mit Symbolen (Tabelle, Liste, Karte, Board, Galerie, Kalender, Zeitleiste, Pinnwand) samt seinen typ-eigenen Optionen: Board-Gruppierung und Spaltenfarbe, Datumsfeld für Kalender/Zeitleiste, Galerie-Titelbild, Unterelemente, Datumsformat. Diese Auswahlfelder bieten nur Eigenschaften des **passenden Typs** an: das **Datumsfeld** nur Datums-Eigenschaften, **Gruppieren nach** nur Auswahl-/Status-/Mehrfachauswahl-/Relations-Eigenschaften, das **Titelbild** nur Text-/URL-Eigenschaften. Beim Ansichtstyp **Graph** entfällt der Reiter **Eigenschaften** — der Graph zeigt keine Spalten (Farbe/Größe/Kanten steuerst Du in seiner eigenen Leiste).
 - **Spalten** — die Eigenschaften der Ansicht, getrennt in **Sichtbar** und **Ausgeblendet**. Ein Klick aufs Auge blendet eine Spalte ein oder aus; per Drag am Griff änderst Du die Reihenfolge. Jede Zeile zeigt ein Feldtyp-Kürzel, das Zahnrad öffnet den Spalten-Editor, **Neue Eigenschaft** legt eine an.
 - **Filter** — jede Regel erscheint als lesbarer **Chip-Satz** (z. B. „Status ist nicht Erledigt"); ein Klick klappt sie zum Editor auf (Eigenschaft, Operator, Wert). Die Operatoren passen sich dem Feldtyp an: **ist** / **ist nicht** / **enthält** / **enthält nicht** / **ist leer** / **ist nicht leer**, für Zahlen **größer als** / **kleiner als** / **mindestens** / **höchstens**, für Datumsfelder **nach** / **vor** / **ab** / **bis**. Die **Logik** oben entscheidet, ob **Alle** Bedingungen (UND) oder **Beliebige** (ODER) gelten. Mit **Gruppe hinzufügen** baust Du Notion-artige Filtergruppen: ein Kasten mit eigener UND/ODER-Logik innerhalb der Hauptlogik. Sehr verschachtelte Filter aus Obsidian zeigt Plainva als **Komplexer Filter (nicht editierbar)** an — sie bleiben erhalten und werden angewendet. Filter werden **pro Ansicht** gespeichert; alles lebt in der `.base`-Datei, nicht in einem separaten Speicher.
 - **Sortierung** — mehrere Sortierregeln (**Aufsteigend**/**Absteigend**); die Priorität änderst Du per Drag.
@@ -107,9 +107,9 @@ Unter einer Tabellenspalte kann eine Zeile stehen, die sie zusammenfasst — die
 
 ## Projekte planen: Meilensteine, Abhängigkeiten, Aufwand
 
-Die Zeitachsen-Ansicht macht aus einer Datenbank einen Plan. Vier Dinge tragen das, und alle stehen in den Notizen, nicht in der `.base`:
+Die Zeitleistenansicht macht aus einer Datenbank einen Plan. Vier Dinge tragen das, und alle stehen in den Notizen, nicht in der `.base`:
 
-- **Ein Meilenstein** ist ein Eintrag mit Datum und **ohne Ende**. Die Zeitachse zeichnet ihn als Raute statt als Balken — ein Zeitpunkt, kein Zeitraum. Es gibt nichts einzuschalten: Lass die Ende-Eigenschaft leer.
+- **Ein Meilenstein** ist ein Eintrag mit Datum und **ohne Ende**. Die Zeitleiste zeichnet ihn als Raute statt als Balken — ein Zeitpunkt, kein Zeitraum. Es gibt nichts einzuschalten: Lass die Ende-Eigenschaft leer.
 - **Abhängigkeiten** sagen „das hier kann erst beginnen, wenn das dort fertig ist". Die Eigenschaft heißt `blockedBy` und folgt **RFC 9253** — demselben Vokabular, das das TaskNotes-Plugin bereits schreibt:
 
 ```yaml
@@ -144,7 +144,7 @@ Der **Eintrag**-Knopf oben links (vormals **Neu**; klar getrennt vom globalen **
 - **Vorlagen je Datenbank**: Vorlagen lassen sich Datenbanken zuordnen. Das Pfeil-Menü zeigt standardmäßig nur die dieser Datenbank zugeordneten Vorlagen (plus ihre Standard-Vorlage); alle übrigen erreichst Du über **Alle Vorlagen anzeigen (n)**. Zuordnen geht direkt dort — das Datenbank-Symbol an jeder Zeile heißt **Dieser Datenbank zuordnen** bzw. **Zuordnung zu dieser Datenbank entfernen** — oder auf der Vorlage selbst: Im ⋮-Menü des Editors öffnet **Ziel-Datenbanken…** einen Dialog mit Suchfeld, in dem Du die Vorlage mehreren Datenbanken zuweist. Eine über **Neue Vorlage erstellen** aus einer Datenbank angelegte Vorlage ist ihr automatisch zugeordnet. Gespeichert wird die Zuordnung als `plainva.templateFor`-Liste im Frontmatter der Vorlage (siehe [Dateiformat-Referenz](File_Format_Reference.md)); beim Anlegen eines Eintrags wird sie nie in die neue Notiz übernommen, und beim Umbenennen einer `.base` ziehen die Zuordnungen automatisch mit. Der Slash-Befehl **Vorlage einfügen** bleibt bewusst ungefiltert — er fügt Text in eine bestehende Notiz ein und hat keinen Datenbank-Kontext.
 - **Aufgabenlisten**: Ist die Datenbank eine Aufgaben-Datenbank und hast Du ein Kalender-/Aufgaben-Konto verbunden, steht unter **Konfigurieren → Datenquelle** die Zeile **Neue Aufgaben auch anlegen bei**. Wählst Du dort eine Liste, landet jede in Plainva angelegte Aufgabe zusätzlich in dieser Liste beim Anbieter — über **+ Neue Aufgabe**, über eine beförderte Checkbox und über eine als Aufgabe erfasste E-Mail gleichermaßen; ohne Auswahl bleibt sie eine Notiz — wie bisher. Die Wahl gehört zur Datenbank (gespeichert als `plainva.taskList`, siehe [Dateiformat-Referenz](File_Format_Reference.md)), nicht zur einzelnen Aufgabe, und die Zeile erscheint nur, wenn ein Konto überhaupt eine Aufgabenliste anbietet. Verschwindet die gewählte Liste später (Konto entfernt, Liste gelöscht), legt Plainva nichts irgendwo anders an, sondern behandelt die Datenbank wieder wie ohne Auswahl. Die neue Aufgabe merkt sich, welche Aufgabe beim Anbieter zu ihr gehört; ohne diesen Vermerk würde der nächste Abgleich eine zweite Notiz für dieselbe Aufgabe anlegen. Schlägt das Anlegen beim Anbieter fehl, bleibt die Notiz bestehen und Plainva sagt es — die Notiz ist die Lieferung, die Aufgabe beim Anbieter die Zugabe.
 - **Vorlagen-Platzhalter**: Vorlagen ersetzen `{{title}}`, `{{date}}` und `{{time}}`. Beim *Einfügen* einer Vorlage in eine Notiz (Slash-Befehl **Vorlage einfügen** / `Mod+Alt+T`) kommen zwei weitere hinzu: `{{cursor}}` markiert, wo der Cursor nach dem Einfügen landet, und `{{prompt:Bezeichnung}}` fragt Dich nach einem Wert (Beschriftung *Bezeichnung*) und fügt Deine Antwort ein. Beim Erstellen einer *neuen* Notiz aus einer Vorlage gilt seit der Vorlagen-Engine dasselbe: Plainva fragt alle `{{prompt:…}}`-Werte zusammen ab und setzt die Schreibmarke auf `{{cursor}}`, sobald die Notiz aufgeht. Nur im Hintergrund (Aufgaben-Abgleich, Mail-Erfassung) wird nicht gefragt — dort bleiben die Antworten leer. Alle Platzhalter stehen in [Notizen und Markdown](Notes_and_Markdown.md).
-- **Umbenennen, duplizieren, löschen**: Ein Rechtsklick auf einen Eintrag bietet in jeder Ansicht (Tabelle, Liste, Karten, Board, Kalender, Zeitachse) **Öffnen**, **Im Split öffnen**, **Umbenennen…**, **Duplizieren** und **Löschen…** — gelöscht wird über den gewohnten Kaskaden-Dialog. Dieselben Aktionen liegen im ⋮-Menü des Peek-Fensters, und ein Doppelklick auf dessen Titel benennt ebenfalls um. Spiegelt die Überschrift noch den Dateinamen (der Zustand eines frischen `{Datenbankname}_{Nummer}`-Eintrags), zieht sie beim Umbenennen mit; eine selbst geschriebene Überschrift bleibt unangetastet.
+- **Umbenennen, duplizieren, löschen**: Ein Rechtsklick auf einen Eintrag bietet in jeder Ansicht (Tabelle, Liste, Karten, Board, Kalender, Zeitleiste) **Öffnen**, **Im Split öffnen**, **Umbenennen…**, **Duplizieren** und **Löschen…** — gelöscht wird über den gewohnten Kaskaden-Dialog. Dieselben Aktionen liegen im ⋮-Menü des Peek-Fensters, und ein Doppelklick auf dessen Titel benennt ebenfalls um. Spiegelt die Überschrift noch den Dateinamen (der Zustand eines frischen `{Datenbankname}_{Nummer}`-Eintrags), zieht sie beim Umbenennen mit; eine selbst geschriebene Überschrift bleibt unangetastet.
 
 ## Pinnwand (Notizzettel wie in Google Keep)
 
@@ -164,7 +164,7 @@ Hinweis für synchronisierte Vaults: Ordnen zwei Geräte das Brett gleichzeitig 
 
 - **Inline-Editing**: Ein Einfach-Klick in eine Zelle (oder auf einen Karten-Wert) macht sie editierbar — in allen Ansichten.
 - **Öffnen**: Ein Klick auf den Eintragstitel öffnet die Notiz im Peek-Fenster — einem frei beweglichen Fenster, das Du an der Titelleiste verschieben und an der Ecke in der Größe anpassen kannst. Es hat eine eigene **Zurück**/**Vorwärts**-Historie für die darin geöffneten Notizen, einen Umschalter, der eine **Eigenschaften**-Spalte für die gezeigte Notiz einblendet, sowie **Als Tab öffnen** und **Im Split öffnen**. `Strg`+Klick öffnet direkt im Split; alternativ ziehst Du eine Karte auf die Drop-Zone **Hier ablegen: im Split öffnen**. Die Eigenschaften-Spalte lässt sich an ihrem linken Rand breiter oder schmaler ziehen (mindestens 232 px); unter 280 px stellt sie die Beschriftung über den Wert, so wie die rechte Seitenleiste.
-- **Drag**: Beim Ziehen von Karten (Board, Kalender, Zeitachse) folgt eine Ghost-Karte dem Mauszeiger. In einem **Board** kannst Du außerdem eine **Spaltenüberschrift** ziehen, um die Spalten umzuordnen — bei **Auswahl**/**Status**-Boards ordnet das die Optionen der Eigenschaft um (die Dropdowns überall folgen), Relations- und Freitext-Boards merken sich die Reihenfolge pro Ansicht.
+- **Drag**: Beim Ziehen von Karten (Board, Kalender, Zeitleiste) folgt eine Ghost-Karte dem Mauszeiger. In einem **Board** kannst Du außerdem eine **Spaltenüberschrift** ziehen, um die Spalten umzuordnen — bei **Auswahl**/**Status**-Boards ordnet das die Optionen der Eigenschaft um (die Dropdowns überall folgen), Relations- und Freitext-Boards merken sich die Reihenfolge pro Ansicht.
 - **Spaltenfarbe**: In den **Ansicht**-Einstellungen eines Boards lässt **Spaltenfarbe** eine Spalte die Farbe ihrer Gruppe annehmen — entweder **Ganze Liste** (die ganze Spalte wird eingefärbt) oder **Nur Chip** (nur der Chip in der Überschrift, Standard). Gilt für Auswahl-/Status-/Mehrfachauswahl-Gruppen.
 - **Checkliste auf der Karte**: Eine Karte, deren Notiz `- [ ]`-Zeilen enthält, zeigt einen Fortschrittsbalken mit der Zählung; ein Klick klappt die Zeilen auf, dort hakst Du sie ab oder fügst im Feld darunter eine Unteraufgabe hinzu (sie landet hinter der letzten Checkbox der Notiz). Die Zählung ist zugleich die Spalte **Checkliste**, in jeder Ansicht unter **Eigenschaften** wählbar.
 - **Spuren**: Unter **Ansicht** (am Telefon: **Konfigurieren**) legt **Spuren nach** eine zweite Achse an — eine Zeile je Wert einer weiteren Auswahl-, Status- oder Relations-Eigenschaft (Priorität, Zuständig …), mit denselben Spalten in jeder Zeile. Eine Karte auf eine Zelle ziehen schreibt die Eigenschaft der Spalte und die der Spur; der Pfeil klappt eine Spur ein, und Plainva merkt sich das je Datei. Am Telefon liegen die Spuren untereinander, und der Spur-Chip auf einer Karte bringt sie in eine andere Spur.
@@ -252,7 +252,7 @@ Der vollständige Formatvertrag — jedes Feld, das komplette zweiseitige Relati
 
 Das Format entspricht Obsidians Bases-Format; Plainva schreibt seine Erweiterungen ausschließlich in `plainva:`-Unterschlüssel, die Obsidian ignoriert („graceful degradation"):
 
-- Obsidian öffnet die Datei fehlerfrei; Plainva-Ansichten wie Board/Kalender/Zeitachse erscheinen dort als einfache Tabelle.
+- Obsidian öffnet die Datei fehlerfrei; Plainva-Ansichten wie Board/Kalender/Zeitleiste erscheinen dort als einfache Tabelle.
 - Rückrelations-Spalten erscheinen in Obsidian leer (sie sind berechnet); Relation-Werte in Notizen sind dort als klickbare Links sichtbar.
 - Beim ersten Einsatz einer Plainva-Erweiterung weist ein Dialog (**Plainva-Erweiterung**) darauf hin; abschaltbar in den **Einstellungen** unter **Erweiterte Datenbanken** bzw. **Warnhinweise**.
 
@@ -270,9 +270,9 @@ Trägt die Datumsspalte eine **Uhrzeit**, steht sie vor dem Titel, und die Eintr
 
 Hat die Ansicht zusätzlich ein **Enddatum** (Konfigurieren → Ansicht), wird ein mehrtägiger Eintrag als **ein Balken** über seine Tage gezeichnet — nicht als Kette gleich aussehender Kärtchen. Verlässt er die Woche, wird der Balken an der Kante abgeschnitten und ohne Titel fortgesetzt.
 
-## Die Zeitachse: Balken, Kanten, Farbe
+## Die Zeitleiste: Balken, Kanten, Farbe
 
-Die Zeitachse zeigt **eine Zeile je Eintrag** und darin einen **Balken** von seinem Startdatum bis zu seinem Enddatum. Oben schaltest Du zwischen **Woche**, **3 Wochen** und **Quartal** um; eine senkrechte Linie markiert **heute** über alle Zeilen hinweg.
+Die Zeitleiste zeigt **eine Zeile je Eintrag** und darin einen **Balken** von seinem Startdatum bis zu seinem Enddatum. Oben schaltest Du zwischen **Woche**, **3 Wochen** und **Quartal** um; eine senkrechte Linie markiert **heute** über alle Zeilen hinweg.
 
 **Die Kanten des Balkens sind Griffe.** Ziehst Du die rechte Kante, schreibt Plainva das **Enddatum** in die Notiz; die linke Kante schreibt das **Startdatum**. Ziehst Du den Balken selbst, wandern beide Daten mit — seine Länge bleibt, was sie war. Zwei Dinge kann keine Geste erzwingen: eine Kante wandert nie über die andere hinaus (aus einem Ende vor seinem Anfang würde ein kaputter Datensatz), und ohne konfiguriertes **Enddatum** entsteht auch keins — dann lässt sich nur der Anfang bewegen.
 
@@ -287,3 +287,11 @@ Ein Balken, der über den gezeigten Zeitraum hinausreicht, wird an der Kante abg
 Filtere nach Farbstreifen, Icon, Tags der ganzen Notiz oder der Label-Eigenschaft der Pinnwandansicht. Tags werden als ganze Werte verglichen: #work trifft weder #workshop noch #work/child. Tags aus Text und Frontmatter werden zusammengeführt. Die Wertauswahl bleibt auch bei null Treffern aus der ganzen Quelle verfügbar; unbekannte gespeicherte Icon-Namen bleiben erhalten.
 
 Ein Filter verändert die sichtbare Auswahl, nicht die Dateien. Die angebotenen Werte stammen weiterhin aus der ganzen Quelle, auch wenn eine Kombination keine Treffer ergibt.
+
+## Tabelle exportieren
+
+Öffne **Tabelle exportieren** im Datenbankmenü auf dem Desktop oder über das Exportsymbol in der mobilen Kopfleiste. Der Dialog zeigt den aktuellen Zeilenumfang und die Spalten der Ansicht.
+
+**Formeln (.base)** erstellt eine Tabelle mit einer festen Auswahl der aktuellen Zeilen. Diese Berechnungen über gespeicherte Relationen bleiben Formeln: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Öffne die Datei im selben Vault mit den verknüpften Notizen. Nicht unterstützte Berechnungen oder Rückbeziehungen werden im Dialog benannt; dann steht der Werteexport zur Verfügung.
+
+**Werte (.csv)** enthält die aktuellen berechneten Werte und Dateipfade. Sie aktualisieren sich später nicht; Listen bleiben als JSON erhalten. Formelähnliche Texte werden für Tabellenprogramme als Text geschützt. Beide Optionen erzeugen einen Export, ohne Berechnungen in die Originalnotizen zu schreiben.

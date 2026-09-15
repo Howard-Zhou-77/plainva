@@ -237,6 +237,30 @@ async function openVault(page: any) {
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
 }
 
+test('Tasks metadata stays visible and a repeated completion keeps one successor', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Todo.md'] = '# Todo\n- [ ] Weekly audit ➕ 2026-08-01 🆔 audit-1 🔁 every week 📅 2026-09-01\n- [ ] Unusual rule 🆔 unusual-1 🔁 every month on the last';
+  });
+  await openVault(page); await page.getByTestId('ribbon-tasks').click();
+  const original = page.getByRole('button', { name: /Weekly audit/ });
+  await expect(original.getByTestId('task-metadata')).toContainText('audit-1');
+  await expect(original.getByTestId('task-metadata')).toContainText('2026-08-01');
+  await expect(page.getByRole('button', { name: /Unusual rule/ }).locator('.pv-taskmeta-unsupported')).toBeVisible();
+  await original.locator('xpath=preceding-sibling::button[1]').click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('✅');
+  await expect(page.getByRole('button', { name: /Weekly audit/ })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /Weekly audit/ }).getByTestId('task-metadata')).toContainText('pv-');
+  await page.getByTestId('tasks-filter-all').click();
+  const done = page.getByRole('button', { name: /Weekly audit/ }).filter({ hasText: 'audit-1' });
+  await done.locator('xpath=preceding-sibling::button[1]').click();
+  await expect(done.getByTestId('task-metadata')).not.toContainText('Completed:');
+  await done.locator('xpath=preceding-sibling::button[1]').click();
+  await expect(page.getByRole('button', { name: /Weekly audit/ })).toHaveCount(2);
+  const text = await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']);
+  expect(text.match(/Weekly audit/g)).toHaveLength(2); expect(text).toContain('every month on the last');
+  await page.screenshot({ path: testInfo.outputPath('tasks-metadata.png') });
+});
+
 test('tasks view aggregates checkboxes across notes, filters by status, and toggles one back to disk', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-tasks').click();

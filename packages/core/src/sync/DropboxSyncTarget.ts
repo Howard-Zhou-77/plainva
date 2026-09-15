@@ -1,3 +1,4 @@
+import { syncHttpError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
@@ -155,12 +156,15 @@ export class DropboxSyncTarget implements ISyncTarget {
     return this.refreshInFlight;
   }
 
+  private pendingRefresh: Awaited<ReturnType<typeof refreshDropboxAccessToken>> | null = null;
+
   private async doRefreshAccessToken(): Promise<void> {
-    const result = await refreshDropboxAccessToken(
+    const result = this.pendingRefresh ?? await refreshDropboxAccessToken(
       { appKey: this.creds.appKey, refreshToken: this.creds.refreshToken },
       this.fetchFn
     );
-    this.accessToken = result.accessToken;
+    this.pendingRefresh = result;
+    this.accessToken = undefined;
     if (result.refreshToken) {
       this.creds.refreshToken = result.refreshToken;
     }
@@ -169,6 +173,8 @@ export class DropboxSyncTarget implements ISyncTarget {
       // the next app start out of sync — surface that as a cycle error now.
       await this.onTokensRefreshed(result.accessToken, result.refreshToken, result.expiresIn);
     }
+    this.accessToken = result.accessToken;
+    this.pendingRefresh = null;
   }
 
   /** Every Dropbox call is a POST — classify read vs. write by endpoint path. */
@@ -238,7 +244,7 @@ export class DropboxSyncTarget implements ISyncTarget {
       include_non_downloadable_files: false,
     });
     for (;;) {
-      if (!res.ok) throw new Error(`Dropbox folder listing failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`Dropbox folder listing failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as { entries: DropboxEntry[]; cursor: string; has_more: boolean };
       for (const entry of json.entries || []) {
         if (entry[".tag"] === "folder") names.push(entry.name);
@@ -260,7 +266,7 @@ export class DropboxSyncTarget implements ISyncTarget {
     if (!dbxPath) return; // the Dropbox root always exists
     const res = await this.rpc("files/create_folder_v2", { path: dbxPath, autorename: false });
     if (!res.ok && res.status !== 409) {
-      throw new Error(`Dropbox folder create failed: ${res.status} ${res.statusText}`);
+      throw syncHttpError(`Dropbox folder create failed: ${res.status} ${res.statusText}`, res);
     }
   }
 
@@ -366,7 +372,7 @@ export class DropboxSyncTarget implements ISyncTarget {
         // First connect: the vault root doesn't exist yet — create it, report empty.
         const create = await this.rpc("files/create_folder_v2", { path: this.rootPath, autorename: false });
         if (!create.ok && create.status !== 409) {
-          throw new Error(`Dropbox create root failed: ${create.status} ${create.statusText}`);
+          throw syncHttpError(`Dropbox create root failed: ${create.status} ${create.statusText}`, create);
         }
         // Said out loud: for a reconnected vault this fresh, empty folder is
         // not the one the person meant, and their real one sits untouched.
@@ -384,7 +390,7 @@ export class DropboxSyncTarget implements ISyncTarget {
     // folders.
     const folders: string[] = [];
     for (;;) {
-      if (!res.ok) throw new Error(`Dropbox list failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`Dropbox list failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as { entries: DropboxEntry[]; cursor: string; has_more: boolean };
       for (const entry of json.entries || []) {
         if (entry[".tag"] === "folder") {
@@ -414,7 +420,7 @@ export class DropboxSyncTarget implements ISyncTarget {
       if (summary.includes("not_found")) return null;
       throw new Error(`Dropbox metadata lookup failed: ${summary || "409"}`);
     }
-    if (!res.ok) throw new Error(`Dropbox metadata lookup failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`Dropbox metadata lookup failed: ${res.status} ${res.statusText}`, res);
     const entry = (await res.json()) as DropboxEntry;
     if (entry[".tag"] !== "file") return null;
     const modifiedAt = entry.server_modified ? Date.parse(entry.server_modified) : Number.NaN;
@@ -433,7 +439,7 @@ export class DropboxSyncTarget implements ISyncTarget {
       if (summary.includes("not_found")) return null;
       throw new Error(`Dropbox download failed: ${summary || "409"}`);
     }
-    if (!res.ok) throw new Error(`Dropbox download failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`Dropbox download failed: ${res.status} ${res.statusText}`, res);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
   }
@@ -461,7 +467,7 @@ export class DropboxSyncTarget implements ISyncTarget {
     const [firstBody, firstStream] = chunkArgs(0, firstEnd);
     const startRes = await this.contentCall("files/upload_session/start", { close: false }, firstBody, firstStream);
     if (!startRes.ok) {
-      throw new Error(`Dropbox upload session start failed: ${startRes.status} ${startRes.statusText}`);
+      throw syncHttpError(`Dropbox upload session start failed: ${startRes.status} ${startRes.statusText}`, startRes);
     }
     const { session_id } = (await startRes.json()) as { session_id: string };
 
@@ -476,7 +482,7 @@ export class DropboxSyncTarget implements ISyncTarget {
         chunkStream
       );
       if (!appendRes.ok) {
-        throw new Error(`Dropbox upload append failed: ${appendRes.status} ${appendRes.statusText}`);
+        throw syncHttpError(`Dropbox upload append failed: ${appendRes.status} ${appendRes.statusText}`, appendRes);
       }
       offset = end;
     }
@@ -492,7 +498,7 @@ export class DropboxSyncTarget implements ISyncTarget {
       restStream
     );
     if (!finishRes.ok) {
-      throw new Error(`Dropbox upload finish failed: ${finishRes.status} ${finishRes.statusText}`);
+      throw syncHttpError(`Dropbox upload finish failed: ${finishRes.status} ${finishRes.statusText}`, finishRes);
     }
     return (await finishRes.json()) as DropboxEntry;
   }
@@ -516,7 +522,7 @@ export class DropboxSyncTarget implements ISyncTarget {
         { path, mode: "overwrite", autorename: false, mute: true },
         content
       );
-      if (!res.ok) throw new Error(`Dropbox upload failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`Dropbox upload failed: ${res.status} ${res.statusText}`, res);
       const entry = (await res.json()) as DropboxEntry;
       return { etag: this.fileEtag(entry), remoteId: entry.id };
     }
@@ -528,7 +534,7 @@ export class DropboxSyncTarget implements ISyncTarget {
         if (summary.includes("not_found")) return;
         throw new Error(`Dropbox delete failed: ${summary || "409"}`);
       }
-      if (!res.ok) throw new Error(`Dropbox delete failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`Dropbox delete failed: ${res.status} ${res.statusText}`, res);
       return;
     }
 
@@ -544,7 +550,7 @@ export class DropboxSyncTarget implements ISyncTarget {
         if (summary.includes("not_found")) return;
         throw new Error(`Dropbox move failed: ${summary || "409"}`);
       }
-      if (!res.ok) throw new Error(`Dropbox move failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`Dropbox move failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as { metadata?: DropboxEntry };
       const meta = json.metadata;
       if (meta && meta[".tag"] === "file") {

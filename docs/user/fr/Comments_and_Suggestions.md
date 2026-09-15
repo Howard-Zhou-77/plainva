@@ -1,6 +1,6 @@
 # Commentaires et suggestions
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Les commentaires et les suggestions existent dans **chaque** coffre — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille. Si le nom manque, Plainva le demande une fois au premier commentaire ; sans réponse, l’appareil signe avec sa propre étiquette (par exemple « Appareil Windows 4f3a »). Vos propres annotations s’affichent comme **Vous**.
 
@@ -71,3 +71,9 @@ Sur ordinateur et sur mobile, un espace de travail chiffré utilise le même sto
 Les commentaires des anciens fichiers sont conservés et importés avec les droits de gestion et de commentaire. **De l’ancien historique** conserve le nom et la date d’origine. Ces indications n’établissent pas rétroactivement une appartenance à l’espace de travail ; la nouvelle signature confirme l’importation. Si les droits, la note cible synchronisée ou un enregistrement réussi manquent, l’ancien commentaire reste visible. Les actions de réponse, de suppression et de suggestion restent indisponibles jusqu’à l’attribution durable de sa cible. L’importation ne renvoie pas les notifications de l’ancien historique.
 
 Si seul l’ancien historique est verrouillé, l’action de déverrouillage ouvre la saisie de la phrase secrète de synchronisation ; les nouveaux commentaires restent disponibles. Si l’espace de travail lui-même est verrouillé, elle ouvre les paramètres de sécurité. Les opérations de suggestion commencées avant la mise à jour conservent leur progression enregistrée et peuvent reprendre avec les droits actuels. L’importation ne supprime pas les fichiers de commentaires d’origine.
+
+## Retours sur les publications
+
+Les destinataires ouvrent la publication comme un espace de travail indépendant. La lecture ne permet aucun retour ; commenter permet des remarques, et suggérer permet aussi de proposer des modifications dans une copie. L’original reste en lecture seule. Ordinateur et mobile appliquent les mêmes droits et conservent les retours non envoyés pour une nouvelle tentative.
+
+Les retours apparaissent avec la note originale sur ordinateur et mobile, regroupés par publication avec les noms des destinataires. Les propositions applicables issues d’une copie exacte peuvent être acceptées ou refusées par le processus habituel d’enregistrement vérifié. La décision est conservée avec l’original dans votre propre coffre ; elle n’envoie pas de réponse aux destinataires. Les copies épurées et les passages impossibles à retrouver avec certitude ne permettent pas d’application automatique. Les retours créés avec les clients actuels restent lisibles par le propriétaire après la révocation d’un destinataire. Les anciens retours chiffrés uniquement pour une clé de destinataire retirée ne sont pas réécrits. Une publication dont la clé manque sur cet appareil reste masquée.

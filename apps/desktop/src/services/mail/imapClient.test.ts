@@ -8,6 +8,7 @@ import {
   parseMessage,
   previewFromBodyPrefix,
   setMailSocket,
+  releaseSocketSessions,
   type MailSocket,
 } from "@plainva/ui/mail";
 
@@ -59,6 +60,80 @@ class ScriptedSocket implements MailSocket {
 }
 
 const creds = { host: "imap.example.com", port: 993, user: "me@example.com", pass: "secret" };
+
+function bulkServer(options: { caps?: string; partial?: boolean; disconnect?: boolean; epoch?: number } = {}) {
+  const state = new Map([[1, ""], [2, ""], [99, "\\Deleted"]]);
+  const sock = new ScriptedSocket("* OK ready\r\n", imapServer((tag, command, args) => {
+    const ok = `${tag} OK done\r\n`;
+    if (command === "CAPABILITY") return `* CAPABILITY IMAP4rev1 ${options.caps ?? "MOVE UIDPLUS"}\r\n` + ok;
+    if (command === "SELECT") return `* 3 EXISTS\r\n* OK [UIDVALIDITY ${options.epoch ?? 5}] epoch\r\n` + ok;
+    if (command !== "UID") return ok;
+    const [verb, set] = args.split(" ");
+    const uids = set.split(",").map(Number);
+    if (verb === "FETCH") return uids.filter(uid => state.has(uid)).map(uid => `* ${uid} FETCH (UID ${uid} FLAGS (${state.get(uid)}))\r\n`).join("") + ok;
+    if (verb === "STORE") {
+      for (const uid of uids) if (!options.partial || uid === 1) state.set(uid, args.includes("\\Deleted") ? "\\Deleted" : args.includes("+FLAGS") ? "\\Seen" : "");
+      return options.partial ? `${tag} NO some messages refused\r\n` : ok;
+    }
+    if (verb === "MOVE" || verb === "EXPUNGE") {
+      if (options.disconnect) throw new Error("connection lost after write");
+      for (const uid of uids) if (!options.partial || uid === 1) state.delete(uid);
+      return options.partial ? `${tag} NO partial move\r\n` : ok;
+    }
+    throw new Error(`Unexpected command ${command} ${args}`);
+  }));
+  setMailSocket(sock); return { sock, state };
+}
+
+describe("bounded IMAP writes against a scripted server", () => {
+  it("sends one STORE and reports only independently confirmed flags", async () => {
+    const { sock } = bulkServer({ partial: true });
+    const conn = await ImapConnection.connect(creds);
+    expect(await conn.bulkAction({ mailbox: "INBOX", uids: [1, 2, 3], uidValidity: 5, action: { kind: "seen", value: true } })).toEqual([
+      { uid: 1, status: "done" }, { uid: 2, status: "failed", reason: "rejected" }, { uid: 3, status: "failed", reason: "missing" },
+    ]);
+    expect(sock.written.filter(line => line.includes("UID STORE"))).toEqual([expect.stringContaining("UID STORE 1,2 +FLAGS (\\Seen)")]);
+  });
+  it("never expunges an unrelated Deleted message", async () => {
+    const { sock, state } = bulkServer(); const conn = await ImapConnection.connect(creds);
+    expect(await conn.bulkAction({ mailbox: "Trash", uids: [1, 2], uidValidity: 5, action: { kind: "delete" } })).toEqual([{ uid: 1, status: "done" }, { uid: 2, status: "done" }]);
+    expect(state.has(99)).toBe(true);
+    expect(sock.written.some(line => /^a\d+ EXPUNGE/.test(line))).toBe(false);
+  });
+  it.each(["move", "delete"] as const)("refuses unsupported %s before mutating any flags", async kind => {
+    const { sock, state } = bulkServer({ caps: "" }); const conn = await ImapConnection.connect(creds);
+    const action = kind === "move" ? { kind, target: "Archive" } : { kind };
+    expect(await conn.bulkAction({ mailbox: "INBOX", uids: [1], uidValidity: 5, action })).toEqual([{ uid: 1, status: "failed", reason: "unsupported" }]);
+    expect(sock.written.some(line => /UID (STORE|MOVE|COPY|EXPUNGE)/.test(line))).toBe(false);
+    expect(state.get(99)).toBe("\\Deleted");
+  });
+  it("keeps a partial MOVE uncertain and never tries COPY as a fallback", async () => {
+    const { sock } = bulkServer({ partial: true }); const conn = await ImapConnection.connect(creds);
+    const result = await conn.bulkAction({ mailbox: "INBOX", uids: [1, 2], uidValidity: 5, action: { kind: "move", target: "Archive" } });
+    expect(result.every(r => r.status === "uncertain")).toBe(true);
+    expect(sock.written.filter(line => line.includes("UID MOVE"))).toHaveLength(1);
+    expect(sock.written.some(line => line.includes("UID COPY"))).toBe(false);
+  });
+  it("does not replay a MOVE after a lost connection", async () => {
+    const { sock } = bulkServer({ disconnect: true }); const conn = await ImapConnection.connect(creds);
+    expect(await conn.bulkAction({ mailbox: "INBOX", uids: [1], uidValidity: 5, action: { kind: "move", target: "Archive" } })).toEqual([{ uid: 1, status: "uncertain", reason: "connection" }]);
+    expect(sock.written.filter(line => line.includes("UID MOVE"))).toHaveLength(1);
+  });
+  it("rejects reused UIDs from a different mailbox epoch", async () => {
+    const { sock } = bulkServer({ epoch: 6 }); const conn = await ImapConnection.connect(creds);
+    expect(await conn.bulkAction({ mailbox: "INBOX", uids: [1], uidValidity: 5, action: { kind: "delete" } })).toEqual([{ uid: 1, status: "failed", reason: "changed" }]);
+    expect(sock.written.some(line => line.includes("UID STORE"))).toBe(false);
+  });
+  it("reuses one healthy authenticated session and releases it at sign-out", async () => {
+    await releaseSocketSessions();
+    const { sock } = bulkServer(); const transport = createSocketMailTransport();
+    const args = { mailbox: "INBOX", uids: [1], uidValidity: 5, action: { kind: "seen" as const, value: true } };
+    await transport.bulkAction!(creds, args); await transport.bulkAction!(creds, args);
+    expect(sock.written.filter(line => / LOGIN /.test(line))).toHaveLength(1);
+    await releaseSocketSessions(creds.user);
+    expect(sock.written.filter(line => / LOGOUT/.test(line))).toHaveLength(1);
+  });
+});
 
 function imapServer(handler: (tag: string, cmd: string, args: string) => string | null) {
   return (line: string): string | null => {

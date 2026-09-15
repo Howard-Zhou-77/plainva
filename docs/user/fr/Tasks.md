@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-09-06
+Dernière mise à jour : 2026-09-15
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -131,3 +131,14 @@ Les tâches du fournisseur sont associées selon leur identité. Les occurrences
 Ces fichiers correspondent à des tâches différentes. Des tâches récurrentes de même titre peuvent être des occurrences distinctes. Les deux contenus sont conservés séparément.
 
 **Conserver comme tâches séparées** — Ce fichier reste inchangé : Fichier actuel  La copie en conflit est conservée dans un fichier séparé : copie de conflit
+
+<!-- tasks-jex-2026-09-14 -->
+## Métadonnées Tasks et répétition
+
+Sur ordinateur, mobile et en aperçu direct : ➕ création, ✅ fin, 📅 échéance, ⏳ planification, 🛫 début, 🆔 ID et 🔁 répétition. Les dates utilisent YYYY-MM-DD. Les ID existants suivent les déplacements de lignes ; les données inconnues restent dans le Markdown.
+
+Seules les règles anglaises `every [N] day/week/month/year[s] [when done]` (N : 1–999) sont automatiques. La fin avance d’une période, même encore en retard ; `when done` part du jour de fin. Les écarts entre dates sont conservés et les fins de mois limitées. Sans date, la suite reste sans date. Règles complexes, dépendances, ID de bloc ou en double, dates invalides, contenu indenté, répétition native et tâches de fournisseur désactivent cette génération.
+
+Cocher ajoute la date de fin aux tâches avec métadonnées. Une répétition prise en charge ajoute si nécessaire un ID et donne à la suite un ID `pv-…`. Tout forme une seule modification Markdown, annulable dans l’éditeur. Rouvrir puis recocher conserve la suite existante et ses modifications.
+
+Les tâches natives de base de données sautent toujours les périodes manquées. Un plan de destination enregistré empêche les doublons. Si la suite n’est pas confirmée, vérifiez le dossier ; rouvrir et recocher peut reprendre après une erreur d’écriture. Si la source a changé, aucune copie différente n’est produite : vérifiez les notes et créez la suite manuellement si nécessaire. Une suite confirmée puis supprimée n’est pas recréée.

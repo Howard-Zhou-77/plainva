@@ -11,6 +11,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
+import { useForeignLegacyComments } from "@plainva/ui";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
@@ -92,6 +93,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
   const [lift, setLift] = useState<{ since: string; pending: number } | null>(null);
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
+  const foreignLegacyComments = useForeignLegacyComments(vault.vaultId);
 
   // The recovery code is the single highest-stakes text the app ever asks for:
   // it is the only way back into a workspace whose devices are all gone. It is
@@ -168,7 +170,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     setPending(rt && vault.workspaceState && records.length > 0
       ? await mobilePublicationPendingCounts({ state: vault.workspaceState, runtime: rt })
       : {});
-  }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, sliceObjects]);
+  }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, vault.syncQueue, sliceObjects]);
   useEffect(() => { void refresh(); }, [refresh]);
   /** One quarantine action at a time, with the spinner id and a refresh after (finding 2026-09-03). */
   const runQuarantine = async <T,>(id: string, action: () => Promise<T>): Promise<T | null> => {
@@ -720,6 +722,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           used to live only in the desktop What's-New text and the handbook — not
           on the screen where a device actually joins a workspace. */}
       <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
+      {status && foreignLegacyComments > 0 && <Banner kind="info" rounded>{t("workspaceSync.foreignLegacy")}</Banner>}
       {lift && (
         <Banner kind="info" rounded>
           <strong>{t("workspaceSecurity.liftEncryption")}</strong>
@@ -736,7 +739,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           <RowList>
             {(status || connection.kind === "encrypted") && <Row
               icon={status ? <ShieldCheck className="m-accent" size={ICON.ui} /> : <ConnectionIcon size={ICON.ui} />}
-              title={status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}
+              title={status ? `${t(`workspaceSecurity.phase.${status.phase}`)} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}
             />}
             {status?.phase === "locked" && <Row
               disabled={busy}
@@ -784,7 +787,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           <RowList>
             {runtime.policy.payload.devices.map((device) => <Row
               key={device.deviceId}
-              subtitle={`${device.platform} · ${device.state}`}
+              subtitle={`${device.platform} · ${t(device.state === "active" ? "workspaceSecurity.active" : "workspaceSecurity.revoked")}`}
               title={device.displayName}
               // The device you are holding is deliberately not removable here:
               // it would lock this phone out with only the recovery package left.
@@ -816,10 +819,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         <SectionLabel>{t("workspaceSecurity.teamsCard")}</SectionLabel>
         <GroupCard>
           <RowList>
-            <Row title={`${runtime.policy.payload.members.filter((member) => member.state === "active").length} ${t("workspaceSecurity.members")} · ${runtime.policy.payload.groups.length} ${t("workspaceSecurity.groups")} · ${runtime.policy.payload.slices.length} ${t("workspaceSecurity.slices")}`} />
+            <Row title={`${t("workspaceSecurity.members")}: ${runtime.policy.payload.members.filter((member) => member.state === "active").length} · ${t("workspaceSecurity.groups")}: ${runtime.policy.payload.groups.length} · ${t("workspaceSecurity.slices")}: ${runtime.policy.payload.slices.length}`} />
             {area === "team" && runtime.policy.payload.members.map((member) => <Row
               key={member.memberId}
-              subtitle={`${member.state} · ${member.memberId.slice(0, 12)}`}
+              subtitle={`${t(member.state === "active" ? "workspaceSecurity.active" : "workspaceSecurity.revoked")} · ${member.memberId.slice(0, 12)}`}
               title={member.displayName}
               // Only an active member who is not already the owner can take it
               // over; the recovery fields below decide whether the action is
@@ -863,7 +866,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             )?.role;
             return <Row
               key={group.groupId}
-              subtitle={`${group.memberIds?.length ?? 0} ${t("workspaceSecurity.members")}`}
+              subtitle={`${t("workspaceSecurity.members")}: ${group.memberIds?.length ?? 0}`}
               title={group.name}
               end={<Segmented
                 options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}

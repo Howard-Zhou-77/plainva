@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-06
+Last reviewed: 2026-09-15
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -287,3 +287,11 @@ A bar that reaches beyond the period shown is cut at the edge and carries **no h
 Filter by header color, icon, tags from the entire note, or the label property selected for a pinboard view. Tag membership is exact: #work does not match #workshop or #work/child. Inline tags and frontmatter tags are combined. Values remain available from the complete source even at zero results; unknown saved icon names are preserved.
 
 A filter changes the visible set, not the files. Available values still come from the whole source, even when a combination has no matches.
+
+## Export a table
+
+Open **Export table** in the desktop database menu or use the export icon in the mobile app bar. The dialog shows the current result count and view columns.
+
+**Formulas (.base)** creates a table with a fixed selection of the current rows. These calculations through stored relations remain formulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open the file in the same vault with the linked notes. Unsupported calculations or reverse relations are named in the dialog; use the values export for them.
+
+**Values (.csv)** contains current calculated values and file paths. Values will not update later; lists remain JSON. Formula-like text is protected as text for spreadsheet apps. Both options create an export without writing calculated properties into the original notes.

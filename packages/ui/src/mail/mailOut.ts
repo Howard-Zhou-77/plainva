@@ -1,21 +1,18 @@
 import { markdownToHtml } from "../lib/markdownToHtml";
-import { MailCredentialsMissingError } from "./credentialsError";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import type { MailAccountConfig } from "./mailAccounts";
-import { getMailPassword, mailAccountKind } from "./mailAccounts";
+import { mailAccountKind } from "./mailAccounts";
+import { withMailCredentials } from "./mailCredentials";
 import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
 import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
 
 /**
- * "Mail-raus" without ever sending (PIM stage 6): Plainva deliberately never
- * speaks SMTP — no sender reputation, no deliverability surface. The three
- * ways OUT are: rich-text copy (paste into any composer), a DRAFT appended
- * into the user's own mailbox via IMAP (the mail program sends it), and a
- * mailto: handoff for short texts. Replies start as vault notes.
+ * Mail export, draft storage and explicit submission through the user's SMTP
+ * provider. Copy and mailto remain available without submitting a message.
  */
 
 /** mailto: URLs break in the multi-KB range — keep well under it. */
@@ -365,13 +362,11 @@ export async function sendMail(
     return;
   }
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
-  const pass = await getMailPassword(vaultPath, account.id);
-  if (!pass) throw new MailCredentialsMissingError();
-  await mailTransport().send({
-    host: account.smtpHost,
+  await withMailCredentials(vaultPath, account, credential => mailTransport().send({
+    ...credential,
+    host: account.smtpHost!,
     port: account.smtpPort ?? 587,
     user: account.user,
-    pass,
     from: from.trim() || account.user,
     to,
     subject,
@@ -382,7 +377,7 @@ export async function sendMail(
     calendarMethod: calendar?.method,
     cc: cc.trim() || undefined,
     bcc: bcc.trim() || undefined,
-  });
+  }));
 }
 
 /** Appends a \Draft message into the account's mailbox (IMAP APPEND). */
@@ -402,10 +397,8 @@ export async function appendDraft(
     await graphAppendDraft(vaultPath, account, to, subject, html, attachments, cc, bcc);
     return;
   }
-  const pass = await getMailPassword(vaultPath, account.id);
-  if (!pass) throw new MailCredentialsMissingError();
-  await mailTransport().appendDraft(
-    { host: account.host, port: account.port, user: account.user, pass },
+  await withMailCredentials(vaultPath, account, credential => mailTransport().appendDraft(
+    credential,
     {
       mailbox,
       to,
@@ -416,5 +409,5 @@ export async function appendDraft(
       cc: cc.trim() || undefined,
       bcc: bcc.trim() || undefined,
     },
-  );
+  ));
 }

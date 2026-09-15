@@ -86,11 +86,12 @@ function baseKeys(flat: Map<string, string>): Set<string> {
 }
 
 /**
- * Keys built at runtime. Two shapes exist and both have to be recognised, or the
+ * Keys built at runtime. Prefixes and suffixes have to be recognised, or the
  * unreachable check turns into a machine for deleting live strings:
  *
  *   t(`import.sources.${id}`)          — literal PREFIX, variable tail
  *   t(`${needs.guideKey}.step1`)       — variable head, literal SUFFIX
+ *   t("noteEmbed." + outcome)         — concatenated PREFIX, variable tail
  *
  * Both are derived from the source rather than hard-coded, so a new dynamic
  * family needs no edit here and nobody has to remember that its keys look dead.
@@ -104,6 +105,9 @@ function dynamicKeyShapes(text: string): { prefixes: string[]; suffixes: string[
     if (head && /[.\u005f]/.test(head) && /^[a-zA-Z]/.test(head)) prefixes.add(head);
     const tail = lit.slice(lit.lastIndexOf("}") + 1);
     if (tail.startsWith(".") && /^[.a-zA-Z0-9_]+$/.test(tail)) suffixes.add(tail);
+  }
+  for (const m of text.matchAll(/\bt\(\s*["']([a-zA-Z][a-zA-Z0-9_.]*[._])["']\s*\+/g)) {
+    prefixes.add(m[1]);
   }
   return { prefixes: [...prefixes], suffixes: [...suffixes] };
 }
@@ -131,6 +135,19 @@ describe("locale parity", () => {
       const extra = [...bases].filter((k) => !referenceBases.has(k)).sort();
       expect({ lang, missing, extra }).toEqual({ lang, missing: [], extra: [] });
     }
+  });
+
+  it("localizes every runtime note-embed error in every language", () => {
+    for (const [lang, flat] of locales) {
+      const missing = ["missing", "ambiguous", "depth", "unreadable"]
+        .filter((outcome) => !flat.get(`noteEmbed.${outcome}`));
+      expect({ lang, missing }).toEqual({ lang, missing: [] });
+    }
+  });
+
+  it("retains keys reached through concatenated translation prefixes", () => {
+    expect(dynamicKeyShapes('t("noteEmbed." + outcome, { target })').prefixes).toEqual(["noteEmbed."]);
+    expect(dynamicKeyShapes('const label = "noteEmbed." + outcome').prefixes).toEqual([]);
   });
 
   it("plural keys carry at least the language's plural categories", () => {
@@ -319,11 +336,15 @@ const VERBATIM_ALLOWED = new Set<string>([
   "import.formats.simplenote",
   "import.sources.evernote",
   "import.sources.google_keep",
+  // Product name and file-format names are language-neutral.
+  "import.sources.joplin",
   "import.sources.logseq",
   "import.sources.notion_api",
   "import.sources.notion_file",
   "import.sources.obsidian",
   "import.sources.simplenote",
+  // Compact metadata label: the identifier abbreviation is intentionally ID.
+  "tasks.metadata.taskId",
   "mail.captureWithEml",
   "mail.cc",
   "mail.reportJunk",

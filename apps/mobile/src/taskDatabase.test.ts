@@ -220,6 +220,7 @@ describe("the repeating-task generator", () => {
     const created = await writeNextOccurrenceNote(
       {
         exists: async (p: string) => Object.prototype.hasOwnProperty.call(files, p),
+        readTextFile: async (p: string) => files[p]!,
         writeTextFile: async (p: string, c: string) => void (files[p] = c),
       },
       "Aufgaben/Giessen.md",
@@ -232,7 +233,8 @@ describe("the repeating-task generator", () => {
     // The rule travels with the copy, so the chain continues.
     expect(readRepeatRule(files["Aufgaben/Giessen 2.md"])).toEqual(rule);
     // The completed note stays as the record of what was done.
-    expect(files["Aufgaben/Giessen.md"]).toBe(RULE_NOTE);
+    expect(files["Aufgaben/Giessen.md"]).toContain("repeatNext:");
+    expect(readRepeatRule(files["Aufgaben/Giessen.md"])).toEqual(rule);
   });
 
   it("does not offer a local rhythm to a task mirrored from a provider", () => {
@@ -247,6 +249,7 @@ describe("the repeating-task generator", () => {
     const created = await writeNextOccurrenceNote(
       {
         exists: async (p: string) => Object.prototype.hasOwnProperty.call(files, p),
+        readTextFile: async (p: string) => files[p]!,
         writeTextFile: async (p: string, c: string) => void (files[p] = c),
       },
       "T 2.md",

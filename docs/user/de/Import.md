@@ -1,8 +1,8 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
-Plainva kann Notizen aus anderen Notiz-Apps übernehmen. Der Import schreibt immer in den Vault, den Du gerade geöffnet hast — in einen Unterordner, den Du selbst benennst. Der Rest Deines Vaults wird nicht angefasst, und Du kannst den importierten Ordner hinterher wie jeden anderen Ordner verschieben oder löschen.
+Plainva übernimmt Notizen aus anderen Apps in einen neuen Vault oder einen neu benannten Unterordner des offenen Vaults. Der restliche Vault bleibt unverändert; der Importordner lässt sich anschließend verschieben oder löschen.
 
 **Der Import läuft auf beiden Geräten — mit denselben Quellen.** Am Desktop führen der Startbildschirm, die Befehlspalette und das Kontextmenü eines Ordners hinein; auf dem Telefon findest Du ihn unter **Einstellungen → Wartung → Aus anderer App importieren**. Auch Quellen, die einen Zugang zu einem Dienst brauchen — Notion über die API —, stehen dort zur Verfügung.
 
@@ -58,7 +58,7 @@ Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import s
 | **Google Keep (Takeout)** | Das Takeout-ZIP oder die `.json`-Dateien | Notizen, Checklisten, Labels als Tags, Farbe in der Notiz-Kopfzeile, angeheftete Notizen als Pinnwand |
 | **Simplenote** | Die exportierte `.json`-Datei | Aktive Notizen und ihre Tags |
 | **Logseq** | Deinen Graph-Ordner | Die Dateien, unverändert kopiert |
-| **Joplin** | Der Markdown-Export als Ordner oder ZIP | Notizen mit ihren Notizbüchern, Frontmatter, Tags und Ressourcen |
+| **Joplin** | JEX/TAR, RAW-Ordner oder Markdown-Export | Notizen, Notizbücher, Tags, Ressourcen, interne Links und Zeitangaben |
 | **Bear (TextBundle)** | Die exportierten `.textbundle`-Ordner | Notizen mit ihren Bildern |
 | **Notesnook** | Der Markdown-Export | Notizen und ihre Notizbuch-Ordner; eine Notiz in zwei Notizbüchern wird einmal importiert |
 | **Capacities** | Der Export als Ordner oder ZIP | Notizen mit ihren Eigenschaften als Frontmatter, dazu Medien |
@@ -127,7 +127,7 @@ Jeder Import nennt seine Grenzen in der Vorschau und noch einmal im Bericht. Die
 
 Eine über Jahre gewachsene Sammlung verliert ihren Zeitbezug, wenn nach dem Import alles von heute stammt. Plainva übernimmt deshalb die Datumsangaben der Quelle:
 
-- Sie stehen als `created` und `updated` im Frontmatter der importierten Notiz — dort liest sie auch die Zeitachse des Graphen.
+- Sie stehen als `created` und `updated` im Frontmatter der importierten Notiz — dort liest sie auch die Zeitleiste des Graphen.
 - Zusätzlich bekommt die Datei selbst das Änderungsdatum der Quelle, sodass Sortierung nach Datum und **Zuletzt geöffnet** stimmen. Das Erstellungsdatum der Datei lässt sich nur unter Windows setzen; auf den anderen Systemen ist das Frontmatter der Träger.
 - Liefert eine Quelle kein Datum mit, nimmt Plainva das Datum der Exportdatei. Erfunden wird nie eines: fehlt jede Angabe, bleibt das Feld leer.
 
@@ -171,3 +171,12 @@ ZIP-Dateien werden mit Grenzen pro Datei, für die Gesamtmenge und für die Anza
 ## Belegte Dateinamen
 
 Der Import prüft bis zu 1000 Dateinamensvarianten. Ist keine frei, lässt sich ein Ziel nicht prüfen oder ist ein reservierter Name inzwischen belegt, wird dieser Eintrag mit Begründung ausgelassen. Andere Einträge werden weiter importiert. Bei Notion bleiben Links nach einer gescheiterten Reservierung bei der ursprünglichen Quelle, statt ein lokales Ziel zuzuweisen. Findet auch der Bericht keinen freien Namen, zeigt der Import einen Fehler; bereits importierte Dateien bleiben im Zielordner.
+
+<!-- tasks-jex-2026-09-14 -->
+## Joplin JEX und RAW
+
+Wähle einen entschlüsselten JEX/TAR-Export oder RAW-Ordner. Die Vorschau nennt Notizen, Notizbücher, Tags und Anhänge. Auch leere Notizbücher bleiben erhalten; gleichnamige Notizen erhalten eindeutige Namen und ihre Links folgen den IDs. Bei einem Export einzelner Notizen ohne Notizbuch liegen diese im Importwurzelordner.
+
+Ressourcen bleiben bytegleich. Alle ursprünglichen Datensätze einschließlich unbekannter Felder liegen zusätzlich in `_Joplin/Export.json`; diese Datei zählt als ein Anhang. Nicht verfügbare Ressourcen und nicht auflösbare Links stehen im Bericht; die ursprünglichen Links bleiben erhalten. Prüfe den Bericht, bevor Du den Export löschst.
+
+JEX verlangt ein frisches Ziel. Ungültige Archive, Pfadkonflikte, symbolische/harte Links und TAR-Erweiterungen wie PAX werden vollständig abgelehnt. Grenzen: 20.000 Einträge, 32 MiB pro Datei, 2 MiB pro Textdatei, 256 MiB entpackt insgesamt sowie 64 MiB Text und 64 MiB für die Begleitdatei. Desktop verwendet eine private Archivkopie, Mobil liest die ausgewählte Datei abschnittsweise. Abbruch während der Analyse schreibt nichts in den Vault. Während des Imports bleiben bereits geschriebene Dateien und der Teilbericht erhalten; es gibt kein automatisches Zurückrollen des ganzen Ordners.

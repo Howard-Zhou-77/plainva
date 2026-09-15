@@ -47,7 +47,7 @@ describe("nextDueDate", () => {
 
   it("crosses year boundaries on the civil calendar", () => {
     expect(nextDueDate(rule({ freq: "monthly", interval: 2 }), "2026-11-30", "2026-11-30")).toBe("2027-01-30");
-    expect(nextDueDate(rule({ freq: "yearly" }), "2026-02-29", "2026-02-29")).toBe("2027-02-28");
+    expect(nextDueDate(rule({ freq: "yearly" }), "2024-02-29", "2024-02-29")).toBe("2025-02-28");
     expect(nextDueDate(rule({ freq: "daily" }), "2026-12-31", "2026-12-31")).toBe("2027-01-01");
   });
 
@@ -58,6 +58,12 @@ describe("nextDueDate", () => {
   it("gives up rather than guessing when there is nothing to count from", () => {
     expect(nextDueDate(rule(), null, "")).toBeNull();
     expect(nextDueDate(rule(), "not-a-date", "also-not")).toBeNull();
+    expect(nextDueDate(rule(), "2026-02-29", "2026-03-01")).toBeNull();
+    expect(nextDueDate(rule({ freq: "daily" }), "9999-12-31", "9999-12-31")).toBeNull();
+  });
+  it("catches up decades of daily tasks and preserves early civil years", () => {
+    expect(nextDueDate(rule({ freq: "daily" }), "2000-01-01", "2026-09-14")).toBe("2026-09-15");
+    expect(nextDueDate(rule({ freq: "daily" }), "0099-12-31", "0099-12-31")).toBe("0100-01-01");
   });
 });
 
@@ -148,6 +154,11 @@ describe("writeNextOccurrenceNote", () => {
     return {
       written,
       exists: async (p: string) => existing.includes(p) || p in written,
+      readTextFile: async (p: string) => {
+        if (p in written) return written[p];
+        if (existing.includes(p)) return "# Existing source\n";
+        throw new Error("missing fixture " + p);
+      },
       writeTextFile: async (p: string, c: string) => {
         written[p] = c;
       },
@@ -158,7 +169,8 @@ describe("writeNextOccurrenceNote", () => {
     const a = adapter(["Tasks/Water plants.md"]);
     const path = await writeNextOccurrenceNote(a, "Tasks/Water plants.md", "content");
     expect(path).toBe("Tasks/Water plants 2.md");
-    expect(a.written[path!]).toBe("content");
+    expect(a.written[path!]).toContain("repeatOrigin:");
+    expect(a.written[path!]).toMatch(/content$/);
   });
 
   it("does not stack counters along a chain", async () => {

@@ -187,7 +187,8 @@
       "logseq": "Logseq",
       "notion_file": "Notion (ZIP)",
       "notion_api": "Notion (API)",
-      "obsidian": "Obsidian"
+      "obsidian": "Obsidian",
+      "joplin": "Joplin (JEX / Markdown)"
     },
     "hints": {
       "generic_markdown": "Kies een map of bestanden met Markdown (.md).",
@@ -196,7 +197,8 @@
       "evernote": "Kies de .enex-bestanden die vanuit Evernote zijn geëxporteerd (Notitieboek -> Exporteren als ENEX).",
       "logseq": "Kies je Logseq-graphmap (de map met /journals en /pages).",
       "notion_file": "Kies je Notion-ZIP-export of de uitgepakte map. Pagina's komen over; voor de inhoud van databases is de API-import nodig.",
-      "notion_api": "Voer een Notion-integratietoken in om gedeelde pagina's en databases direct te importeren, inclusief rijen en relaties."
+      "notion_api": "Voer een Notion-integratietoken in om gedeelde pagina's en databases direct te importeren, inclusief rijen en relaties.",
+      "joplin": "Kies een JEX-bestand, RAW-map of Markdown-export met frontmatter uit Joplin. Notitieboeken, tags, bijlagen en oorspronkelijke datums blijven bewaard."
     },
     "report": {
       "title": "Importrapport",
@@ -312,7 +314,19 @@
     "targetNewVaultHintMobile": "Op dit apparaat wordt een nieuwe, lege vault aangemaakt waarin de import schrijft.",
     "undoVaultMobile": "Je maakt deze import ongedaan door de vault te verwijderen onder ‘Meer → Vaults’.",
     "syncUploadHintMobile": "Deze vault wordt gesynchroniseerd: alle {{n}} geïmporteerde notities worden geüpload.",
-    "obsidianConnectMobile": "Verbind op de telefoon onder ‘Meer → Vaults’ dezelfde cloud waar je Obsidian-vault staat — de notities komen dan via de synchronisatie binnen."
+    "obsidianConnectMobile": "Verbind op de telefoon onder ‘Meer → Vaults’ dezelfde cloud waar je Obsidian-vault staat — de notities komen dan via de synchronisatie binnen.",
+    "archiveInvalid": "Het archief is beschadigd of bevat niet-ondersteunde, onveilige of dubbele items. Er is niets geïmporteerd.",
+    "archiveTooLarge": "JEX-limieten: 20.000 items, 32 MiB per bestand, 256 MiB totaal en 64 MiB tekst. Tekstbestanden: maximaal 2 MiB per bestand.",
+    "jexInvalid": "Dit is geen leesbare Joplin-export. Exporteer de gegevens vanuit Joplin als JEX of RAW.",
+    "jexEncrypted": "De export bevat nog versleutelde gegevens. Exporteer opnieuw vanuit Joplin zodra het ontsleutelen is voltooid.",
+    "jexFreshTarget": "Kies een doelmap die nog niet bestaat.",
+    "jexOriginals": "Oorspronkelijke records blijven bewaard in een extra bestand. Dit telt mee bij de bijlagen.",
+    "jexIncomplete": "Sommige doelen of bijlagen ontbreken. Onopgeloste links en oorspronkelijke gegevens blijven bewaard.",
+    "jexExtraRecords": "Andere Joplin-recordtypen blijven bewaard in de oorspronkelijke gegevens.",
+    "jexNoNotes": "Deze export bevat geen notities.",
+    "jexMissingFolders": "Sommige notitieboeken zijn niet geëxporteerd. Hun notities komen direct in de importmap.",
+    "statFolders": "Notitieboeken",
+    "statTags": "Tags"
   },
   "settings": {
     "about": "Over & diagnose",
@@ -519,7 +533,7 @@
     "fontSearch": "Lettertype zoeken…",
     "fontFieldEmpty": "Lettertype kiezen…",
     "customThemeAdoptFrom": "Overnemen van…",
-    "customThemePageDesc": "Je eigen thema: jij kiest grondtoon, achtergrond en accent; Plainva leidt de tekstkleuren af zodat tekst nooit in de achtergrond verdwijnt.",
+    "customThemePageDesc": "Jouw kleuren voor een lichte en een donkere sfeer.",
     "customThemeEdit": "Bewerken",
     "groupColors": "Kleuren",
     "groupShape": "Vorm",
@@ -611,12 +625,23 @@
     "fontContentDesc": "Editor en leesweergave.",
     "fontCode": "Code",
     "fontCodeDesc": "Codeblokken, inline-code en de code-modus.",
-    "fontsDeviceHint": "Geldt voor dit apparaat — geïnstalleerde lettertypen verschillen per apparaat."
+    "fontsDeviceHint": "Geldt voor dit apparaat — geïnstalleerde lettertypen verschillen per apparaat.",
+    "customThemePairHint": "Lichte en donkere sferen worden apart opgeslagen. Na het overnemen van beide volgt Systeem je apparaat.",
+    "customThemeProposal": "Deze sfeer is een voorstel. Je opgeslagen ontwerp verandert pas als je dit overneemt.",
+    "customThemeAdoptMood": "Sfeer overnemen",
+    "customThemeSaveFailed": "Het ontwerp kon niet worden opgeslagen. Probeer het opnieuw.",
+    "customThemeSyncTitle": "Persoonlijke synchronisatie",
+    "customThemeSyncEnabled": "Via deze kluis synchroniseren",
+    "customThemeSyncHint": "Kleuren en hoeken worden alleen voor jou gesynchroniseerd. Kies op elk apparaat één kluis als bron. Synchronisatie van instellingen moet aanstaan.",
+    "customThemeSyncSource": "Gekozen bron: {{name}}",
+    "customThemeSyncLocal": "Je ontwerp blijft op dit apparaat. Open een ontgrendelde kluis om synchronisatie in te schakelen.",
+    "customThemeSyncFailed": "De ontwerpsynchronisatie kon niet volledig worden opgeslagen of geladen. Controleer de verbinding, ontgrendel de kluis en open deze pagina opnieuw.",
+    "customThemeSyncConflict": "Twee apparaten hebben het ontwerp tegelijk gewijzigd. Alle varianten blijven bewaard totdat je er een kiest of het ontwerp bewerkt.",
+    "customThemeSyncChoose": "Variant {{number}} gebruiken"
   },
   "editor": {
     "completionHeadings": "Koppen",
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
-    "fileNotFound": "Bestand niet gevonden",
     "loading": "Laden...",
     "menu": "Menu",
     "time": "Tijd",
@@ -908,8 +933,6 @@
     "searchTags": "Tags filteren…",
     "searchDatabases": "Databases filteren…",
     "noResults": "Geen resultaten",
-    "resultCount_one": "1 resultaat",
-    "resultCount_other": "{{count}} resultaten",
     "matchesName": "Bestandsnaam",
     "matchesContent": "Inhoud",
     "resize": "Zijbalkbreedte aanpassen",
@@ -1214,7 +1237,18 @@
     "filterTags": "Tags · hele notitie",
     "filterLabelsFrom": "Labels · {{property}}",
     "filterPropertyTags": "{{property}} · eigenschap",
-    "filterSearchValues": "Waarden zoeken…"
+    "filterSearchValues": "Waarden zoeken…",
+    "exportTitle": "Tabel exporteren",
+    "exportValues": "Waarden (.csv)",
+    "exportFormulas": "Formules (.base)",
+    "exportScope": "Resultaatrijen: {{count}}. De export bevat de kolommen van deze weergave.",
+    "exportFormulaHint": "Het .base-bestand bewaart de huidige rijen als vaste selectie. Ondersteunde berekeningen blijven formules. Open het in dezelfde kluis met de gekoppelde notities.",
+    "exportUnsupported": "Deze kolommen kunnen nog niet als gelijkwaardige formules worden geëxporteerd:",
+    "exportIssue_operation": "De gelijkwaardigheid van deze berekening is niet bevestigd.",
+    "exportIssue_relation": "Omgekeerde relaties of alternatieve relatiesleutels worden niet vertaald.",
+    "exportIssue_property": "Deze bestandseigenschap wordt niet vertaald.",
+    "exportValuesHint": "CSV bevat de huidige berekende waarden en bestandspaden. Waarden worden later niet bijgewerkt. Lijsten blijven als JSON bewaard.",
+    "exportFailed": "De export is mislukt. Je gegevens zijn ongewijzigd; probeer het opnieuw."
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",
@@ -1610,7 +1644,11 @@
     "prevYear": "Vorig jaar",
     "nextYear": "Volgend jaar",
     "showWeeks": "Weeknummers tonen",
-    "weekShort": "Wk"
+    "weekShort": "Wk",
+    "dailyNoteExists": "Dagnotitie aanwezig",
+    "openDailyNote": "Dagnotitie openen",
+    "createDailyNote": "Dagnotitie maken",
+    "dailyNotesUnavailable": "De markeringen voor dagnotities konden niet worden geladen."
   },
   "titlebar": {
     "openTabs": "Geopende bestanden",
@@ -2297,7 +2335,11 @@
     "differentTasks": "Twee verschillende taken",
     "differentTasksHint": "Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde titel kunnen aparte instanties zijn. Beide inhouden blijven als aparte taken bewaard.",
     "keepSeparateTasks": "Als aparte taken behouden",
-    "comparisonChanged": "Een bestand is gewijzigd sinds het openen. De vergelijking is opnieuw geladen. Controleer de huidige inhoud en kies opnieuw."
+    "comparisonChanged": "Een bestand is gewijzigd sinds het openen. De vergelijking is opnieuw geladen. Controleer de huidige inhoud en kies opnieuw.",
+    "versionUnavailable": "De geselecteerde versie is niet meer beschikbaar.",
+    "countsUnavailable": "Voor deze bestandsgrootte zijn geen regelaantallen beschikbaar.",
+    "windowFailed": "Het vergelijkingsvenster kon niet worden geopend.",
+    "lineChanges": "+{{added}} / −{{removed}} regels"
   },
   "conflict": {
     "resolveFailed": "Conflict kon niet worden opgelost: {{error}}",
@@ -2593,7 +2635,7 @@
     "repeatEvery_monthly": "elke {{n}} mnd",
     "repeatEvery_yearly": "elke {{n}} jr",
     "repeatSpawned": "Volgende vervaldatum: {{date}}",
-    "repeatFailed": "De volgende taak kon niet worden aangemaakt.",
+    "repeatFailed": "De taak is voltooid. De volgende taak kon niet worden bevestigd. Controleer de takenmap voordat je het opnieuw probeert.",
     "repeatRemote": "Deze taak komt van een provider en herhaalt daar.",
     "repeatPreview": "Volgende vervaldatum: {{date}}",
     "repeatPreviewFromToday": "Geteld vanaf vandaag, omdat je vanaf het afvinken telt.",
@@ -2610,7 +2652,16 @@
     "deletingWithUndo_one": "Taak verwijderd. Wordt over {{seconds}} s ook bij de aanbieder verwijderd.",
     "deleteCancelled_one": "Verwijderen ongedaan gemaakt — de notitie is terug.",
     "deletingWithUndo_other": "{{count}} taken verwijderd. Worden over {{seconds}} s ook bij de aanbieder verwijderd.",
-    "deleteCancelled_other": "Verwijderen ongedaan gemaakt — {{count}} notities zijn terug."
+    "deleteCancelled_other": "Verwijderen ongedaan gemaakt — {{count}} notities zijn terug.",
+    "metadata": {
+      "created": "Aangemaakt",
+      "start": "Start",
+      "scheduled": "Gepland",
+      "completed": "Voltooid",
+      "taskId": "ID",
+      "recurrence": "Herhaling",
+      "unsupported": "Regel behouden; hier geen automatische voortzetting."
+    }
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",
@@ -2700,7 +2751,7 @@
     "authConfig": "De app-registratie van dit account klopt niet. Controleer client-ID, secret en redirect-URI bij je provider.",
     "authApiDisabled": "De aanmelding klopt, maar de aangeroepen Google-API is niet ingeschakeld in je eigen Google Cloud-project. Schakel hem daar in (agenda: ‘Google Calendar API’, taken: ‘Google Tasks API’) en probeer het opnieuw.",
     "authExpired": "De aanmelding van dit account is verlopen of ingetrokken. Meld je opnieuw aan om het te herstellen.",
-    "authExpiredGoogle": "De aanmelding van dit account is verlopen of ingetrokken. Meld je opnieuw aan. Gebruik je een eigen Google-client waarvan het toestemmingsscherm nog op “Test” staat, dan laat Google elke aanmelding na 7 dagen verlopen — publiceren van het project stopt dat.",
+    "authExpiredGoogle": "Google heeft deze aanmelding geweigerd. Meld je opnieuw aan. Bij een eigen app kunnen verlopen testtoegang of ingetrokken toestemming de oorzaak zijn. Plainva kan de projectstatus niet uit deze fout afleiden.",
     "authNetwork": "Dit account was niet bereikbaar. Dat lijkt op een verbindingsprobleem — probeer het opnieuw.",
     "openVaultFirst": "Alleen beschikbaar voor de geopende vault.",
     "noAccounts": "Nog geen agenda-accounts verbonden.",
@@ -2741,7 +2792,7 @@
     "retrying": "Opnieuw proberen…",
     "retrySameError": "De nieuwe poging eindigde met dezelfde fout.",
     "davPass": "App-wachtwoord",
-    "googleByoHint": "Google vereist een eigen OAuth-client-ID (zoals bij de Drive-sync). Scopes: agenda + taken.",
+    "googleByoHint": "Gebruik de Google-client-ID die bij dit apparaat hoort. Een desktopclient heeft ook de bijbehorende client-secretwaarde nodig. De handleiding beschrijft mobiele registraties. Rechten: agenda’s en taken.",
     "clientFromDevice": "Client-ID overgenomen van dit apparaat.",
     "googleClientSecret": "Client secret (optioneel voor desktopclients)",
     "googleClientIdRequired": "Google heeft een eigen client-ID nodig (BYO).",
@@ -3027,7 +3078,6 @@
     "noSearchResults": "Geen resultaten in deze map.",
     "markRead": "Markeren als gelezen",
     "markUnread": "Markeren als ongelezen",
-    "bulkPartial": "Niet elk bericht kon worden gewijzigd ({{n}} mislukt): {{error}}",
     "moveTo": "Verplaatsen naar…",
     "moved": "Verplaatst naar {{folder}}",
     "delete": "Verwijderen",
@@ -3133,7 +3183,24 @@
     "unsubscribeFailed": "De afmeldpagina kon niet worden geopend.",
     "sendingWithUndo": "Verzenden over {{seconds}} s",
     "sendCancelled": "Verzenden geannuleerd — het bericht is niet verstuurd.",
-    "emlAdded": "Ruwe kopie toegevoegd aan ‘{{name}}’."
+    "emlAdded": "Ruwe kopie toegevoegd aan ‘{{name}}’.",
+    "googleSignInTest": "Inloggen met Google · Test",
+    "googleTestHint": "Testtoegang voor goedgekeurde Google-testaccounts. Je geeft Plainva toestemming om e-mail te lezen, beheren en verzenden. Opgeslagen e-mail wordt onderdeel van je kluis en volgt de synchronisatie daarvan.",
+    "filterAttachments": "Met bijlagen",
+    "attachmentsLoaded": "Metadata voor {{known}} van {{loaded}} geladen berichten. Andere berichten kunnen ook bijlagen bevatten.",
+    "bulkWorking": "Groepsactie wordt uitgevoerd. Annuleren stopt na de huidige groep.",
+    "bulkReport": "{{done}} voltooid, {{failed}} niet bevestigd.",
+    "bulkUncertain": "Resultaat onzeker. Vernieuw de map voordat je de actie opnieuw uitvoert.",
+    "bulkReason": {
+      "missing": "Het bericht staat niet meer in de oorspronkelijke map.",
+      "changed": "De map is gewijzigd of komt uit de cache. Vernieuw de map.",
+      "unsupported": "De server ondersteunt deze gerichte actie niet (MOVE/UIDPLUS).",
+      "rejected": "De server heeft de wijziging niet bevestigd.",
+      "connection": "Verbinding onderbroken.",
+      "cancelled": "Niet uitgevoerd: geannuleerd."
+    },
+    "noAttachmentMatches": "Geen bevestigde bijlagen in de geladen berichten.",
+    "cacheUpdateFailed": "Wijziging op de server bevestigd. De lokale mailcache kon niet worden bijgewerkt; laad de map opnieuw."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",
@@ -3335,7 +3402,7 @@
     "suggestDiscard": "Verwerpen",
     "suggestDiscardConfirm": "{{n}} wijzigingen verwerpen? De notitie blijft zoals ze was.",
     "suggestSend": "Voorstellen verzenden ({{n}})",
-    "suggestSent": "{{n}} voorstellen verzonden.",
+    "suggestSent": "Verzonden voorstellen: {{n}}.",
     "suggestNothing": "Nog geen wijziging.",
     "suggestParkedTitle": "Niet-verzonden voorstellen gevonden",
     "suggestParkedResume": "Verder bewerken",
@@ -3417,7 +3484,9 @@
     "decisionConflict": "Tegenstrijdige beslissingen",
     "decisionConfirmDeclined": "Bevestigen als afgewezen",
     "decisionConfirmApplied": "Bevestigen als toegepast",
-    "decisionReviewHelp": "Vergelijk het voorstel met de huidige tekst. Je beslissing bevestigt deze tekst en vervangt alleen de hier bekende beslissingen. Het voorstel wordt niet opnieuw ingevoegd."
+    "decisionReviewHelp": "Vergelijk het voorstel met de huidige tekst. Je beslissing bevestigt deze tekst en vervangt alleen de hier bekende beslissingen. Het voorstel wordt niet opnieuw ingevoegd.",
+    "publicationReviewLocal": "Deze beslissing wordt bij het origineel in je eigen kluis vastgelegd.",
+    "suggestionNotPermitted": "Je toegang staat hier geen voorstellen toe."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Versleutelde workspaces zijn experimenteel en zijn nog niet onafhankelijk beoordeeld. Bewaar je herstelbestand en -code op een veilige plek — zonder deze zijn versleutelde notities niet te herstellen.",
@@ -3868,7 +3937,7 @@
       "chainGap": {
         "title": "Wijzigingen van een apparaat wachten: de keten is onderbroken",
         "explain": "Dit apparaat verwacht van {{device}} wijziging nr. {{expected}}; in de cloud staat nr. {{found}}. Wat daartussen ontbreekt of vervangen is, blokkeert alles erna — de groep omvat {{count}} wijzigingen.",
-        "hint": "Meestal zit er een tweede stand van hetzelfde apparaat achter — bijvoorbeeld een ontwikkelinstantie met eigen opslag — of een apparaat dat opnieuw is verbonden en weer vanaf 1 telt. Laat {{device}} één keer synchroniseren en controleer hier opnieuw. Negeer je de groep, dan gaan deze wijzigingen verloren."
+        "hint": "Kies Nu synchroniseren op een apparaat dat de volledige verifieerbare geschiedenis nog heeft. Plainva kan ontbrekende ondertekende wijzigingen uit die kopie herstellen. Controleer daarna opnieuw op {{device}}. Bewaar of exporteer de lokale gegevens als er geen geldige kopie is; de verificatie wordt nooit teruggezet om het ontbrekende deel over te slaan."
       },
       "chainBlocked": {
         "title": "Wacht achter een gat",
@@ -4072,18 +4141,18 @@
     "title": "Wat is er nieuw in Plainva {{version}}",
     "lead": "Grootste vernieuwing",
     "experimental": "Experimenteel",
-    "highlight1Title": "Bestaande accounts uitbreiden",
-    "highlight1": "Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva controleert de gekozen aanmelding en vraagt ontbrekende rechten aan.",
-    "highlight2Title": "Instellen in duidelijke stappen",
-    "highlight2": "De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je agenda’s en takenlijsten en zie je het resultaat.",
-    "highlight3Title": "Bestanden overnemen met voorbeeld",
-    "highlight3": "Bij het toevoegen van bestanden op mobiel toont Plainva eerst de bron, bestemming en botsingen. Bestaande inhoud en diensten blijven behouden; een onderbroken overdracht kan opnieuw worden geprobeerd.",
-    "highlight4Title": "Taken met dezelfde titel apart houden",
-    "highlight4": "Taken van de aanbieder worden op identiteit gekoppeld. Afzonderlijke herhalingen krijgen eigen bestanden. Bestaande onterechte conflicten kunnen als aparte taken bewaard worden.",
-    "highlight5Title": "Duidelijk kiezen bij bestandsvergelijking",
-    "highlight5": "Beide bestandsnamen en locaties zijn zichtbaar. Voor vervanging noemt de bevestiging bron en bestemming. Wijzigt een bestand intussen, dan wordt de vergelijking opnieuw geladen.",
-    "highlight6Title": "Meer ruimte in de mobiele navigatie",
-    "highlight6": "Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanraakvlakken blijven groot genoeg en de gereserveerde ruimte past zich aan de tekstgrootte aan.",
+    "highlight1Title": "Betrouwbaardere verbindingen en synchronisatie",
+    "highlight1": "Onderbroken handelingen worden gericht opnieuw geprobeerd. Aanmeldproblemen en onzekere gegevens worden duidelijker weergegeven, terwijl lokale wijzigingen behouden blijven.",
+    "highlight2Title": "Precieze resultaten, insluitingen en geschiedenis",
+    "highlight2": "Spring naar de juiste passage, sluit afzonderlijke secties of blokken in en vergelijk de werkelijke regelwijzigingen van een versie.",
+    "highlight3Title": "JEX-import en database-export",
+    "highlight3": "Importeer Joplin-archieven met bijlagen in een nieuwe map. Exporteer ondersteunde rollups als Obsidian-formules of uitdrukkelijk als waarden. Taken behouden hun metadata.",
+    "highlight4Title": "Duidelijke resultaten voor mailacties",
+    "highlight4": "Bulkacties tonen successen en fouten per bericht. Het bijlagenfilter verklaart onvolledige metadata; extra accountdiensten behouden bestaande aanmeldingen.",
+    "highlight5Title": "Je ontwerp en dagelijkse handelingen",
+    "highlight5": "Pas licht en donker afzonderlijk aan en synchroniseer desgewenst je persoonlijke ontwerp. Dagnotities, overdracht tussen vensters en wachtende gedeelde inhoud zijn betrouwbaarder.",
+    "highlight6Title": "Feedback op publicaties",
+    "highlight6": "Bevoegde ontvangers kunnen reageren en wijzigingen voorstellen. Eigenaren kunnen feedback beoordelen en behouden wanneer een ontvanger geen toegang meer heeft.",
     "readBlog": "Lees het blogbericht",
     "understand": "Begrepen"
   },
@@ -4281,7 +4350,12 @@
     "noVaultTitle": "Geen kluis geopend",
     "noVaultBody": "Dit venster toont op dit moment geen kluis. Kies er een uit de recente of selecteer een map.",
     "revealNoTree": "Geen venster met bestandsboom toont deze kluis.",
-    "ownerUnreachable": "Het hoofdvenster reageert niet."
+    "ownerUnreachable": "Het hoofdvenster reageert niet.",
+    "returnToMain": "Terug naar het hoofdvenster",
+    "transferFailed": "De overdracht is niet voltooid. Het brontabblad en het concept blijven behouden.",
+    "transferUnknown": "Het hoofdvenster heeft nog niet bevestigd. Je concept blijft hier; controleer de status opnieuw.",
+    "transferPending": "Het tabblad wordt overgedragen. Het blijft hier open totdat het hoofdvenster de ontvangst bevestigt.",
+    "transferCheck": "Status opnieuw controleren"
   },
   "commentNotify": {
     "actionOpen": "Openen",
@@ -4342,5 +4416,72 @@
     "retrySaved": "Verbinding voltooien",
     "clientSecret": "Clientgeheim (indien beschikbaar)",
     "googleClientUnsupported": "De Google-registratie past niet bij het terugkeerpad van dit apparaat. Controleer het clienttype en de mobiele instelling in de Google-handleiding."
+  },
+  "connectionFailure": {
+    "TLS_CERTIFICATE_EXPIRED": "Het servercertificaat is verlopen. Vernieuw het op de server.",
+    "TLS_CERTIFICATE_NOT_YET_VALID": "Het servercertificaat is nog niet geldig. Controleer de apparaatklok en de certificaatdatums.",
+    "TLS_HOSTNAME_MISMATCH": "Het certificaat komt niet overeen met het serveradres. Controleer het adres en het certificaat.",
+    "TLS_CERTIFICATE_UNTRUSTED": "De certificeringsinstantie wordt niet vertrouwd op dit apparaat. Controleer de certificaatketen van de server en de geïnstalleerde instanties.",
+    "TLS_HANDSHAKE_FAILED": "De beveiligde verbinding kon niet worden geverifieerd. Controleer het servercertificaat en de TLS-configuratie.",
+    "HTTP_ORIGIN_BLOCKED": "De verbinding of omleiding is geblokkeerd omdat de oorsprong niet is toegestaan. Controleer het ingestelde serveradres.",
+    "HTTP_TIMEOUT": "De server reageerde niet op tijd. Plainva probeert het opnieuw.",
+    "HTTP_NETWORK_ERROR": "De netwerkverbinding is mislukt. Plainva probeert het opnieuw zodra de verbinding beschikbaar is.",
+    "HTTP_REQUEST_FAILED": "Het verzoek kon niet worden voltooid. Controleer de verbindingsinstellingen en de diagnose-export."
+  },
+  "workspaceSync": {
+    "transient": "De verbinding is tijdelijk niet beschikbaar. Plainva probeert het automatisch opnieuw; openstaande wijzigingen blijven op dit apparaat.",
+    "authentication": "Meld je opnieuw aan bij het synchronisatieaccount. Openstaande wijzigingen blijven op dit apparaat totdat de toegang is hersteld.",
+    "integrity": "Plainva kan de versleutelde kluis niet verifiëren. De synchronisatie is gepauzeerd; lokale gegevens en openstaande wijzigingen blijven behouden. Open Beveiliging en delen, herstel indien mogelijk een verifieerbare kopie en controleer opnieuw.",
+    "fatal": "De synchronisatie is gepauzeerd totdat het verbindingsprobleem is opgelost. Lokale gegevens en openstaande wijzigingen blijven behouden. Controleer de verbinding en probeer het opnieuw.",
+    "foreignLegacy": "Onversleutelde opmerkingsbestanden van andere apparaten blijven op de server staan. Alleen het oorspronkelijke apparaat kan de omzetting voltooien. Plainva verwijdert geen bestanden van andere apparaten."
+  },
+  "noteEmbed": {
+    "openSource": "Bron openen",
+    "depth": "De maximale diepte voor insluitingen is bereikt.",
+    "unreadable": "‘{{target}}’ kon niet worden gelezen.",
+    "missing": "‘{{target}}’ is niet gevonden.",
+    "ambiguous": "‘{{target}}’ komt overeen met meerdere notities. Gebruik een pad relatief aan de vault."
+  },
+  "searchResults": {
+    "loading": "Zoeken…",
+    "loaded": "Getoonde vindplaatsen: {{count}}",
+    "more": "Meer vindplaatsen laden",
+    "line": "Regel {{line}}",
+    "failed": "Zoeken mislukt. Opnieuw proberen",
+    "empty": "Geen overeenkomende vindplaatsen.",
+    "changed": "De vindplaats bestaat niet meer in de gewijzigde tekst."
+  },
+  "driveDestination": {
+    "title": "Drive-doel kiezen",
+    "current": "Huidig doel",
+    "selected": "Gekozen doel",
+    "folderId": "Map-ID: {{id}}",
+    "review": "Voorbeeld controleren",
+    "apply": "Dit doel gebruiken",
+    "more": "Meer items laden",
+    "effect": "Na bevestiging synchroniseert Plainva deze kluis met de gekozen map. Controleer de bestanden. Andere cloudmappen worden niet verplaatst of verwijderd."
+  },
+  "shareInbox": {
+    "title": "Gedeelde inhoud",
+    "waiting": "Wachtende overdrachten: {{count}}",
+    "review": "Bekijken",
+    "destination": "Bestemming",
+    "chooseVault": "Vault kiezen",
+    "chooseFolder": "Map kiezen",
+    "locked": "Deze vault is vergrendeld. Je inhoud blijft op dit apparaat wachten.",
+    "otherVault": "Deze overdracht hoort bij een andere vault. Open die vault om verder te gaan.",
+    "targetChanged": "De bestemming bevat nu andere inhoud. De wachtende kopie blijft bewaard; niets is overschreven.",
+    "writeFailed": "De overdracht kon niet worden voltooid. De wachtende inhoud blijft bewaard.",
+    "indexIssue": "Opgeslagen. De zoekindex kon nog niet worden bijgewerkt.",
+    "saved": "Gedeelde inhoud opgeslagen.",
+    "incomplete": "De overdracht is onvolledig. Deel de oorspronkelijke inhoud opnieuw; ontvangen delen blijven bewaard totdat je ze verwijdert.",
+    "receiving": "Gedeelde inhoud voorbereiden…",
+    "progress": "{{done}} van {{total}} opgeslagen",
+    "later": "Later importeren",
+    "import": "Importeren",
+    "discard": "Wachtend item verwijderen",
+    "discardHint": "Alleen dit wachtende item van het apparaat verwijderen? Bestanden die al in de vault staan blijven bewaard.",
+    "readFailed": "De wachtende inhoud kon niet worden gelezen. Ze is niet verwijderd.",
+    "retry": "Opnieuw proberen"
   }
 }

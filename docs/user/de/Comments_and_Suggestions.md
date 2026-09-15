@@ -1,6 +1,6 @@
 # Kommentare & Vorschläge
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt. Fehlt der Name, fragt Plainva beim ersten Kommentar einmal danach; ohne Antwort zeichnet das Gerät mit seiner eigenen Bezeichnung (etwa „Windows-Gerät 4f3a“). Deine eigenen Anmerkungen stehen als **Du** da.
 
@@ -71,3 +71,9 @@ Desktop und Mobil verwenden in einem verschlüsselten Workspace denselben signie
 Ältere Anmerkungen aus den bisherigen Kommentardateien bleiben erhalten und werden mit Verwaltungs- und Kommentierrechten übernommen. **Aus älterem Bestand** nennt weiterhin den ursprünglichen Namen und das ursprüngliche Datum. Diese Angaben sind keine nachträglich bestätigte Workspace-Mitgliedschaft; die neue Signatur bestätigt die Übernahme. Fehlen Rechte, die zugehörige synchronisierte Notiz oder ein erfolgreicher Speichervorgang, bleibt der Altbeitrag sichtbar. Bis zur dauerhaften Zuordnung bietet er keine Antwort-, Lösch- oder Vorschlagsaktionen. Eine Übernahme löst keine erneuten Benachrichtigungen für die alte Historie aus.
 
 Ist nur der ältere Bestand gesperrt, führt **Entsperren** zur Sync-Passphrase; neue Workspace-Kommentare bleiben möglich. Ist der Workspace selbst gesperrt, führt die Aktion in die Sicherheitseinstellungen. Bereits vor dem Update begonnene Vorschlagsvorgänge behalten ihren gespeicherten Fortschritt und können mit den heutigen Rechten fortgesetzt werden. Die ursprünglichen Kommentardateien werden durch die Übernahme nicht entfernt.
+
+## Rückmeldungen auf Veröffentlichungen
+
+Empfänger öffnen die Veröffentlichung als eigenen Workspace. Lesen erlaubt keine Rückmeldung; Kommentieren erlaubt Anmerkungen, Vorschlagen zusätzlich Änderungen in einer Kopie. Der Originaltext bleibt dabei schreibgeschützt. Desktop und Mobil prüfen dieselben Rechte und behalten noch nicht gesendete Rückmeldungen für die Wiederholung.
+
+Rückmeldungen erscheinen auf Desktop und Mobil bei der Originalnotiz, getrennt nach Veröffentlichung und mit den Namen der Empfänger. Passende Vorschläge aus einer exakten Fassung lassen sich über den normalen geprüften Speicherablauf übernehmen oder ablehnen. Die Entscheidung wird im eigenen Vault beim Original festgehalten; sie sendet keine Antwort an die Empfänger. Bereinigte Fassungen und nicht sicher zuordenbare Textstellen bieten keine automatische Übernahme. Nach einem Empfängerentzug bleibt mit aktuellen Clients erstelltes Feedback für den Eigentümer lesbar. Ältere Rückmeldungen, die ausschließlich für einen inzwischen entfernten Empfängerschlüssel verschlüsselt wurden, werden nicht nachträglich umgeschrieben. Fehlt der Schlüssel einer Veröffentlichung auf diesem Gerät, wird ihr Abschnitt weiterhin ausgelassen.

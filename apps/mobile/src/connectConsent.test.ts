@@ -25,9 +25,9 @@ describe("what one consent covers", () => {
    * can use the broker after setup, but initial mailbox setup still needs its
    * own connection and probe before it can consume a shared grant.
    */
-  it("leaves mail out of the shared consent", () => {
+  it("includes Microsoft mail while the Google app-password route has no mail consent", () => {
     expect(consentServicesOf("google", ["files", "calendar", "mail"])).toEqual(["files", "calendar"]);
-    expect(consentServicesOf("microsoft", ["files", "calendar", "mail"])).toEqual(["files", "calendar"]);
+    expect(consentServicesOf("microsoft", ["files", "calendar", "mail"])).toEqual(["files", "calendar", "mail"]);
   });
 
   it("drops services the family cannot carry", () => {
@@ -68,7 +68,7 @@ describe("when the first consent is widened", () => {
    * and this is the assertion that says so out loud.
    */
   it("does not widen for mail alongside one other service", () => {
-    expect(runConsentScope("microsoft", ["files", "mail"])).toBeNull();
+    expect(runConsentScope("microsoft", ["files", "mail"])).toContain("Mail.ReadWrite");
     expect(runConsentScope("microsoft", ["files", "calendar", "mail"])).toBeTruthy();
   });
 });
@@ -81,8 +81,9 @@ describe("which services skip their own consent", () => {
     expect(canSkipConsent("google", run, "calendar", false)).toBe(false);
   });
 
-  it("never skips the initial mailbox connection and probe", () => {
-    expect(canSkipConsent("microsoft", run, "mail", true)).toBe(false);
+  it("skips another Microsoft consent only when its mail grant is present", () => {
+    expect(canSkipConsent("microsoft", run, "mail", true)).toBe(true);
+    expect(canSkipConsent("microsoft", run, "mail", false)).toBe(false);
   });
 
   it("never skips for a family without a shared token", () => {

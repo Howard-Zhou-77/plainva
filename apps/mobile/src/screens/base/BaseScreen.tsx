@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Columns3,
   Database,
+  Download,
   GanttChart,
   LayoutGrid,
   List,
@@ -33,6 +34,8 @@ import { listPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
+import { BaseExportDialog } from "@plainva/ui";
+import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
 import {
@@ -136,6 +139,7 @@ export function BaseScreen({
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [cellEditCanComment, setCellEditCanComment] = useState(false);
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
+  const [showExport, setShowExport] = useState(false);
   const [propEdit, setPropEdit] = useState<string | null>(null);
   /** Long-press target (S20): the entry menu, shared by every view. */
   const [rowMenu, setRowMenu] = useState<{ path: string; title: string } | null>(null);
@@ -1867,11 +1871,14 @@ export function BaseScreen({
       <AppBar
         onBack={onBack}
         title={title}
-        actions={
+        actions={<>
+          <IconButton label={t("database.exportTitle")} disabled={!config || rows == null} onClick={() => setShowExport(true)}>
+            <Download size={ICON.touch} />
+          </IconButton>
           <IconButton label={t("database.configure")} onClick={() => setShowConfig(true)}>
             <Settings2 size={ICON.touch} />
           </IconButton>
-        }
+        </>}
       />
       {ptrIndicator}
 
@@ -2130,6 +2137,12 @@ export function BaseScreen({
         />
       )}
 
+      {showExport && config && rows && <BaseExportDialog config={config} viewIndex={viewIndex} rows={rows}
+        onExport={async file => {
+          const stem = (path.split("/").pop() ?? "Database").replace(/\.base$/i, "");
+          await shareVaultText(`${stem}-export.${file.extension}`, file.text, file.mime);
+          return true;
+        }} onClose={() => setShowExport(false)} />}
       {showConfig && config && (
         <BaseConfigSheet
           basePath={path}

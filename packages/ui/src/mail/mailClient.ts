@@ -1,8 +1,7 @@
 import type { MailAccountConfig } from "./mailAccounts";
-import { MailCredentialsMissingError } from "./credentialsError";
-import { getMailPassword, mailAccountKind } from "./mailAccounts";
+import { mailAccountKind } from "./mailAccounts";
 import { mailTransport } from "./transport";
-import type { ImapCreds } from "./transport";
+import { mailCredentials as creds, withMailCredentials } from "./mailCredentials";
 import type {
   MailboxInfo,
   MailEnvelope,
@@ -11,6 +10,7 @@ import type {
   RawImapEnvelope,
 } from "./types";
 import { threadFields } from "./threading";
+import { MAIL_BULK_LIMIT, type MailBulkAction, type MailBulkResult } from "./bulkActions";
 import { readVacation, vacationSupport, writeVacation, type VacationState } from "./vacation";
 import type { VacationSettings } from "./sieveScript";
 import { writeSieveRules, type SieveWriteResult } from "./sieveSync";
@@ -51,12 +51,6 @@ export type {
   MailMessage,
 } from "./types";
 
-async function creds(vaultPath: string, account: MailAccountConfig): Promise<ImapCreds> {
-  const pass = await getMailPassword(vaultPath, account.id);
-  if (!pass) throw new MailCredentialsMissingError();
-  return { host: account.host, port: account.port, user: account.user, pass };
-}
-
 export async function checkMailLogin(account: Omit<MailAccountConfig, "id" | "label">, pass: string): Promise<MailboxInfo[]> {
   return mailTransport().checkLogin({ host: account.host, port: account.port, user: account.user, pass });
 }
@@ -64,7 +58,7 @@ export async function checkMailLogin(account: Omit<MailAccountConfig, "id" | "la
 /** Mailbox list of a STORED account (folder rail + the draft dialog's picker). */
 export async function listMailboxesFor(vaultPath: string, account: MailAccountConfig): Promise<MailboxInfo[]> {
   if (mailAccountKind(account) === "microsoft") return graphListFolders(vaultPath, account);
-  return mailTransport().checkLogin(await creds(vaultPath, account));
+  return withMailCredentials(vaultPath, account, credential => mailTransport().checkLogin(credential));
 }
 
 export async function listEnvelopes(
@@ -76,12 +70,12 @@ export async function listEnvelopes(
   beforeId?: string
 ): Promise<MailEnvelopePage> {
   if (mailAccountKind(account) === "microsoft") return graphListEnvelopes(vaultPath, account, mailbox, offset, limit);
-  const page = await mailTransport().listEnvelopes(await creds(vaultPath, account), {
+  const page = await withMailCredentials(vaultPath, account, credential => mailTransport().listEnvelopes(credential, {
     mailbox,
     offset,
     limit,
     beforeUid: beforeId ? Number(beforeId) : undefined,
-  });
+  }));
   return { total: page.total, unseen: page.unseen, messages: page.messages.map(toEnvelope) };
 }
 
@@ -98,14 +92,14 @@ function toEnvelope(m: RawImapEnvelope): MailEnvelope {
 
 export async function fetchMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<MailMessage> {
   if (mailAccountKind(account) === "microsoft") return graphFetchMessage(vaultPath, account, mailbox, id);
-  const m = await mailTransport().fetchMessage(await creds(vaultPath, account), { mailbox, uid: Number(id) });
+  const m = await withMailCredentials(vaultPath, account, credential => mailTransport().fetchMessage(credential, { mailbox, uid: Number(id) }));
   return { ...m, id: String(m.uid) };
 }
 
 /** Raw RFC822 bytes, base64 (the ".eml beilegen" capture). */
 export async function fetchRawMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<string> {
   if (mailAccountKind(account) === "microsoft") return graphFetchRaw(vaultPath, account, mailbox, id);
-  return mailTransport().fetchRaw(await creds(vaultPath, account), { mailbox, uid: Number(id) });
+  return withMailCredentials(vaultPath, account, credential => mailTransport().fetchRaw(credential, { mailbox, uid: Number(id) }));
 }
 
 /** One attachment's bytes, base64 (mail feinplan G3 — the first caller of the
@@ -118,27 +112,68 @@ export async function fetchAttachment(
   index: number
 ): Promise<string> {
   if (mailAccountKind(account) === "microsoft") return graphFetchAttachment(vaultPath, account, mailbox, id, index);
-  return mailTransport().fetchAttachment(await creds(vaultPath, account), { mailbox, uid: Number(id), index });
+  return withMailCredentials(vaultPath, account, credential => mailTransport().fetchAttachment(credential, { mailbox, uid: Number(id), index }));
 }
 
 // ---- Mailbox actions (mail-client E4) -------------------------------------
 
+/** IMAP chunks preserve the displayed mailbox epoch. Graph remains sequential
+ * to respect provider throttling. A cancelled/uncertain run is not replayed. */
+export async function applyMailBulk(vaultPath: string, account: MailAccountConfig, mailbox: string, messages: readonly Pick<MailEnvelope, "id" | "uidValidity">[], action: MailBulkAction, signal?: AbortSignal): Promise<MailBulkResult[]> {
+  const result: MailBulkResult[] = [];
+  const graph = mailAccountKind(account) === "microsoft";
+  const transport = mailTransport();
+  let uncertain = false;
+  for (let offset = 0; offset < messages.length;) {
+    const next = messages[offset];
+    if (signal?.aborted || uncertain) {
+      result.push(...messages.slice(offset).map(m => ({ id: m.id, status: "skipped" as const, reason: signal?.aborted ? "cancelled" as const : "connection" as const }))); break;
+    }
+    if (!graph && (!Number.isInteger(next.uidValidity) || !next.uidValidity)) {
+      result.push({ id: next.id, status: "failed", reason: "changed" }); offset++; continue;
+    }
+    const chunk: typeof next[] = [];
+    const size = !graph && transport.bulkAction ? MAIL_BULK_LIMIT : 1;
+    while (offset < messages.length && chunk.length < size && messages[offset].uidValidity === next.uidValidity) chunk.push(messages[offset++]);
+    try {
+      if (!graph && transport.bulkAction) {
+        const done = await withMailCredentials(vaultPath, account, credential => transport.bulkAction!(credential, { mailbox, uids: chunk.map(m => Number(m.id)), uidValidity: next.uidValidity, action }));
+        for (const m of chunk) {
+          const found = done.find(r => r.uid === Number(m.id));
+          result.push(found ? { id: m.id, status: found.status, reason: found.reason } : { id: m.id, status: "uncertain", reason: "connection" });
+        }
+      } else {
+        if (action.kind === "seen") await setMessageSeen(vaultPath, account, mailbox, next.id, action.value);
+        else if (action.kind === "flagged") await setMessageFlagged(vaultPath, account, mailbox, next.id, action.value);
+        else if (action.kind === "move") await moveMessage(vaultPath, account, mailbox, next.id, action.target);
+        else await deleteMessagePermanently(vaultPath, account, mailbox, next.id);
+        result.push({ id: next.id, status: "done" });
+      }
+    } catch {
+      // The write may have reached the provider even when its reply was lost.
+      result.push(...chunk.map(m => ({ id: m.id, status: "uncertain" as const, reason: "connection" as const })));
+    }
+    uncertain = result.some(r => r.status === "uncertain");
+  }
+  return result;
+}
+
 /** Marks a message read/unread. */
 export async function setMessageSeen(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string, seen: boolean): Promise<void> {
   if (mailAccountKind(account) === "microsoft") return graphSetSeen(vaultPath, account, mailbox, id, seen);
-  await mailTransport().setSeen(await creds(vaultPath, account), { mailbox, uid: Number(id), seen });
+  await withMailCredentials(vaultPath, account, credential => mailTransport().setSeen(credential, { mailbox, uid: Number(id), seen }));
 }
 
 /** Sets or clears the message's flagged/starred marker. */
 export async function setMessageFlagged(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string, flagged: boolean): Promise<void> {
   if (mailAccountKind(account) === "microsoft") return graphSetFlagged(vaultPath, account, mailbox, id, flagged);
-  await mailTransport().setFlagged(await creds(vaultPath, account), { mailbox, uid: Number(id), flagged });
+  await withMailCredentials(vaultPath, account, credential => mailTransport().setFlagged(credential, { mailbox, uid: Number(id), flagged }));
 }
 
 /** Irreversible delete, exposed by the UI only while the Trash folder is open. */
 export async function deleteMessagePermanently(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<void> {
   if (mailAccountKind(account) === "microsoft") return graphDeleteMessage(vaultPath, account, mailbox, id);
-  await mailTransport().deleteMessage(await creds(vaultPath, account), { mailbox, uid: Number(id) });
+  await withMailCredentials(vaultPath, account, credential => mailTransport().deleteMessage(credential, { mailbox, uid: Number(id) }));
 }
 
 /**
@@ -151,7 +186,7 @@ export async function setMessageJunk(vaultPath: string, account: MailAccountConf
   if (mailAccountKind(account) === "microsoft") return;
   const transport = mailTransport();
   if (!transport.setJunk) return;
-  await transport.setJunk(await creds(vaultPath, account), { mailbox, uid: Number(id), junk });
+  await withMailCredentials(vaultPath, account, credential => transport.setJunk!(credential, { mailbox, uid: Number(id), junk }));
 }
 
 /** Creates a mailbox on the server — offered when an account has no junk
@@ -159,7 +194,7 @@ export async function setMessageJunk(vaultPath: string, account: MailAccountConf
 export async function createMailbox(vaultPath: string, account: MailAccountConfig, name: string): Promise<boolean> {
   const transport = mailTransport();
   if (mailAccountKind(account) === "microsoft" || !transport.createMailbox) return false;
-  await transport.createMailbox(await creds(vaultPath, account), { name });
+  await withMailCredentials(vaultPath, account, credential => transport.createMailbox!(credential, { name }));
   return true;
 }
 
@@ -214,14 +249,14 @@ export async function setMailRules(
 /** Server-side flagged filter (not limited to the currently loaded page). */
 export async function listFlaggedEnvelopes(vaultPath: string, account: MailAccountConfig, mailbox: string): Promise<MailEnvelope[]> {
   if (mailAccountKind(account) === "microsoft") return graphListFlaggedEnvelopes(vaultPath, account, mailbox);
-  const page = await mailTransport().listFlaggedEnvelopes(await creds(vaultPath, account), { mailbox, limit: 200 });
+  const page = await withMailCredentials(vaultPath, account, credential => mailTransport().listFlaggedEnvelopes(credential, { mailbox, limit: 200 }));
   return page.map(toEnvelope);
 }
 
 /** Moves a message to another mailbox (move, or delete = move to Trash). */
 export async function moveMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string, target: string): Promise<void> {
   if (mailAccountKind(account) === "microsoft") return graphMove(vaultPath, account, mailbox, id, target);
-  await mailTransport().moveMessage(await creds(vaultPath, account), { mailbox, uid: Number(id), target });
+  await withMailCredentials(vaultPath, account, credential => mailTransport().moveMessage(credential, { mailbox, uid: Number(id), target }));
 }
 
 /** Full-text search in a mailbox; returns matching ENVELOPES, newest first —
@@ -233,6 +268,6 @@ export async function searchEnvelopes(
   query: string
 ): Promise<MailEnvelope[]> {
   if (mailAccountKind(account) === "microsoft") return graphSearchEnvelopes(vaultPath, account, mailbox, query);
-  const page = await mailTransport().searchEnvelopes(await creds(vaultPath, account), { mailbox, query, limit: 200 });
+  const page = await withMailCredentials(vaultPath, account, credential => mailTransport().searchEnvelopes(credential, { mailbox, query, limit: 200 }));
   return page.map(toEnvelope);
 }

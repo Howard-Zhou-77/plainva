@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -183,3 +183,26 @@ Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva p
 Öffne **Cloud-Konten**, wähle das vorhandene Konto und beim fehlenden Dienst **Hinzufügen**. Die vorhandenen Dienste bleiben bestehen. Gmail verwendet weiterhin seinen eigenen Mailzugang bzw. ein App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
 
 Wenn Du mobil Dateien ergänzt, zeigt Plainva Quelle, Ziel und Kollisionen vor der Übernahme. Vorhandene Inhalte und Dienste bleiben erhalten; eine unterbrochene Übernahme lässt sich wiederholen.
+
+<!-- http-platform-trust-2026-09-14 -->
+## Zertifikate für selbst gehostete Server
+
+Android vertraut zusätzlich den Zertifizierungsstellen, die Du in den Systemeinstellungen installierst. Das gilt für alle Plainva-Verbindungen, die Androids Plattformkonfiguration verwenden, und nicht nur für einen WebDAV-Server. Desktop-HTTP-Verbindungen berücksichtigen System-Zertifizierungsstellen zusätzlich zu öffentlichen Stammzertifikaten; iOS verwendet seine Systemeinstellungen für das Vertrauen. Gültigkeitszeitraum und Servername werden weiterhin geprüft. Ein abgelaufenes, noch nicht gültiges oder zum falschen Host gehörendes Zertifikat musst Du auf dem Server beziehungsweise in der eingetragenen Adresse korrigieren. Plainva bietet keine Option, alle Zertifikate zu akzeptieren. Benennt das Betriebssystem die genaue Ursache nicht, meldet Plainva die fehlgeschlagene Verifizierung ohne Vermutung. Native mobile HTTP-Fehler erscheinen im Diagnoseexport als Methode und Fehlercode, ohne Zugangsdaten, Zertifikatsnamen oder private Serverpfade.
+
+<!-- workspace-retry-2026-09-14 -->
+## Automatische Wiederholung und fehlender Sync-Verlauf
+
+Die Verbindung ist vorübergehend nicht verfügbar. Plainva versucht es automatisch erneut; ausstehende Änderungen bleiben auf diesem Gerät.
+
+Melde Dich erneut beim Sync-Konto an. Ausstehende Änderungen bleiben auf diesem Gerät, bis der Zugriff wieder funktioniert.
+
+Plainva kann den verschlüsselten Vault nicht überprüfen. Die Synchronisierung pausiert; lokale Daten und ausstehende Änderungen bleiben erhalten. Öffne Sicherheit & Freigaben, stelle gegebenenfalls eine überprüfbare Kopie wieder her und prüfe erneut.
+
+Wähle auf einem Gerät mit dem vollständigen überprüfbaren Verlauf „Jetzt synchronisieren“. Plainva kann daraus fehlende signierte Änderungen wiederherstellen. Prüfe anschließend auf Plainva erneut. Gibt es keine gültige Kopie, behalte oder exportiere die lokalen Daten; der Prüfpunkt wird niemals zurückgesetzt, um die Lücke zu umgehen.
+
+Unverschlüsselte Anmerkungsdateien anderer Geräte liegen weiterhin auf dem Server. Nur das jeweilige Ursprungsgerät kann seine Umstellung abschließen. Plainva löscht keine Dateien anderer Geräte.
+
+<!-- account-grants-destination-2026-09-14 -->
+Bestehende Anmeldungen werden erst nach Prüfung von Identität, tatsächlich erteilten Berechtigungen und sicherer Speicherung übernommen. Ein Konto kann mehrere getrennte Berechtigungen behalten; das Ergänzen eines Dienstes entfernt keine funktionierende Anmeldung der anderen Dienste. Microsoft-Mail kann eine passende Anmeldung für Dateien oder Kalender mitverwenden. Auf einem weiteren Gerät ist eine eigene Anmeldung nötig.
+
+In den Sync-Einstellungen zeigt die Google-Drive-Ordnerauswahl das bisherige Ziel und eine Vorschau des gewählten Ordners. Öffne gleichnamige Ordner und vergleiche Dateien und Änderungsdaten. „Dieses Ziel übernehmen“ speichert die eindeutige Ordner-ID. Fehlt dieser Ordner später, meldet Plainva den Fehler und legt keinen Ersatz an. Andere Ordner werden nicht verschoben oder gelöscht.

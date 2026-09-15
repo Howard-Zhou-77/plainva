@@ -1,8 +1,10 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-07
+Dernière mise à jour : 2026-09-15
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
+
+**Paquet communautaire pour Arch Linux :** [plainva dans l’AUR](https://aur.archlinux.org/packages/plainva) est maintenu indépendamment. Examinez le PKGBUILD avant la compilation ; Plainva ne vérifie pas ces versions communautaires. L’application reste sous licence AGPL-3.0-only.
 
 ## Configuration requise
 
@@ -167,7 +169,8 @@ Cet arrangement appartient au vault et se propage à vos autres appareils via [C
 - **Basculer les barres latérales** via les deux boutons de la barre de titre ou `Ctrl+Alt+B` (gauche) / `Ctrl+Alt+R` (droite) — idéal pour écrire en pleine concentration. Plainva se souvient de l'état.
 - **Palette de commandes** : `Ctrl+P` ouvre **Commandes** — tapez et appuyez sur `Entrée` pour exécuter (nouvelle note, note quotidienne, scission, barres latérales, **Sauvegarder maintenant**, et bien plus).
 - **Densité** : sous **Paramètres → App → Apparence**, choisissez entre **Confortable** et **Compact** — Compact resserre les listes, menus et lignes de tableau ; le contenu des notes n'est pas affecté.
-- **Thème personnalisé** : la carte **Mon thème** sous **Paramètres → App → Apparence** sélectionne le thème, et le crayon dessus ouvre sa page : ambiance (clair/sombre), un fond dans une plage de luminosité bornée, un accent libre, les angles (les polices se choisissent dans la carte **Polices** de la même page). Plainva dérive les couleurs du texte pour qu'il ne disparaisse jamais dans le fond ; un accent trop pâle est corrigé à 3:1 au minimum, et l'éditeur le dit. Sur le téléphone, les mêmes réglages sont dans l'écran **Apparence**.
+- **Thème personnalisé** : la carte **Mon thème** sous **Paramètres → App → Apparence** sélectionne le thème, et le crayon dessus ouvre sa page : ambiance (clair/sombre), un fond dans une plage de luminosité bornée, un accent libre, les angles (les polices se choisissent dans la carte **Polices** de la même page). Plainva dérive les couleurs du texte pour qu'il ne disparaisse jamais dans le fond ; un accent trop pâle est corrigé à 3:1 au minimum, et l'éditeur le dit. Sur le téléphone, les mêmes réglages sont dans l'écran **Apparence**. Les ambiances claire et sombre gardent leurs propres couleurs ; les coins sont communs. L’ambiance déjà enregistrée est conservée. L’autre reste une proposition jusqu’à son adoption explicite. Avec les deux ambiances, **Système** suit l’appareil.
+- **Synchronisation personnelle du design** : sur la page **Mon thème**, active explicitement **Synchroniser via ce coffre**. Choisis un coffre déverrouillé sur chaque appareil et active la synchronisation des réglages. Un seul coffre fournit ton design personnel ; les autres membres ne sont pas obligés de l’utiliser. Un design déjà reçu est adopté, sinon le design local est partagé. Les modifications simultanées conservent les deux variantes pour que tu choisisses. La désactivation garde ton design local. Ce bouton ne synchronise ni les polices ni le choix d’un autre thème.
 - **Polices** : sous **Paramètres → App → Apparence**, la carte **Polices** définit les polices d'**Interface**, de **Contenu** et de **Code** (défaut du thème, serif, sans-serif, monospace ou le nom d'une police installée) ainsi que la **Taille de police du contenu** (12–24 px) — la taille ne redimensionne que l'éditeur et la vue de lecture ; l'interface reste inchangée.
 - **Liste de polices** : sous **Personnalisée…**, une liste présente les polices de votre système, chaque ligne dans sa propre police ; une police non installée le dit et ne peut pas être choisie. Le champ de nom en dessous accepte toute autre famille installée.
 - **Zoom de l'interface** : redimensionne TOUTE l'interface entre 80 % et 150 % — sous **Paramètres → App → Apparence** ou via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` réinitialise).
@@ -194,3 +197,7 @@ La barre latérale droite ne peut pas descendre en dessous de **200 px** — auc
 - [Notes & Markdown](Notes_and_Markdown.md) — tout sur l'écriture
 - [Raccourcis clavier](Keyboard_Shortcuts.md)
 - [FAQ & dépannage](FAQ.md)
+
+## Renvoyer un onglet
+
+Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic droit sur l’onglet et choisissez **Revenir à la fenêtre principale**. Le texte, la sélection, la vue, le défilement, l’historique et l’épinglage sont conservés. L’onglet source ne se ferme qu’après confirmation. Sans confirmation, l’onglet et le brouillon restent disponibles. Les favoris sont actualisés dans toutes les fenêtres.

@@ -140,8 +140,9 @@ const GOOGLE_MAIL_HOSTS = /(^|\.)(gmail\.com|googlemail\.com)$/i;
  * belongs to the google family (it IS the google account's mail path — the
  * deliberate CASA-free route), every other IMAP box is its own family.
  */
-export function familyOfMailAccount(account: { kind: "imap" | "microsoft"; user: string; host: string }): CloudProviderFamily {
+export function familyOfMailAccount(account: { kind: "imap" | "microsoft" | "gmail"; user: string; host: string }): CloudProviderFamily {
   if (account.kind === "microsoft") return "microsoft";
+  if (account.kind === "gmail") return "google";
   const domain = account.user.includes("@") ? account.user.split("@").pop()! : account.host;
   return GOOGLE_MAIL_HOSTS.test(domain) ? "google" : "imap";
 }
@@ -220,7 +221,7 @@ export function identityKey(label: string | undefined): string | null {
 export interface ObservedCloudState {
   sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
   pim: { id: string; provider: "caldav" | "google" | "microsoft" | "device"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
-  mail: { id: string; kind: "imap" | "microsoft"; label: string; user: string; host: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
+  mail: { id: string; kind: "imap" | "microsoft" | "gmail"; label: string; user: string; host: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
 }
 
 function defaultNewId(): string {

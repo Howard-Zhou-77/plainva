@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
+  WorkspaceCommentStore,
+  publishQueuedWorkspaceComment,
   PublishedSliceObjectStore,
   createPersonalWorkspaceBootstrap,
   createPublication,
@@ -919,7 +921,7 @@ describe("publication recipients", () => {
   });
 
   it("carries the append right of a suggest publication, which no role bundles", async () => {
-    // `suggest` is read + comment.create + content.create - a set no standard
+    // `suggest` is read + comment.create + comment.suggest - a set no standard
     // role matches. Deriving capabilities from a role would round it down and
     // leave a recipient unable to write the suggestion they were invited for.
     const handle = await publish("suggest");
@@ -930,9 +932,10 @@ describe("publication recipients", () => {
     });
 
     expect(
-      evaluateWorkspaceAccess(invited.policy.payload, { memberId: invited.memberId, capability: "content.create" })
+      evaluateWorkspaceAccess(invited.policy.payload, { memberId: invited.memberId, capability: "comment.suggest" })
         .allowed,
     ).toBe(true);
+    expect(evaluateWorkspaceAccess(invited.policy.payload, { memberId: invited.memberId, capability: "content.create" }).allowed).toBe(false);
   });
 
   it("hands out a code that points at the publication, not at the vault behind it", async () => {
@@ -1815,7 +1818,7 @@ describe("collectPublicationComments", () => {
     };
   }
 
-  /** Seals the way a recipient can: to the recipient group's public key from the policy. */
+  /** Historical single-group client: retained only to test old sealed history. */
   async function comment(
     ctx: Awaited<ReturnType<typeof published>>,
     over: {
@@ -1855,6 +1858,87 @@ describe("collectPublicationComments", () => {
       mode: "exact",
       ...over,
     });
+
+  async function writer(ctx: Awaited<ReturnType<typeof published>>) {
+    const state = new MemoryWorkspaceStateStore(), runtime = ctx.reviewer;
+    const meta = { workspaceId: runtime.workspaceId, memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId,
+      groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, policyHash: workspaceDocumentHash(runtime.policy),
+      phase: "active" as const, recoveryConfirmedAt: NOW, sequence: 0, previousOperationHash: null,
+      catalogVersion: 0, previousCatalogHash: null, checkpointVersion: 0, previousCheckpointHash: null, remoteHeadEtag: null,
+      migrationTotal: 0, migrationCompleted: 0, migrationInventoryComplete: true, lastSyncAt: null, lastError: null,
+      operationHeads: {}, needsPublication: false, pendingPublication: null };
+    await state.recordIncoming({ object: { objectId: derivePublishedObjectId(ctx.handle.publicationId, SOURCE_A),
+      path: "Projects/Q3.md", currentRevisionId: ctx.publishedRevisionId, payloadHash: null, plaintextSha256: null,
+      contentKind: "text", deleted: false, authorMemberId: ctx.handle.runtime.memberId, createdAt: NOW, modifiedAt: NOW },
+      revision: null, operationHash: "f".repeat(64), operationDocument: "", deviceId: ctx.handle.runtime.device.publicIdentity.deviceId, sequence: 1 }, true, meta);
+    const store = new WorkspaceCommentStore({ plane: () => ({ runtime, workspaceState: state }), worker: () => null, changed: () => {} });
+    const flush = async () => {
+      for (const entry of await state.listCommentOutbox()) {
+        await publishQueuedWorkspaceComment({ runtime, policy: runtime.policy.payload, state, store: ctx.handle.store, entry });
+        await state.deleteCommentOutbox(entry.outboxId);
+      }
+    };
+    return { store, state, flush };
+  }
+
+  it.each(["read", "comment", "suggest"] as const)("enforces %s through the real recipient store and queued transport", async access => {
+    const ctx = await published({ access }), w = await writer(ctx);
+    const caps = await w.store.capabilities("Projects/Q3.md");
+    expect(caps).not.toContain("content.write");
+    expect(caps).not.toContain("content.create");
+    const input = { path: "Projects/Q3.md", body: "Review" };
+    if (access === "read") await expect(w.store.post(input)).rejects.toThrow("workspace-comment-not-permitted");
+    else await w.store.post(input);
+    const proposal = { ...input, anchor: buildCommentAnchor("# Q3\n\nShipped.", 2, 4, "0a1b"), suggestion: { replacement: "Q4" } };
+    if (access === "suggest") await w.store.post(proposal);
+    else await expect(w.store.post(proposal)).rejects.toThrow(/workspace-(?:comment|suggestion)-not-permitted/);
+    await w.flush();
+    expect(await collect(ctx)).toHaveLength(access === "read" ? 0 : access === "comment" ? 1 : 2);
+    expect(await w.state.listCommentOutbox()).toEqual([]);
+  });
+
+  it("keeps current writer feedback readable through recipient rotation and an offline retry from an older policy", async () => {
+    const ctx = await published({ access: "suggest" }), w = await writer(ctx);
+    await w.store.post({ path: "Projects/Q3.md", body: "Before rotation" }); await w.flush();
+    const unrelated = await invitePublicationRecipient({ runtime: ctx.handle.runtime, recipientGroupId: ctx.handle.recipientGroupId, displayName: "Second reviewer" });
+    applyWorkspaceGovernanceUpdate(ctx.handle.runtime, unrelated);
+    const writes = vi.spyOn(ctx.handle.store, "putImmutable").mockRejectedValue(new Error("offline"));
+    await w.store.post({ path: "Projects/Q3.md", body: "Written offline", anchor: buildCommentAnchor("# Q3\n\nShipped.", 2, 4, "0a1b"), suggestion: { replacement: "Q4" } });
+    await expect(w.flush()).rejects.toThrow("offline");
+    expect(await w.state.listCommentOutbox()).toHaveLength(1);
+    writes.mockRestore();
+    applyWorkspaceGovernanceUpdate(ctx.handle.runtime, await revokePublicationRecipient({ runtime: ctx.handle.runtime, memberId: unrelated.memberId, reason: "Second review complete" }));
+    await w.flush(); // Still uses the recipient's previously accepted policy.
+    expect((await collect(ctx)).map(item => item.comment.body)).toEqual(["Before rotation", "Written offline"]);
+    expect((await collect(ctx)).every(item => item.authorActive)).toBe(true);
+    applyWorkspaceGovernanceUpdate(ctx.handle.runtime, await revokePublicationRecipient({ runtime: ctx.handle.runtime, memberId: ctx.memberId, reason: "Review complete" }));
+    expect((await collect(ctx)).map(item => item.comment.body)).toEqual(["Before rotation", "Written offline"]);
+    expect((await collect(ctx)).every(item => !item.authorActive)).toBe(true);
+  });
+
+  it("checks a queued proposal again after its right is withdrawn", async () => {
+    const ctx = await published({ access: "suggest" }), w = await writer(ctx);
+    await w.store.post({ path: "Projects/Q3.md", body: "Proposed before the change",
+      anchor: buildCommentAnchor("# Q3\n\nShipped.", 2, 4, "0a1b"), suggestion: { replacement: "Q4" } });
+    const assignment = ctx.reviewer.policy.payload.assignments.find(entry => entry.subjectId === ctx.handle.recipientGroupId)!;
+    assignment.capabilities = assignment.capabilities.filter(capability => capability !== "comment.suggest");
+    await expect(w.flush()).rejects.toThrow("workspace-suggestion-not-permitted");
+    expect(await w.state.listCommentOutbox()).toHaveLength(1);
+    expect(await collect(ctx)).toEqual([]);
+  });
+
+  it("does not offer an unauthorized proposal and projects a recipient's retraction without a blank marker card", async () => {
+    const ctx = await published({ access: "comment" });
+    await comment(ctx, { body: "Unauthorized proposal", anchor: buildCommentAnchor("# Q3\n\nShipped.", 2, 4, "0a1b"), suggestion: { replacement: "Q4" } });
+    expect((await collect(ctx))[0].suggestionApplicable).toBe(false);
+    const valid = await published({ access: "comment" }), w = await writer(valid);
+    const identity = { commentId: "94".repeat(16), createdAt: NOW };
+    await w.store.post({ path: "Projects/Q3.md", body: "Retracted", identity });
+    await w.flush();
+    await w.store.post({ path: "Projects/Q3.md", body: "", retractsCommentId: identity.commentId });
+    await w.flush();
+    expect(await collect(valid)).toEqual([]);
+  });
 
   it("brings a recipient's comment home under the source id", async () => {
     // `derivePublishedObjectId` is one-way on purpose, so a recipient holding
@@ -1919,7 +2003,7 @@ describe("collectPublicationComments", () => {
     expect(collected[0].authorActive).toBe(false);
   });
 
-  it("loses a recipient's earlier remarks once their access is withdrawn", async () => {
+  it("does not silently rewrite old single-group history after access is withdrawn", async () => {
     // Not a decision of the collector: withdrawing access rotates the recipient
     // group, and the rotation replaces the epoch instead of archiving it
     // (governance.ts). The publisher no longer holds the key the comment was

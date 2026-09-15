@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { ConflictAwareVaultAdapter } from "../src/vault/ConflictAwareVaultAdapter.js";
+import { SyncStateRepository } from "../src/vault/SyncStateRepository.js";
+import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.js";
+import { sha256Hex } from "../src/workspace/encoding.js";
 import {
   createPersonalWorkspaceBootstrap,
   createWorkspaceDeviceIdentity,
@@ -146,6 +150,43 @@ async function initialise(vault: MemoryVault, state: MemoryWorkspaceStateStore, 
 }
 
 describe("personal encrypted workspace P3", () => {
+  it("preserves both versions when an editor save overlaps encrypted materialization", async () => {
+    const { first, second } = await setupRuntime(true);
+    const store = new FakeWorkspaceObjectStore();
+    const rawA = new MemoryVault(), rawB = new MemoryVault();
+    const stateA = new MemoryWorkspaceStateStore(), stateB = new MemoryWorkspaceStateStore();
+    const base = "# Note\n\nBase text\n", remote = "# Note\n\nRemote edit\n", local = "# Note\n\nLocal edit\n";
+    await rawA.writeTextFile("note.md", base);
+    await initialise(rawA, stateA, store, first);
+    const workerA = new EncryptedWorkspaceWorker(store, stateA, rawA, first);
+    await workerA.runCycle();
+    await initialise(rawB, stateB, store, second!);
+    const workerB = new EncryptedWorkspaceWorker(store, stateB, rawB, second!);
+    await workerB.runCycle();
+    await new WorkspaceQueueingVaultAdapter(rawA, stateA).writeTextFile("note.md", remote);
+    await workerA.runCycle();
+    const db = new MockDatabaseAdapter();
+    db.mockedResults.push([{ path: "note.md", local_sha256: sha256Hex(new TextEncoder().encode(base)), base_text: base }]);
+    const editor = new ConflictAwareVaultAdapter(new WorkspaceQueueingVaultAdapter(rawB, stateB), new SyncStateRepository(db), undefined, stateB);
+    let entered!: () => void, release!: () => void;
+    const atWrite = new Promise<void>(resolve => { entered = resolve; });
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const write = rawB.writeBinaryFile.bind(rawB);
+    vi.spyOn(rawB, "writeBinaryFile").mockImplementation(async (path, bytes) => {
+      if (path === "note.md" && new TextDecoder().decode(bytes) === remote) { entered(); await held; }
+      await write(path, bytes);
+    });
+    const pulling = workerB.runCycle();
+    await atWrite;
+    const saving = editor.writeTextFile("note.md", local);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    release();
+    await Promise.allSettled([pulling, saving]);
+    const texts = await Promise.all((await rawB.listDir("", true)).filter(file => !file.isDirectory && file.path.endsWith(".md")).map(file => rawB.readTextFile(file.path)));
+    expect(texts.some(text => text.includes("Local edit"))).toBe(true);
+    expect(texts.some(text => text.includes("Remote edit"))).toBe(true);
+    await workerA.stopAndDrain(); await workerB.stopAndDrain();
+  });
   it("routes local writes, recursive renames, and deletes only to the workspace queue", async () => {
     const raw = new MemoryVault();
     const state = new MemoryWorkspaceStateStore();

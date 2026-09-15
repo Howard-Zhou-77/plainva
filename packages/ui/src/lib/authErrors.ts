@@ -33,6 +33,7 @@ export type AuthErrorKind =
 export const NO_STORED_SIGN_IN = "no_stored_sign_in";
 
 const EXPIRED = [
+  "mail_oauth_rejected",
   "invalid_grant", // both Google and Microsoft use this for revoked/expired
   "aadsts50173", // fresh sign-in required after a password change
   "aadsts700082", // refresh token expired (inactivity)
@@ -53,6 +54,7 @@ const EXPIRED = [
   "aadsts900144",
   // The broker's own words for an account slot without a token.
   "account is not connected",
+  "does not grant its required permissions",
 ];
 
 const CONFIG = [

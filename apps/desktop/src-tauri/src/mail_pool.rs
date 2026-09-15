@@ -28,7 +28,8 @@
 //! without a server: `mail_imap` instantiates it with the real `imap::Session`.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, Weak};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// How long an idle session may wait for its next command before it is closed.
@@ -44,12 +45,13 @@ struct Idle<S> {
 
 pub struct SessionPool<S> {
     idle: Mutex<HashMap<String, Idle<S>>>,
+    active: Mutex<Vec<(String, Weak<AtomicBool>)>>,
     ttl: Duration,
 }
 
 impl<S> SessionPool<S> {
     pub fn new(ttl: Duration) -> Self {
-        Self { idle: Mutex::new(HashMap::new()), ttl }
+        Self { idle: Mutex::new(HashMap::new()), active: Mutex::new(Vec::new()), ttl }
     }
 
     /// A panicking command must not take mail down for the rest of the session,
@@ -72,6 +74,12 @@ impl<S> SessionPool<S> {
         close: impl Fn(S),
         f: impl FnOnce(&mut S) -> Result<T, String>,
     ) -> Result<T, String> {
+        let lease = Arc::new(AtomicBool::new(false));
+        {
+            let mut active = self.active.lock().unwrap_or_else(|e| e.into_inner());
+            active.retain(|(_, token)| token.strong_count() > 0);
+            active.push((key.to_string(), Arc::downgrade(&lease)));
+        }
         let (pooled, retired) = self.take(key);
         for session in retired {
             close(session);
@@ -89,7 +97,7 @@ impl<S> SessionPool<S> {
         };
         match f(&mut session) {
             Ok(value) => {
-                if let Some(evicted) = self.put(key, session) {
+                if let Some(evicted) = self.put(key, session, &lease) {
                     close(evicted);
                 }
                 Ok(value)
@@ -125,7 +133,11 @@ impl<S> SessionPool<S> {
 
     /// Returns a finished session to the pool. Yields whatever it replaces —
     /// two overlapping commands both finish, only one session is kept.
-    fn put(&self, key: &str, session: S) -> Option<S> {
+    fn put(&self, key: &str, session: S, lease: &AtomicBool) -> Option<S> {
+        // Same lock order as drain: release cannot slip between checking the
+        // active lease and returning its authenticated session to the pool.
+        let _active = self.active.lock().unwrap_or_else(|e| e.into_inner());
+        if lease.load(Ordering::Relaxed) { return Some(session); }
         let mut idle = self.lock();
         idle.insert(key.to_string(), Idle { session, since: Instant::now() })
             .map(|entry| entry.session)
@@ -137,6 +149,8 @@ impl<S> SessionPool<S> {
     /// the password fingerprint, so `:ada#` matches "host:993:ada#f00" and
     /// cannot match "host:993:nada#f00".
     pub fn drain_account(&self, marker: &str) -> Vec<S> {
+        let active = self.active.lock().unwrap_or_else(|e| e.into_inner());
+        for (key, token) in active.iter() { if key.contains(marker) { if let Some(lease) = token.upgrade() { lease.store(true, Ordering::Relaxed); } } }
         let mut idle = self.lock();
         let keys: Vec<String> = idle.keys().filter(|k| k.contains(marker)).cloned().collect();
         keys.into_iter().filter_map(|k| idle.remove(&k)).map(|entry| entry.session).collect()
@@ -144,6 +158,8 @@ impl<S> SessionPool<S> {
 
     /// Drops every pooled session (app exit, vault close).
     pub fn drain_all(&self) -> Vec<S> {
+        let active = self.active.lock().unwrap_or_else(|e| e.into_inner());
+        for (_, token) in active.iter() { if let Some(lease) = token.upgrade() { lease.store(true, Ordering::Relaxed); } }
         let mut idle = self.lock();
         idle.drain().map(|(_, entry)| entry.session).collect()
     }
@@ -349,6 +365,20 @@ mod tests {
         assert_eq!(h.pool.idle_count(), 2, "bob and nada keep their sessions");
         assert_eq!(h.pool.drain_all().len(), 2);
         assert_eq!(h.pool.idle_count(), 0);
+    }
+
+    #[test]
+    fn draining_also_retires_an_in_flight_session() {
+        let pool = SessionPool::new(IDLE_TTL);
+        let closed = RefCell::new(Vec::new());
+        let key = session_key("mail.example", 993, "ada", "pw");
+        let result = pool.with(&key, || Ok(7), |_| true, |id| closed.borrow_mut().push(id), |_| {
+            assert!(pool.drain_account(&account_marker("ada")).is_empty());
+            Ok(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(pool.idle_count(), 0);
+        assert_eq!(*closed.borrow(), vec![7]);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-11
+Last updated: 2026-09-15
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -28,6 +28,8 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 
 Notes open **rendered and read-only**; the pen at the top right switches to editing (with a toolbar above the keyboard: formatting, lists, wiki link, slash commands, insert photo). `![[Note]]` embeds appear as tappable preview cards.
 
+Hold a word to select text. The selection bar offers **Copy** and **Select all**, including the entire text of a long note. Hidden YAML properties and Markdown formatting markers are not copied. **Edit** switches to writing at the selected passage when you have permission to edit the note.
+
 Folders can be **searched** and **sorted** from the toolbar above the list — by **Title**, **Last modified** or **Created**, choosing again reverses the direction; the sort is remembered on the device. On a cold start the app opens what you last had open — note, folder or database view, tab included — and every note opens where you left it; setup assistants and an unfinished mail are not restored. Lists with nested items fold and unfold with a tap on their bullet.
 
 The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
@@ -48,7 +50,7 @@ The **calendar view** has three periods: **month**, **week**, **day**. The month
 
 **Several entries at once**: hold a row and choose **Select several** — the first entry in the sheet. After that a tap selects instead of opening, and a bar at the bottom says how many. From there you can **delete** the selection (one question, not twelve — with the same overview of connections a single delete gives) or use **Set value…** to set one property on all of them: pick the property, then the value. Where a property says **currently mixed**, the selected entries carry different values. An empty value removes the property. While it runs you see progress and can cancel; what was already written stays. Tags, lists, multi-select and relations are deliberately not included — there "set them all to X" would mean every existing value disappears.
 
-A **Pinboard** view shows the notes as a two-column board of sticky cards: tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders, and checkboxes tick right on the card. The input field on top captures a new note. Tip: point the database at your inbox folder (**Settings** → **Content & structure**) and the ＋ quick notes as well as texts shared from other apps land straight on the board.
+A **Pinboard** view shows the notes as a two-column board of sticky cards: tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders, and checkboxes tick right on the card. The input field on top captures a new note. Tip: point the database at your inbox folder (**Settings** → **Content & structure**) and the ＋ quick notes as well as texts shared from other apps land straight on the board. For shared content, select this folder and confirm the import first.
 
 ## Tasks
 
@@ -205,7 +207,9 @@ Snapshots (version history), a draft journal (after a crash the note offers your
 
 ## Sharing and shortcuts
 
-On Android and iOS, shared text and URLs become a new note in the inbox folder; shared images and files are taken over as attachments (up to 25 MB per file). On Android, long-pressing the app icon additionally offers **New note** and **Today**.
+Share text, links, images or files to Plainva from another app. Plainva first keeps a private local copy. Open Plainva to review **Shared content**, select a vault and folder, then confirm **Import**. **Import later**, closing the sheet, locking the vault or restarting the app keeps the waiting content. An import that has started keeps its original destination when retried. An incomplete source transfer must be shared again; discard its waiting entry when no longer needed.
+
+Limits per transfer: 10 files, 25 MiB per file, 50 MiB in total and 512 KiB of text including the subject. The queue holds at most 20 waiting transfers and reserves space within a 200 MiB attachment budget. Plainva removes its staged copy only after the note and attachments have been written and checked, or after you explicitly discard the entry. Discarding does not remove files already imported into a vault. On Android, long-press the app icon for **New note** and **Today**. On desktop, use the existing paste and file-import actions.
 
 ## Folders, photos, and calendar
 

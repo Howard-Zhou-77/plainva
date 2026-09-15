@@ -1,0 +1,25 @@
+# Durable mobile share inbox
+
+Android and iOS stage inbound content before the user chooses its vault destination. Android uses the app's private no-backup directory. The iOS host and embedded share extension use `group.com.plainva.app`, complete file protection and backup exclusion. Neither side consumes content merely by reading it. Existing desktop paste/import actions remain the desktop entry point.
+
+## Persistence and acknowledgement
+
+Each intentional transfer has a UUID, atomically replaced JSON manifest and separate attachment files named by UUID. Native copies stream in 64 KiB buffers, record sizes and SHA-256 digests, and synchronise the files and containing directories before confirming readiness. iOS copies file representations within the provider callback's lifetime; it does not depend on starting the host application from the extension. Android saves its transfer identity across activity restoration and ignores launcher-history replays.
+
+The host reviews a bounded manifest, then persists one immutable import plan in the native queue before writing the vault. That plan owns the vault ID, note path, literal note text and attachment paths. Bridge reads are capped at 256 KiB. The importer verifies each attachment before and after writing, records a durable checkpoint, then writes and verifies the note. Only a note checkpoint permits final acknowledgement. One transfer has at most one in-process import operation; another vault cannot take it over. A retry reuses the original paths and accepts existing content only when it matches. Changed destination files are preserved and reported. The adapter's ordinary filesystem guarantees still apply; this is not a transaction spanning every vault file.
+
+An interrupted checkpoint or acknowledgement leaves the transfer available. Completed checkpoints are not replayed over later user edits or deletions. A minimal receipt retains the transfer identity after payload cleanup, so Android cannot import an acknowledged intent again. Equal content intentionally shared a second time has another identity and is a separate transfer.
+
+iOS serialises extension and host manifests with a cross-process `flock`; Android uses a single native executor for staging and bridge operations. A receiving entry whose writer process ended becomes visibly incomplete. A transfer directory left before the first manifest becomes an incomplete entry without deleting its bytes. Re-share an incomplete source transfer, then explicitly discard its old entry. Invalid/unreadable manifests fail closed and keep the staged data; a read error never implies an empty queue. The old development `pending-share.json` format is left untouched rather than silently imported without acknowledgement metadata.
+
+## Limits and user control
+
+Per transfer: 10 files, 25 MiB per file, 50 MiB of attachments and 512 KiB of text including the subject. There are at most 20 pending transfers. Admission reserves the maximum incoming payload within a 200 MiB pending-attachment budget; it can refuse a transfer before those limits are fully occupied. Source paths are never used as staging paths. Unsafe native URI types and incomplete/oversize files fail visibly rather than being skipped.
+
+The vault's active identity and workspace lock are checked throughout import. Later/cancel closes the presentation and stops remaining work; staged content stays private and pending. Explicit discard removes staged payloads but never deletes partially imported vault files. A successful import refreshes the index; an index refresh failure is reported independently of the already completed write.
+
+## Native build and verification
+
+The iOS app embeds and depends on `ShareExtension`. Both targets include `Shared/ShareQueueStore.swift`, share the App Group, and receive the same marketing/build versions. The release workflow requires two separate App Store profiles: `IOS_PROVISIONING_PROFILE_BASE64` for `com.plainva.app` and `IOS_SHARE_PROVISIONING_PROFILE_BASE64` for `com.plainva.app.share`. `install-ios-profiles.py` validates their identifiers, App Group, distribution type and expiry. Before export, `verify-ios-share-archive.py` checks the actual embedded extension, signatures, entitlements, profile identities and versions, then creates the precise export mapping. A missing profile stops the signed build.
+
+`shareImport.test.ts` covers bounded reads, corruption, Unicode paths, cancellation, locking, write/checkpoint/ack failures, duplicate attempts and preservation of changed files. `ShareQueueTest.java` exercises native staging, durable checkpoints, bounded reads, identity receipts and interrupted initial writes in the isolated Android instrumentation app. The iOS build runs `swiftc Shared/ShareQueueStore.swift tests/ShareQueueTests.swift` on macOS, including a four-process manifest race and process-exit recovery, before compiling the simulator app and extension. Signed-device delivery is a separate workflow step; passing browser or Android tests is not evidence that iOS signing succeeded.

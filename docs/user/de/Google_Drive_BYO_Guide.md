@@ -1,6 +1,6 @@
 # Google Drive Sync einrichten (Bring Your Own Credentials)
 
-Stand: 2026-07-28
+Stand: 2026-09-15
 
 Um in Plainva einen lokalen Vault mit Deinem Google Drive zu synchronisieren, kannst Du eigene Google API Zugangsdaten ("Credentials") verwenden. Da Plainva (noch) keine zentrale CASA-Verifizierung durch Google durchlaufen hat, bietet dieser **Bring Your Own Credentials (BYO)** Ansatz eine sichere Methode, um Deine privaten Dateien zu synchronisieren.
 
@@ -66,10 +66,15 @@ Dein Vault wird nun sicher über Deine eigenen Credentials mit Google Drive sync
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Die Schritte oben für eine Desktop-Client-ID gelten für die Desktop-App. Mobil benötigt eine eigene, zum Gerät passende Registrierung: iOS verwendet den Client-Typ **iOS** mit Bundle-ID `com.plainva.app`; Android den Typ **Android** mit Paketname `com.plainva.app` und dem SHA-1-Zertifikat des installierten Builds. Mobile Clients benötigen gewöhnlich kein Client-Secret. Plainvas Browser-Rückkehr lautet `com.plainva.app:/oauth2redirect`. Google sperrt diesen Rückkehrweg für neue Android-Clients standardmäßig. Googles dokumentierte Ausnahme ist eine ausdrücklich aktivierte Custom-URI-Methode in den erweiterten Einstellungen des Android-Clients; falls diese Option für Deinen Client nicht verfügbar ist, kann dieser Client den aktuellen Browser-Ablauf nicht verwenden. Eine Desktop-Client-ID ist dafür kein Ersatz. Für Kalender zusätzlich **Google Calendar API** und **Google Tasks API** aktivieren. Fehlende Rechte benötigen eine neue Freigabe; ein vorhandener Drive-Zugang allein reicht dafür nicht.
+Die Desktop-Anleitung oben benötigt einen Desktop-Client mit Client-ID und zugehörigem Client-Secret. Android verwendet Google Identity Services: Registriere das Paket `com.plainva.app` mit dem SHA-1-Zertifikat des tatsächlich installierten Builds. Bei Play-Builds zählt das App-Signing-Zertifikat; ein lokal signierter Build kann ein anderes haben. Android verwendet keinen Browser-Rücksprung und kein Client-Secret. Unter iOS verwende einen iOS-Client mit Bundle-ID `com.plainva.app` und dem Rücksprung `com.plainva.app:/oauth2redirect`. Ein Desktop-Client ersetzt keine mobile Registrierung. Aktiviere für den Kalender auch Google Calendar API und Google Tasks API.
 
-[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+[Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
+
+
 
 Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.
 
 Die Google-Registrierung passt nicht zum Rückkehrweg dieses Geräts. Prüfe den Client-Typ und die mobile Einrichtung in der Google-Anleitung.
+
+<!-- account-grants-destination-2026-09-14 -->
+Plainva kann aus einem allgemeinen Anmeldefehler weder den Veröffentlichungsstatus noch die Testnutzerliste Deines Google-Projekts erkennen. Prüfe diese Angaben in Google Cloud und beachte die konkrete Anbietermeldung. Der Desktop-Client benötigt Client-ID und den zugehörigen Client-Secret-Wert; die mobile Registrierung richtet sich nach Plattform und installiertem Build.

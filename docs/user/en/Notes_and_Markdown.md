@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-10
+Last updated: 2026-09-15
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -187,3 +187,9 @@ Everything stays standard Markdown with standard frontmatter. Obsidian opens the
 When a selection spans multiple lines, **bold**, *italic*, strikethrough, highlight, and inline code are applied separately to every non-empty line. List, quote, heading, and task prefixes stay outside the inline markers. Links remain single-line because a multiline link label is not portable Markdown.
 
 An ATX heading and a GFM task are alternative block types, so Plainva does not write an invalid hybrid. Inline formatting works in both; use `- [ ] **Important task**` for an emphasized task title.
+
+## Embed sections and blocks
+
+`![[Note#Heading]]` displays the section and its subheadings up to the next heading of the same or higher level. `![[Note#^block-id]]` displays the addressed paragraph, list item or the block preceding a standalone block ID. A regular `[[Note#^block-id]]` link also jumps there in read mode.
+
+For repeated headings, use a unique heading chain (`#Project#Result`) or a numbered anchor (`#result-1`). Missing or ambiguous targets show a message. The source stays accessible from the embed. Nesting is bounded; code examples do not execute embeds. On a phone, the card displays the selected section or block without the four-line truncation of the general note preview. Existing files are not changed.

@@ -128,6 +128,8 @@ test.beforeEach(async ({ page }) => {
         // command falls through to `null` and every start looks like an update.
         if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
+          if (String(args.key).startsWith('dailyNotesFolder_') && (window as any).__dailySettings) return [(window as any).__dailySettings.folder, true];
+          if (String(args.key).startsWith('dailyNotesFormat_') && (window as any).__dailySettings) return [(window as any).__dailySettings.format, true];
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
           if (args.key === 'recentVaults') return [['/test-vault'], true];
           if (args.key === 'autoOpenLastVault') return [true, true];
@@ -1196,6 +1198,7 @@ test('the title opens the date jump picker: a picked day lands, the keyboard rea
   await page.getByTestId('calendar-jump-next-year').click();
   await page.getByTestId('calendar-jump-month-2').click();
   await page.getByTestId(`calendar-jump-day-${year}-03-03`).click();
+  await page.getByTestId('calendar-jump-go').click();
   await expect(picker).toHaveCount(0);
   await expect(title).not.toHaveText(before);
   await expect(title).toContainText(String(year));
@@ -1246,4 +1249,35 @@ test('a horizontal wheel over the calendar pages once per gesture (plan Kalender
   // A mostly vertical wheel is scrolling, never paging.
   await page.mouse.wheel(10, 200);
   await expect(title).toHaveText(before);
+});
+
+
+test('daily-note marks follow the configured path and open or create the selected note', async ({ page }, testInfo) => {
+  await page.clock.setFixedTime(new Date('2026-09-14T12:00:00'));
+  await openVault(page);
+  await page.evaluate(() => {
+    (window as any).__dailySettings = { folder: 'Journal', format: 'YY.MM.DD' };
+    (window as any).mockFs['/test-vault/Journal'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Journal/26.10.20.md'] = '# Daily note preserved\nExisting content';
+  });
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-month-title').click();
+  await page.getByTestId('calendar-jump-month-9').click();
+  const day = page.getByTestId('calendar-jump-day-2026-10-20');
+  await expect(day).toHaveClass(/has-mark/);
+  await day.click();
+  await expect(page.getByTestId('calendar-jump-daily-note')).toHaveText(/Tagesnotiz öffnen|Open daily note/);
+  expect(await page.getByTestId('calendar-jump').evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('daily-note-picker-300.png') });
+  await page.getByTestId('calendar-jump-daily-note').click();
+  await expect(page.getByRole('tab', { name: /26.10.20/ })).toHaveAttribute('aria-selected', 'true');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Journal/26.10.20.md'])).toContain('Existing content');
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-month-title').click();
+  await page.getByTestId('calendar-jump-month-9').click();
+  await page.getByTestId('calendar-jump-day-2026-10-21').click();
+  await expect(page.getByTestId('calendar-jump-daily-note')).toHaveText(/Tagesnotiz anlegen|Create daily note/);
+  await page.getByTestId('calendar-jump-daily-note').click();
+  await expect(page.getByRole('tab', { name: /26.10.21/ })).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Journal/26.10.21.md'])).toBeTruthy();
 });

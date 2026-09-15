@@ -228,6 +228,7 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "calendarOverlays", scope: "vault", kind: "json", area: "calendar", desktop: "store", mobile: "own" },
 
   // Personal working preferences.
+  { logical: "personalDesign", scope: "member", kind: "json", area: "layout", desktop: "own", mobile: "own" },
   { logical: "mailFolder", scope: "member", kind: "vaultPath", area: "mail", desktop: "store", mobile: "mailFolder" },
   { logical: "mailRemoteImages", scope: "member", kind: "boolean", area: "mail", desktop: "store", mobile: "mailRemoteImages" },
   // Snoozed messages (S22). A MEMBER field, not a vault one: putting a mail

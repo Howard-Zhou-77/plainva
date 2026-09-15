@@ -14,6 +14,9 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
+import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
+import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
+import { readSourceSelection } from "@plainva/ui";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
@@ -26,7 +29,7 @@ import { docIconValue } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, writeParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -60,7 +63,7 @@ import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, Select
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
-import { consumePendingSearchJump, consumePendingTemplateCaret, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
+import { consumePendingSearchJump, consumePendingTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver } from "@plainva/ui";
@@ -146,7 +149,8 @@ export const Editor: React.FC<{
    * the file stays the base, nothing is saved until "send" turns the change
    * blocks into a proposal round. A copy with unsent changes is parked per
    * note when the note is left and restored when it is opened again
-   * (decision F5, first half; parking across an app close is still open).
+   * The local parked copy also survives a restart. Auxiliary windows delegate
+   * its writes to the database owner, like every other durable mutation.
    */
   const [suggesting, setSuggesting] = useState(false);
   const suggestingRef = useRef(false);
@@ -165,7 +169,7 @@ export const Editor: React.FC<{
       parkWriteTimer.current = null;
       const db = vaultContext.queryService?.db;
       if (!db || base === null) return;
-      void writeParkedSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }).catch((error) => {
+      void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch((error) => {
         console.warn("[Editor] parking the suggestion copy failed", error);
       });
     }, 500);
@@ -173,7 +177,7 @@ export const Editor: React.FC<{
   const forgetPark = (path: string) => {
     if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
     const db = vaultContext.queryService?.db;
-    if (db) void clearParkedSuggestion(db, path).catch(() => {});
+    if (db) void clearEditorSuggestion(db, path, vaultPath).catch(() => {});
   };
   const suggestParkRef = useRef(new Map<string, { copy: string; note: string; base?: string }>());
   /** Open suggestions drawn in the text (K5, decision E4: on by default), remembered per vault. */
@@ -256,6 +260,7 @@ export const Editor: React.FC<{
   }, [vaultPath, commentStoreState?.hasOutbox]);
   const workspaceReadOnly = workspaceCapabilities !== null && !workspaceCapabilities.includes("content.write");
   const workspaceCanComment = workspaceCapabilities?.includes("comment.create") === true;
+  const workspaceCanSuggest = workspaceCanComment && workspaceCapabilities?.includes("comment.suggest") === true;
   const workspaceCanReadComments = workspaceCapabilities?.includes("comment.read") === true;
   const commentsAccessible = workspaceCanReadComments || commentsLocked;
   useEffect(() => {
@@ -722,6 +727,7 @@ export const Editor: React.FC<{
   // view AT SAVE TIME (never from a stale closure). The read-mode properties
   // fallback saves a fixed string instead.
   const persistText = async (val: string) => {
+    if (saveState.transferFrozen) throw new Error("The note is being transferred to another window");
     if (!activePath || !vaultAdapter) throw new Error("No writable note is open");
     const path = activePath, draftVault = vaultPath ?? "";
     const revAtSave = saveState.revision;
@@ -815,6 +821,7 @@ export const Editor: React.FC<{
   };
 
   const scheduleSave = (getText: () => string) => {
+    if (saveState.transferFrozen) return;
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     if (!activePath || !vaultAdapter) return;
     const rev = saveState.nextRevision();
@@ -842,6 +849,7 @@ export const Editor: React.FC<{
 
   // Session callback: a real (non-external) edit happened in the view.
   const onDocChanged = (view: EditorView) => {
+    if (saveState.transferFrozen) return;
     // In the suggestion mode the view holds a COPY (V2): nothing is dirty,
     // nothing is saved, nothing is journaled - the copy is parked instead.
     if (suggestingRef.current) {
@@ -872,6 +880,7 @@ export const Editor: React.FC<{
 
   // Read-mode properties edits have no editor view; save the given text as-is.
   const applyNonViewEdit = (val: string) => {
+    if (saveState.transferFrozen) return;
     if (val === contentRef.current) return;
     saveState.update({ dirty: true });
     if (activePath) dirtyStore.set(activePath, true, saveState.id);
@@ -1193,9 +1202,11 @@ export const Editor: React.FC<{
   // session not mounted) so a caller may retry a frame later.
   const jumpToHeading = useCallback((line?: number, slug?: string): boolean => {
     if (viewMode === 'read') {
-      if (!slug || !readScrollRef.current) return false;
-      const escaped = slug.replace(/["\\]/g, "\\$&");
-      const el = readScrollRef.current.querySelector(`[id="${escaped}"]`);
+      const root = readScrollRef.current?.querySelector(".markdown-reader");
+      if (!root) return false;
+      const escaped = slug?.replace(/["\\]/g, "\\$&");
+      const selector = escaped ? `[id="${escaped}"]` : `[data-source-line="${line}"]`;
+      const el = Array.from(root.querySelectorAll(selector)).find((element) => element.closest(".markdown-reader") === root);
       if (!el) return false;
       (el as HTMLElement).scrollIntoView({ behavior: "smooth", block: "start" });
       return true;
@@ -1772,7 +1783,7 @@ export const Editor: React.FC<{
   const searchJumpRafRef = useRef(0);
   const viewModeRef = useRef(viewMode);
   useEffect(() => { viewModeRef.current = viewMode; });
-  const startSearchJump = (jump: { path: string; term?: string; line?: number }) => {
+  const startSearchJump = useStableHandler((jump: SearchJump) => {
     cancelAnimationFrame(searchJumpRafRef.current);
     const tick = (attemptsLeft: number) => {
       if (attemptsLeft <= 0) return;
@@ -1783,7 +1794,9 @@ export const Editor: React.FC<{
         // text as its term for exactly this case.
         if (!jump.term) return;
         const root = readScrollRef.current;
-        const range = root ? findTextRange(root, jump.term) : null;
+        const addressed = resolveSearchJump(contentRef.current, jump);
+        if (jump.from !== undefined && !addressed) { toast.info(t("searchResults.changed")); return; }
+        const range = root ? (addressed && (jump.from !== undefined || jump.line !== undefined) ? findSourceTextRange(root, addressed.from, addressed.to, contentRef.current) : findTextRange(root, jump.term)) : null;
         if (!range) return retry(); // read view may not have painted yet
         selectAndRevealRange(range);
         return;
@@ -1791,18 +1804,18 @@ export const Editor: React.FC<{
       const view = sessionRef.current?.view;
       if (!view) return retry(); // session mounts in a layout effect
       // A backlink names its line (P7); the search names a term.
-      const match = jump.line
-        ? (() => { const l = view.state.doc.line(Math.min(Math.max(jump.line, 1), view.state.doc.lines)); return { from: l.from, to: l.to }; })()
-        : jump.term ? findFirstMatch(view.state.doc.toString(), jump.term) : null;
-      if (!match) return; // e.g. an FTS diacritic-fold hit — silently skip
+      const match = resolveSearchJump(view.state.doc.toString(), jump);
+      if (!match) { if (jump.from !== undefined) toast.info(t("searchResults.changed")); return; }
       view.dispatch({
         selection: { anchor: match.from, head: match.to },
         effects: EditorView.scrollIntoView(match.from, { y: 'center' }),
       });
       view.focus();
     };
-    tick(120); // ~2 s of frames covers load + first paint
-  };
+    // A result click can also commit navigation state and replace reader text
+    // nodes. Select after that commit so the native range survives the click.
+    searchJumpRafRef.current = requestAnimationFrame(() => tick(120));
+  });
   useEffect(() => {
     if (!isActivePane) return;
     const onSearchJump = (e: Event) => {
@@ -1812,13 +1825,12 @@ export const Editor: React.FC<{
     };
     window.addEventListener('plainva-search-jump', onSearchJump);
     return () => window.removeEventListener('plainva-search-jump', onSearchJump);
-    // startSearchJump only touches refs — no stale state in the handler.
-  }, [isActivePane]);
+  }, [isActivePane, startSearchJump]);
   useEffect(() => {
     if (!isActivePane || isLoading || !activePath) return;
     const jump = consumePendingSearchJump(activePath);
     if (jump) startSearchJump(jump);
-  }, [isActivePane, isLoading, activePath]);
+  }, [isActivePane, isLoading, activePath, startSearchJump]);
   useEffect(() => () => cancelAnimationFrame(searchJumpRafRef.current), []);
 
   // `{{cursor}}` of a template the note was just created from (plan
@@ -1973,7 +1985,7 @@ export const Editor: React.FC<{
       setContent(text);
     };
 
-    const current = () => saveState.isActive();
+    const current = () => saveState.isActive() && !saveState.transferFrozen;
     const handleExternalUpdate = (e: Event) => {
       const detail = (e as CustomEvent<{ path: string; vaultPath?: string }>).detail;
       if (!activePath || !vaultAdapter || detail.path !== activePath
@@ -2042,6 +2054,7 @@ export const Editor: React.FC<{
       const request = (e as CustomEvent<SaveFlushRequest>).detail;
       if (request.path !== activePath || (request.vaultPath !== undefined && request.vaultPath !== vaultPath)) return;
       const flush = async () => {
+        if (saveState.transferFrozen) throw new Error("The note is being transferred to another window");
         while (current()) {
           if (saveTimeoutRef.current !== null) {
             window.clearTimeout(saveTimeoutRef.current);
@@ -2201,7 +2214,7 @@ export const Editor: React.FC<{
       deps: sessionDepsRef,
     });
     sessionRef.current = session;
-    session.setEditable(!workspaceReadOnly);
+    session.setEditable(!workspaceReadOnly && !saveState.transferFrozen);
     // Where you were (feedback round 2026-09-01, A5/E7): the scroll position
     // per file, device-local, restored once the view has laid the document
     // out, and remembered on the way out and while scrolling.
@@ -2237,7 +2250,7 @@ export const Editor: React.FC<{
         setContent(text);
         contentRef.current = text;
       }
-      if (saveState.dirty) {
+      if (saveState.dirty && !saveState.transferFrozen) {
         if (saveTimeoutRef.current !== null) window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
         void persistText(text).catch(() => {});
@@ -2253,7 +2266,7 @@ export const Editor: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isReadMode, activePath, vaultPath, i18n.language, workspaceReadOnly]);
 
-  useEffect(() => { sessionRef.current?.setEditable(!workspaceReadOnly); }, [workspaceReadOnly]);
+  useEffect(() => { sessionRef.current?.setEditable(!workspaceReadOnly && !saveState.transferFrozen); }, [workspaceReadOnly, saveState]);
 
   // Push the resolved ranges into the editor. An orphan contributes nothing -
   // its card says so instead; tinting a random place would be worse than none.
@@ -2541,7 +2554,7 @@ export const Editor: React.FC<{
 
   const startSuggesting = useStableHandler(async () => {
     const session = sessionRef.current;
-    if (!session || !activePath) return;
+    if (!session || !activePath || !workspaceCanSuggest) return;
     // Locked (N3): the verb stays and leads to the explanation - the column
     // opens and says what to do - rather than into a mode whose send would
     // fail a minute later.
@@ -2667,7 +2680,7 @@ export const Editor: React.FC<{
     suggestParkRef.current.set(activePath, { copy: reconciled.copy, note, base: session.view.state.doc.toString() });
     setStoredPark(null);
     startSuggesting();
-    if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
+    if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length, count: reconciled.orphaned.length }));
   }, [activePath, storedPark, startSuggesting, t]);
   const discardParked = useCallback(() => {
     if (!activePath) return;
@@ -2688,6 +2701,123 @@ export const Editor: React.FC<{
     if (isReadMode) return;
     sessionRef.current?.setMode(viewMode === 'source' ? 'source' : 'live');
   }, [viewMode, isReadMode]);
+
+  const captureTabDocument = useStableHandler(async () => {
+    if (!activePath || !vaultPath || loadedPathRef.current !== activePath || !saveState.isActive() || saveState.transferFrozen) throw new Error("The source editor is unavailable");
+    saveState.setTransferFrozen(true);
+    sessionRef.current?.setEditable(false);
+    for (const timer of [saveTimeoutRef, draftTimerRef, contentSyncTimeoutRef, parkWriteTimer]) {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const finish = async (accepted: boolean) => {
+      if (accepted) {
+        saveState.update({ dirty: false });
+        dirtyStore.set(activePath, false, saveState.id);
+        const { clearDraft } = await import("../services/draftJournal");
+        await clearDraft(vaultPath, activePath, saveState.revision, saveState.id);
+      } else {
+        saveState.setTransferFrozen(false);
+        if (saveState.isActive()) {
+          sessionRef.current?.setEditable(!workspaceReadOnly);
+          if (saveState.dirty) scheduleSave(() => contentRef.current);
+        }
+      }
+    };
+    try {
+      await waitForPendingWrites(activePath, vaultPath);
+      if (!saveState.isActive()) throw new Error("The source editor closed");
+      const session = sessionRef.current;
+      const selection = session?.view.state.selection.main;
+      const proposal = suggestingRef.current && session ? {
+        copy: session.view.state.doc.toString(), note: suggestNote,
+        base: suggestionBase(session.view.state) ?? undefined,
+      } : undefined;
+      if (proposal) {
+        const db = vaultContext.queryService?.db;
+        if (!db || proposal.base === undefined) throw new Error("The suggestion cannot be preserved");
+        await parkEditorSuggestion(db, { path: activePath, base: proposal.base, copy: proposal.copy, note: proposal.note, savedAt: new Date().toISOString() }, vaultPath);
+      }
+      const text = proposal ? contentRef.current : session?.view.state.doc.toString() ?? contentRef.current;
+      const { recordDraft } = await import("../services/draftJournal");
+      await recordDraft(vaultPath, activePath, text, saveState.revision, saveState.id);
+      return { document: {
+        text, base: saveState.baseInput, shape: saveState.shape, viewMode,
+        selection: selection ? { anchor: selection.anchor, head: selection.head } : readScrollRef.current ? readSourceSelection(readScrollRef.current, text) : null,
+        scrollTop: session?.view.scrollDOM.scrollTop ?? readScrollRef.current?.scrollTop ?? 0,
+        ...(proposal ? { suggestion: proposal } : {}),
+      }, finish };
+    } catch (error) { await finish(false); throw error; }
+  });
+
+  const adoptTabDocument = useStableHandler(async (document: TransferredDocument, transferId: string) => {
+    if (!activePath || !vaultPath || !saveState.isActive() || saveState.transferFrozen || suggestingRef.current
+      || saveState.dirty && contentRef.current !== document.text) throw new Error("The target editor has other pending changes");
+    await waitForPendingWrites(activePath, vaultPath);
+    if (!saveState.isActive()) throw new Error("The target editor closed");
+    const dirty = document.text !== saveState.persisted;
+    // Keep incoming changes based on their original disk version. A concurrent
+    // disk edit will pass through the ordinary merge-on-save path.
+    saveState.setTransferFrozen(true);
+    saveState.update({ baseInput: document.base, shape: document.shape });
+    contentRef.current = document.text;
+    setContent(document.text);
+    sessionRef.current?.applyExternalText(document.text);
+    setViewMode(document.viewMode);
+    rememberSessionViewMode(activePath, document.viewMode);
+    saveState.recover({ revision: 0, sessionId: `transfer:${transferId}` });
+    try {
+      // A view-mode change can replace CodeMirror with the reader. A receipt
+      // follows the committed destination view, not just setState().
+      for (let attempt = 0; ; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        if (!saveState.isActive()) throw new Error("The target editor closed");
+        if (document.viewMode === "read" ? !!readScrollRef.current?.querySelector(".markdown-reader") : !!sessionRef.current) break;
+        if (attempt > 300) throw new Error("The target view did not become ready");
+      }
+      const session = sessionRef.current;
+      if (document.suggestion && session) {
+        const proposal = document.suggestion;
+        const db = vaultContext.queryService?.db;
+        if (!db) throw new Error("The target suggestion store is unavailable");
+        await parkEditorSuggestion(db, { path: activePath, base: proposal.base ?? document.text, copy: proposal.copy, note: proposal.note, savedAt: new Date().toISOString() }, vaultPath);
+        session.applyExternalText(proposal.base ?? document.text);
+        suggestingRef.current = true; setSuggesting(true); setSuggestNote(proposal.note);
+        session.setSuggesting(true);
+        session.view.dispatch({ changes: { from: 0, to: session.view.state.doc.length, insert: proposal.copy } });
+      }
+      if (document.selection) {
+        const { anchor, head } = document.selection;
+        if (document.viewMode !== "read" && session) {
+          const length = session.view.state.doc.length;
+          session.view.dispatch({ selection: { anchor: Math.min(anchor, length), head: Math.min(head, length) } });
+        } else if (readScrollRef.current) {
+          const range = findSourceTextRange(readScrollRef.current, Math.min(anchor, head), Math.max(anchor, head), document.text);
+          if (range) selectAndRevealRange(range);
+        }
+      }
+      if (document.viewMode === "read" && readScrollRef.current) readScrollRef.current.scrollTop = document.scrollTop;
+      else if (session) session.view.scrollDOM.scrollTop = document.scrollTop;
+      saveState.update({ dirty });
+      dirtyStore.set(activePath, dirty, saveState.id);
+      if (!dirty) {
+        const { clearDraft } = await import("../services/draftJournal");
+        await clearDraft(vaultPath, activePath, 0, `transfer:${transferId}`);
+        saveState.update({ recoveredDraft: null });
+      }
+    } finally {
+      saveState.setTransferFrozen(false);
+      if (saveState.isActive()) {
+        sessionRef.current?.setEditable(!workspaceReadOnly);
+        if (saveState.dirty && !suggestingRef.current) scheduleSave(() => contentRef.current);
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (!vaultPath || !activePath || isLoading || loadError || notText || loadedPathRef.current !== activePath) return;
+    return registerTabDocument(vaultPath, activePath, { capture: captureTabDocument, adopt: adoptTabDocument });
+  }, [vaultPath, activePath, isLoading, loadError, notText, captureTabDocument, adoptTabDocument]);
 
   if (!activePath) {
     return (
@@ -2767,7 +2897,7 @@ export const Editor: React.FC<{
             {/* The suggestion mode (V2) sits with the views: it changes what
                 typing MEANS, not where the text goes. Amber, not the accent -
                 the band below says the same in words. */}
-            {workspaceCanComment && !managedIndex && (
+            {workspaceCanSuggest && !managedIndex && (
               <IconButton
                 label={t("comments.suggestMode")}
                 active={suggesting}
@@ -3010,7 +3140,7 @@ export const Editor: React.FC<{
           <PenLine size={ICON.ui} />
           <span className="pv-suggest-band__text">
             <strong>{t("comments.suggestParkedTitle")}</strong>{" "}
-            {t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(storedPark), when: storedPark.savedAt ? new Date(storedPark.savedAt).toLocaleString() : "" })}
+            {t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(storedPark), count: parkedSuggestionBlocks(storedPark), when: storedPark.savedAt ? new Date(storedPark.savedAt).toLocaleString() : "" })}
           </span>
           <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("comments.suggestDiscard")}</Button>
           <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("comments.suggestParkedResume")}</Button>

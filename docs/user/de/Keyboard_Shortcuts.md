@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -114,7 +114,7 @@ Maus: **Mausrad** zoomt; **mittlere Maustaste + ziehen** oder `Strg`+ziehen vers
 | Klick auf Zelle | Direkt bearbeiten; ein Häkchen schaltet direkt |
 | Klick auf Karte / Zeile | Notiz im Peek-Fenster öffnen |
 | `Strg`+Klick auf Karte | Notiz im geteilten Bereich öffnen |
-| Karte ziehen | Board: Spaltenwert setzen; Kalender/Zeitachse: Datum setzen |
+| Karte ziehen | Board: Spaltenwert setzen; Kalender/Zeitleiste: Datum setzen |
 | Spaltenkopf ziehen | Spalten umsortieren (und die Optionen der Eigenschaft) |
 | Klick auf Tabellenkopf | Sortierung wechseln |
 | Klick / Ziehen an der Ansichts-Pille | Ansicht wechseln; ziehen zum Umsortieren; `▾` = umbenennen/duplizieren/löschen |

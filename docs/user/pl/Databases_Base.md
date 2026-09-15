@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-09-06
+Stan na: 2026-09-15
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -287,3 +287,11 @@ Pasek wychodzący poza pokazany zakres jest ucinany przy krawędzi i **nie ma ta
 Filtruj według paska koloru, ikony, tagów całej notatki lub właściwości etykiet wybranej dla tablicy. Tagi pasują dokładnie: #work nie pasuje do #workshop ani #work/child. Tekst i frontmatter są łączone. Wartości są dostępne z całego źródła także bez wyników; nieznane nazwy ikon zostają zachowane.
 
 Filtr zmienia widoczny zbiór, nie pliki. Proponowane wartości pochodzą z całego źródła, także przy braku wyników.
+
+## Eksportowanie tabeli
+
+Otwórz **Eksportuj tabelę** w menu bazy danych na komputerze lub użyj ikony eksportu na pasku aplikacji mobilnej. Okno pokazuje bieżącą liczbę wierszy wyniku i kolumny widoku.
+
+**Formuły (.base)** tworzy tabelę ze stałym wyborem bieżących wierszy. Te obliczenia przez zapisane relacje pozostają formułami: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Otwórz plik w tym samym sejfie z powiązanymi notatkami. Okno wskazuje nieobsługiwane obliczenia i relacje odwrotne; dla tych kolumn użyj eksportu wartości.
+
+**Wartości (.csv)** zawiera bieżące obliczone wartości i ścieżki plików. Wartości nie będą aktualizowane; listy pozostają w formacie JSON. Tekst przypominający formuły jest chroniony jako tekst w arkuszach kalkulacyjnych. Żadna opcja nie zapisuje obliczonych właściwości w oryginalnych notatkach.

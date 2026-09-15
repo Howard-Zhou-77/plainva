@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { VaultQueryService } from "@plainva/core";
+import { VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { Search, Clock, File as FileIcon, FilePlus, FileText, Files } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON, useFocusTrap } from "@plainva/ui";
+import { ICON, useFocusTrap, useSearchPages, Button } from "@plainva/ui";
 import { fuzzyFilter } from "@plainva/ui";
 import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
@@ -29,6 +29,7 @@ interface ResultItem {
   isRecent?: boolean;
   /** Full-text hit (P3.3c): shown under a "content" header, opens at the match. */
   isContentHit?: boolean;
+  occurrence?: SearchOccurrence;
 }
 
 export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }: QuickSwitcherProps) {
@@ -36,6 +37,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
   const mod = isMac ? "⌘" : t("shortcuts.modCtrl", { defaultValue: "Strg" });
   const { queryService, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate } = useVault();
   const [query, setQuery] = useState("");
+  const searchPage = useSearchPages(queryService, isOpen ? query : "", 0, 8);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   // Full title/path corpus, loaded ONCE per open (P3.3): fuzzy matching like
@@ -109,11 +111,10 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
         let contentRows: ResultItem[] = [];
         try {
           const seen = new Set(titleRows.map((r) => r.path));
-          const fullText = await queryService.searchFullText(query.trim(), 12);
+          const fullText = searchPage.hits;
           contentRows = fullText
-            .filter((r) => !seen.has(r.path) && !!r.snippet)
-            .slice(0, 8)
-            .map((r) => ({ path: r.path, title: r.title, snippetMarked: r.snippet ?? undefined, isContentHit: true }));
+            .filter((r) => (r.occurrence || !seen.has(r.path)) && !!r.snippet)
+            .map((r) => ({ path: r.path, title: r.title, snippetMarked: r.snippet ?? undefined, isContentHit: true, occurrence: r.occurrence }));
         } catch (e) {
           console.error("Switcher full-text lookup failed", e);
         }
@@ -130,7 +131,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       active = false;
       clearTimeout(timeout);
     };
-  }, [query, queryService, isOpen, recentPaths, corpus]);
+  }, [query, queryService, isOpen, recentPaths, corpus, searchPage.hits]);
 
   if (!isOpen) return null;
 
@@ -150,7 +151,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
     if (item.isContentHit) {
       const term = VaultQueryService.parseSearchQuery(trimmedQuery).terms[0] ?? null;
       if (term) {
-        setPendingSearchJump({ path: item.path, term });
+        setPendingSearchJump({ path: item.path, term, ...item.occurrence });
         window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: item.path } }));
       }
     }
@@ -269,7 +270,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                   null
                 );
                 return (
-                <React.Fragment key={item.path}>
+                <React.Fragment key={item.path + ":" + (item.occurrence?.from ?? "file")}>
                 {header && <div style={{ padding: '4px 16px', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{header}</div>}
                 <div
                   style={{
@@ -290,6 +291,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                       {item.path}
                     </span>
                   </div>
+                  {item.occurrence && <div className="pv-search-context">{item.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: item.occurrence.line })}</div>}
                   {item.snippetMarked && (
                     // Sentinel-marked FTS snippet rendered via searchSnippet —
                     // pure text split, <mark> nodes, never raw HTML from notes.
@@ -301,7 +303,10 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                 </React.Fragment>
                 );
               })}
-              {showCreateRow && (
+              {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
+          {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
+          {showCreateRow && (
                 <div
                   style={{
                     padding: '8px 16px',

@@ -334,6 +334,22 @@ describe("workspace comment column", () => {
    * above would promise an answer that never arrives.
    */
   describe("returns from a publication", () => {
+    it("reviews an exact publication suggestion in the source through the existing decision callbacks", () => {
+      const entry = incoming({ comment: comment({ commentId: "80".repeat(16), body: "Review", anchor: ANCHOR, suggestion: SUGGESTION }), suggestionApplicable: true });
+      const onApplySuggestion = vi.fn(), onDeclineSuggestion = vi.fn();
+      const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ publicationComments: [entry], onApplySuggestion, onDeclineSuggestion })} />);
+      const section = host.querySelector(".pv-comment-returns")!;
+      const buttons = [...section.querySelectorAll("button")];
+      act(() => buttons.find(button => button.textContent === tr("comments.suggestionApply"))!.click());
+      act(() => buttons.find(button => button.textContent === tr("comments.suggestionDecline"))!.click());
+      expect(onApplySuggestion).toHaveBeenCalledWith(entry.comment);
+      expect(onDeclineSuggestion).toHaveBeenCalledWith(entry.comment);
+      expect(section.textContent).toContain(tr("comments.publicationReviewLocal"));
+      unmount();
+      const readOnly = render(<WorkspaceCommentsColumn {...props({ publicationComments: [entry], canWrite: false, canComment: false })} />);
+      expect(readOnly.host.querySelector(".pv-comment-returns")!.querySelectorAll("button")).toHaveLength(0);
+      readOnly.unmount();
+    });
     // The prop's type is `readonly Entry[] | undefined`, and a union does not
     // match `readonly (infer E)[]` - inferring the element back out of it
     // silently yields `never`. The column exports the element type; take it.

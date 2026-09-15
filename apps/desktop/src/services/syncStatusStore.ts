@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision } from "@plainva/core";
+import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, WorkspaceSyncFailureKind } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
-import { logDiagnostic } from "@plainva/ui";
+import { connectionErrorText, logDiagnostic } from "@plainva/ui";
 
 /**
  * Sync status as a tiny external store (Gesamtplan Editor-Stabilitaet
@@ -18,6 +18,7 @@ import { logDiagnostic } from "@plainva/ui";
  * vault it means, and a store that guesses is the failure this split removes.
  */
 export interface SyncStatusSnapshot {
+  workspaceFailure?: WorkspaceSyncFailureKind;
   status: SyncStatus;
   message: string | null;
   /** Provider of the running sync worker (error UI deep-links into its form). */
@@ -55,6 +56,7 @@ const listeners = new Set<() => void>();
 
 /** Recent sync errors (P4.3): shown in the settings' sync section. */
 export interface SyncErrorEntry {
+  workspaceFailure?: WorkspaceSyncFailureKind;
   ts: number;
   message: string;
   provider: SyncProviderId | null;
@@ -92,6 +94,7 @@ export const syncStatusStore = {
     return byVault.get(vaultPath)?.snapshot ?? IDLE;
   },
   set(vaultPath: string, next: Partial<SyncStatusSnapshot>) {
+    if (next.message) next = { ...next, message: connectionErrorText(next.message) ?? next.message };
     const st = stateOf(vaultPath);
     const snapshot = st.snapshot;
     // A temporary failure counts as a transition too: the surface deliberately
@@ -105,6 +108,7 @@ export const syncStatusStore = {
     if ((next.status !== undefined || next.message !== undefined) && next.authRecoverable === undefined) {
       merged.authRecoverable = undefined;
     }
+    if ((next.status !== undefined || next.message !== undefined) && next.workspaceFailure === undefined) merged.workspaceFailure = undefined;
     st.snapshot = merged;
     if (
       (merged.status === "error" || merged.status === "retrying") &&
@@ -117,6 +121,7 @@ export const syncStatusStore = {
         provider: merged.provider,
         reason: merged.reason,
         authRecoverable: merged.authRecoverable,
+        workspaceFailure: merged.workspaceFailure,
       });
       if (st.errorHistory.length > MAX_ERROR_HISTORY) st.errorHistory.splice(0, st.errorHistory.length - MAX_ERROR_HISTORY);
       logDiagnostic("sync", merged.message);

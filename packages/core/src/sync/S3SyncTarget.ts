@@ -1,3 +1,4 @@
+import { syncHttpError } from "./errorKind.js";
 import { fetchWithTransferTimeout } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
@@ -235,7 +236,7 @@ export class S3SyncTarget implements ISyncTarget {
 
     const res = await this.signedFetch("GET", "", { queryParams });
     if (!res.ok) {
-      throw new Error(`S3 list failed: ${res.status} ${res.statusText}`);
+      throw syncHttpError(`S3 list failed: ${res.status} ${res.statusText}`, res);
     }
     return parseS3Listing(await res.text());
   }
@@ -272,7 +273,7 @@ export class S3SyncTarget implements ISyncTarget {
       if (rawPrefix) queryParams["prefix"] = rawPrefix;
       if (token) queryParams["continuation-token"] = token;
       const res = await this.signedFetch("GET", "", { queryParams });
-      if (!res.ok) throw new Error(`S3 list failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`S3 list failed: ${res.status} ${res.statusText}`, res);
       const page = parseS3Listing(await res.text());
       for (const prefix of page.prefixes) {
         const name = prefix.substring(rawPrefix.length).replace(/\/$/, "");
@@ -295,7 +296,7 @@ export class S3SyncTarget implements ISyncTarget {
     const clean = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
     if (!clean) return;
     const res = await this.signedFetch("PUT", encodeS3Key(`${clean}/`), { body: new Uint8Array() });
-    if (!res.ok) throw new Error(`S3 folder create failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`S3 folder create failed: ${res.status} ${res.statusText}`, res);
   }
 
   // S3 has no incremental change token in the worker's model: always a full listing
@@ -326,9 +327,17 @@ export class S3SyncTarget implements ISyncTarget {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.signedFetch("GET", encodeS3Key(this.keyFor(filePath)));
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`S3 GET failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`S3 GET failed: ${res.status} ${res.statusText}`, res);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
+  }
+
+  public async downloadConditional(filePath: string, etag?: string) {
+    const res = await this.signedFetch("GET", encodeS3Key(this.keyFor(filePath)), { signedHeaders: etag ? { "if-none-match": etag } : {} });
+    if (res.status === 304 && etag) return { notModified: true as const, etag: res.headers.get("ETag") ?? etag };
+    if (res.status === 404) return { notModified: false as const, bytes: null };
+    if (!res.ok) throw syncHttpError(`S3 GET failed: ${res.status} ${res.statusText}`, res);
+    return { notModified: false as const, bytes: new Uint8Array(await res.arrayBuffer()), etag: res.headers.get("ETag") ?? undefined };
   }
 
   /**
@@ -340,7 +349,7 @@ export class S3SyncTarget implements ISyncTarget {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.signedFetch("HEAD", encodeS3Key(this.keyFor(filePath)));
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`S3 HEAD failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`S3 HEAD failed: ${res.status} ${res.statusText}`, res);
     const lastModified = res.headers.get("Last-Modified");
     const modifiedAt = lastModified ? Date.parse(lastModified) : Number.NaN;
     const rawEtag = res.headers.get("ETag");
@@ -358,7 +367,7 @@ export class S3SyncTarget implements ISyncTarget {
   private async headExists(encodedKey: string): Promise<boolean> {
     const res = await this.signedFetch("HEAD", encodedKey);
     if (res.status === 404) return false;
-    if (!res.ok) throw new Error(`S3 HEAD failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`S3 HEAD failed: ${res.status} ${res.statusText}`, res);
     return true;
   }
 
@@ -369,7 +378,7 @@ export class S3SyncTarget implements ISyncTarget {
         "x-amz-copy-source": `/${this.creds.bucket}/${encodedFromKey}`,
       },
     });
-    if (!res.ok) throw new Error(`S3 copy failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw syncHttpError(`S3 copy failed: ${res.status} ${res.statusText}`, res);
     // S3 quirk: a copy can return 200 with an <Error> body (e.g. timeout mid-copy).
     const xml = await res.text();
     if (/<Error>/.test(xml)) throw new Error(`S3 copy failed: error body on 200`);
@@ -381,7 +390,7 @@ export class S3SyncTarget implements ISyncTarget {
     const res = await this.signedFetch("DELETE", encodedKey);
     // S3 DELETE is idempotent (204 even for missing keys); tolerate 404 for dialects.
     if (!res.ok && res.status !== 404) {
-      throw new Error(`S3 DELETE failed: ${res.status} ${res.statusText}`);
+      throw syncHttpError(`S3 DELETE failed: ${res.status} ${res.statusText}`, res);
     }
   }
 
@@ -395,7 +404,7 @@ export class S3SyncTarget implements ISyncTarget {
         bodyRef: op.contentRef,
         unsignedHeaders: { "Content-Type": mimeTypeForPath(op.file_path) },
       });
-      if (!res.ok) throw new Error(`S3 PUT failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw syncHttpError(`S3 PUT failed: ${res.status} ${res.statusText}`, res);
       const etag = res.headers.get("ETag") || undefined;
       return { etag: etag?.replace(/"/g, "") };
     }

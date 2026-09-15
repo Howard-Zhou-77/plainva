@@ -52,14 +52,14 @@ export class RemoteVaultAdapter implements IVaultAdapter {
     return this.reads.getFileInfo(path);
   }
 
-  listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {
-    return this.reads.listDir(path, recursive);
+  listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
+    return this.reads.listDir(path, recursive, options);
   }
 
-  listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+  listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     return this.reads.listDirReport
-      ? this.reads.listDirReport(path, recursive)
-      : this.reads.listDir(path, recursive).then((files) => ({ files, skipped: [] }));
+      ? this.reads.listDirReport(path, recursive, options)
+      : this.reads.listDir(path, recursive, options).then((files) => ({ files, skipped: [] }));
   }
 
   // --- writes: delegated to the owner ------------------------------------

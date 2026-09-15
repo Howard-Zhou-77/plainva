@@ -432,12 +432,12 @@ export function validPimAccount(value: unknown): value is PimAccountRow {
 }
 
 /** Backend selector duplicated from mailAccounts to keep this module import-light. */
-const kindOf = (a: MailAccountConfig): "imap" | "microsoft" => a.kind ?? "imap";
+const kindOf = (a: MailAccountConfig): "imap" | "microsoft" | "gmail" => a.kind ?? "imap";
 
 export function validMailAccount(value: unknown): value is MailAccountConfig {
   const a = value as MailAccountConfig;
   if (!a || typeof a.id !== "string" || typeof a.label !== "string" || typeof a.host !== "string" || typeof a.user !== "string") return false;
-  if (a.kind !== undefined && a.kind !== "imap" && a.kind !== "microsoft") return false;
+  if (a.kind !== undefined && a.kind !== "imap" && a.kind !== "microsoft" && a.kind !== "gmail") return false;
   // A Microsoft (Graph) mailbox speaks no IMAP: host "" and port 0 are correct
   // for it. Demanding a real port rejected the account — and a rejected account
   // used to abort the whole import, so one such mailbox disabled the entire

@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
-import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, imageBasename, isImageTarget, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
-import { stripAnchorMarkers } from '@plainva/core';
+import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
+import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, resolveNoteEmbed, Button, imageBasename, isImageTarget, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
+import { prepareReaderSource, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { toast } from '@plainva/ui';
@@ -18,8 +18,8 @@ import { calloutColor, calloutColorKey, calloutTint, calloutIconPath, parseCallo
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
-import { formatRelativeDate, DATE_TOKEN_RE } from '@plainva/ui';
-import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, encodeWikiTarget, type RelativeTarget } from './markdownReaderModel';
+import { formatRelativeDate } from '@plainva/ui';
+import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -163,66 +163,40 @@ const VaultImage: React.FC<{
   );
 };
 
-const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?: (path: string, newTab: boolean) => void; hostPath?: string }> = ({ target, depth, onOpenPath, hostPath }) => {
-  const { vaultAdapter, vaultPath, queryService, fileTreeVersion } = useVault();
+export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?: (path: string, newTab: boolean) => void; hostPath?: string }> = ({ target, depth, onOpenPath, hostPath }) => {
+  const { vaultAdapter, queryService, fileTreeVersion } = useVault();
   const { t } = useTranslation();
-  const [content, setContent] = React.useState<string | null>(null);
-  const [targetPath, setTargetPath] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-
-  // A `.base` target renders as an embedded database viewer; everything else is
-  // read as markdown and transcluded. Previously read-mode base embeds fell
-  // through to the markdown branch and showed the raw .base YAML (#1).
-  const isBase = target.split("#")[0].trim().toLowerCase().endsWith(".base");
-
+  const [result, setResult] = React.useState<{ path?: string; anchor?: string | null; content?: string; error?: string } | null>(null);
   React.useEffect(() => {
-    if (!queryService || !vaultPath || !vaultAdapter) return;
-    const searchTarget = target.trim().split("#")[0];
-
-    const sql = `
-      SELECT path FROM files
-      WHERE title = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-      LIMIT 1
-    `;
-    queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"])
-      .then(rows => {
-        if (rows && rows.length > 0) {
-          const relativePath = rows[0].path;
-          setTargetPath(relativePath);
-          // A base is rendered by BaseViewer from its path; no markdown read.
-          if (relativePath.toLowerCase().endsWith(".base")) return;
-          vaultAdapter.readTextFile(relativePath)
-            .then(setContent)
-            .catch(e => setError(String(e)));
-        } else {
-          setError(t("editor.fileNotFound", { defaultValue: "Datei nicht gefunden" }));
-        }
-      })
-      .catch(e => setError(String(e)));
-  }, [target, queryService, vaultPath, vaultAdapter, fileTreeVersion, t]);
-
-  const loading = <div style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>{t("editor.loading", { defaultValue: "Laden..." })}</div>;
-
-  if (error) return <div style={{ color: 'var(--error-text)', padding: '0.5rem', borderLeft: '2px solid var(--error-text)', margin: '1rem 0' }}>{error}</div>;
-
-  if (isBase) {
-    if (!targetPath) return loading;
-    return (
-      <div className="embedded-note embedded-note--base">
-        <BaseViewer activePath={targetPath} onOpenPath={onOpenPath} embedded hostPath={hostPath} />
-      </div>
-    );
-  }
-
-  if (content === null) return loading;
-
-  return (
-    <div className="embedded-note">
-      <MarkdownReader content={content} onOpenPath={onOpenPath} embedDepth={depth + 1} sourcePath={targetPath ?? undefined} />
-    </div>
-  );
+    let alive = true;
+    setResult(null);
+    if (depth >= 3) { setResult({ error: t("noteEmbed.depth") }); return; }
+    if (!vaultAdapter) return;
+    void (async () => {
+      const resolved = await resolveNoteEmbed(target, hostPath, { exists: (path) => vaultAdapter.exists(path), db: queryService?.db });
+      if (!alive) return;
+      if (resolved.status !== "found") { setResult({ error: t("noteEmbed." + resolved.status, { target }) }); return; }
+      if (resolved.path.toLowerCase().endsWith(".base")) { setResult(resolved); return; }
+      const text = await vaultAdapter.readTextFile(resolved.path);
+      if (!alive) return;
+      const fragment = selectNoteFragment(text, resolved.anchor);
+      setResult(fragment.status === "found" ? { ...resolved, content: fragment.text } : { ...resolved, error: t("noteEmbed." + fragment.status, { target }) });
+    })().catch(() => { if (alive) setResult({ error: t("noteEmbed.unreadable", { target }) }); });
+    return () => { alive = false; };
+  }, [target, hostPath, depth, vaultAdapter, queryService, fileTreeVersion, t]);
+  const open = () => {
+    if (!result?.path) return;
+    onOpenPath?.(result.path, false);
+    if (result.anchor && !result.error) requestAnchorJump(result.path, result.anchor);
+  };
+  if (!result) return <div className="embedded-note">{t("editor.loading")}</div>;
+  const base = result.path?.toLowerCase().endsWith(".base");
+  return <div className={base ? "embedded-note embedded-note--base" : "embedded-note"}>
+    {result.error ? <p role="status">{result.error}</p> : base && result.path
+      ? <BaseViewer activePath={result.path} onOpenPath={onOpenPath} embedded hostPath={hostPath} />
+      : <MarkdownReader content={result.content ?? ""} onOpenPath={onOpenPath} embedDepth={depth + 1} sourcePath={result.path} />}
+    {result.path && <Button variant="ghost" size="sm" onClick={open}>{t("noteEmbed.openSource")}: {target}</Button>}
+  </div>;
 };
 
 // Concatenate all text within a hast node (soft breaks come through as "\n").
@@ -275,21 +249,17 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
 }
 
 export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, anchors, onActivateAnchor }) => {
-  // Rebuilt only when the anchors change: react-markdown re-runs the pipeline
-  // whenever the plugin list is a new array.
-  // The anchor markers leave the source BEFORE remark sees it (finding
-  // 2026-09-03): a marker at the head of a list item or paragraph made the
-  // whole line an HTML block for CommonMark, and this view dropped it. The
-  // highlights arrive in raw offsets and are mapped onto the marker-free text
-  // the same way the editor's soft anchors are.
-  const stripped = useMemo(() => stripAnchorMarkers(content), [content]);
-  const anchorPlugin = useMemo(() => {
-    if (!anchors || anchors.length === 0) return null;
-    const mapped = anchors.map((a) => ({ ...a, from: stripped.toClean(a.from), to: stripped.toClean(a.to) }));
-    return rehypeReadAnchors(mapped);
-  }, [anchors, stripped]);
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
+  const source = useMemo(() => prepareReaderSource(content, {
+    formatDate: (date) => formatRelativeDate(date, new Date(), (i18n.language || "de").slice(0, 2)),
+    isImage: (target) => isImageTarget(parseWikiImageTarget(target).target),
+  }), [content, i18n.language]);
+  const anchorPlugin = useMemo(() => {
+    if (!anchors?.length) return null;
+    return rehypeReadAnchors(anchors.map((a) => ({ ...a, from: source.toRendered(a.from), to: source.toRendered(a.to, "end") })));
+  }, [anchors, source]);
+  const sourcePlugin = useMemo(() => rehypeReaderSource(source, content), [source, content]);
   // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
   // set as the editor, so a link to a not-yet-created note reads as muted here too.
   const wikiResolver = useWikiResolver();
@@ -385,73 +355,21 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     }
   };
 
-  // Preprocess content: convert [[link]] to [link](wiki://link) and ![[img]] to
-  // ![img](wiki-image://img). (==highlight== spans become real <mark> elements
-  // AST-side via remarkStripHighlightMarks; the markers never render literally.)
-  const processedContent = useMemo(() => {
-    if (embedDepth > 2) return stripped.text;
-    let result = stripped.text;
-    
-    // Strip frontmatter
-    if (result.startsWith("---")) {
-      const parts = result.split("\n");
-      let endLine = -1;
-      for (let i = 1; i < parts.length; i++) {
-        if (parts[i].trim() === "---") {
-          endLine = i;
-          break;
-        }
-      }
-      if (endLine > 0) {
-        result = parts.slice(endLine + 1).join("\n");
-      }
-    }
-
-    // Replace images ![[...]] — encodeWikiTarget (not bare encodeURIComponent):
-    // a raw paren in the target breaks the generated markdown destination.
-    result = result.replace(/!\[\[(.*?)\]\]/g, (_match, p1) => {
-      // `![[foto.png|300]]`: the width suffix used to hide the extension and
-      // turn a picture into a note embed (Build-91 feedback, P3).
-      const isImg = isImageTarget(parseWikiImageTarget(p1).target);
-      if (isImg) {
-        return `![img](wiki-image://${encodeWikiTarget(p1)})`;
-      } else {
-        return `![embed](wiki-embed://${encodeWikiTarget(p1)})`;
-      }
-    });
-    // Replace links [[...]]
-    result = result.replace(/\[\[(.*?)\]\]/g, (_match, p1) => {
-      let target = p1;
-      let display = p1;
-      if (p1.includes("|")) {
-        const parts = p1.split("|");
-        target = parts[0];
-        display = parts[1];
-      }
-      // The anchor stays in the target (issue #92); the click splits it.
-      return `[${display}](wiki://${encodeWikiTarget(target)})`;
-    });
-    // Dynamic date tokens @YYYY-MM-DD -> relative word (Heute/Morgen/… or date).
-    const locale = (i18n.language || "de").slice(0, 2);
-    result = result.replace(DATE_TOKEN_RE, (_m, y, mo, d) => formatRelativeDate(`${y}-${mo}-${d}`, new Date(), locale));
-    return result;
-  }, [stripped, embedDepth, i18n.language]);
-
-  if (embedDepth > 2) return <div style={{ color: 'var(--text-muted)', padding: '0.5rem' }}>Max embed depth reached</div>;
+  const processedContent = source.text;
 
   // The reading view's heading ids are the outline's slugs, looked up by the
   // heading's source line (issue #92): the second "Heading" is `heading-1`
   // here as it is there. By LINE, not by a counter — React may render one
   // heading component more than once, and a counter would drift.
-  const headingIdByLine = new Map(parseHeadings(processedContent).map((h) => [h.line, h.slug] as const));
-  const headingId = (node: any): string => headingIdByLine.get(node?.position?.start?.line) ?? slugify(hastText(node));
+  const headingIdByLine = new Map(parseHeadings(content).map((h) => [h.line, h.slug] as const));
+  const headingId = (node: any): string => headingIdByLine.get(node?.properties?.dataSourceLine) ?? slugify(hastText(node));
   return (
     <div className="markdown-reader" style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
           ? [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, mathPlugins.remark as never]
           : [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks]}
-        rehypePlugins={[...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
+        rehypePlugins={[sourcePlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
           // A tinted run of text (C28): the click opens the comment it belongs to.
@@ -575,7 +493,10 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           h4: ({ node, ...props }) => <h4 id={headingId(node)} style={{ fontSize: '1em', marginTop: '1.1em', marginBottom: '0.4em', color: 'var(--text-main)' }} {...props} />,
           h5: ({ node, ...props }) => <h5 id={headingId(node)} style={{ fontSize: '0.9em', marginTop: '1.2em', marginBottom: '0.4em', color: 'var(--text-muted)' }} {...props} />,
           h6: ({ node, ...props }) => <h6 id={headingId(node)} style={{ fontSize: '0.85em', marginTop: '1.2em', marginBottom: '0.4em', color: 'var(--text-muted)' }} {...props} />,
-          p: ({ node: _node, ...props }) => <p style={{ margin: '0.6em 0', color: 'var(--text-main)' }} {...props} />,
+          p: ({ node, ...props }) => {
+            const hasEmbed = node?.children.some((child) => child.type === "element" && child.tagName === "img" && String(child.properties.src ?? "").startsWith("wiki-embed://"));
+            return hasEmbed ? <div {...props} /> : <p style={{ margin: '0.6em 0', color: 'var(--text-main)' }} {...props} />;
+          },
           hr: ({ node: _node, ...props }) => <hr style={{ border: 'none', borderTop: '2px solid var(--border-color)', margin: '1.5em 0' }} {...props} />,
           ul: ({ node: _node, ...props }) => <ul style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,
           ol: ({ node: _node, ...props }) => <ol style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,
@@ -602,7 +523,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             }
             return <input style={{ marginRight: '0.5em', verticalAlign: 'middle', accentColor: 'var(--accent-color)' }} {...props} />;
           },
-          blockquote: ({ node, children }: any) => {
+          blockquote: ({ node, children, ...props }: any) => {
             // .trim() first: the hast blockquote text starts with a "\n"
             // (whitespace before the inner paragraph), which previously made the
             // first line empty so callouts never rendered in read mode.
@@ -611,7 +532,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             if (parsed) {
               const color = calloutColor(parsed.type);
               return (
-                <div style={{ borderLeft: `4px solid ${color}`, background: calloutTint(calloutColorKey(parsed.type)), borderRadius: "var(--radius-sm)", padding: "0.6em 1em", margin: "0.8em 0" }}>
+                <div {...props} style={{ borderLeft: `4px solid ${color}`, background: calloutTint(calloutColorKey(parsed.type)), borderRadius: "var(--radius-sm)", padding: "0.6em 1em", margin: "0.8em 0" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4em", fontWeight: 600, color, marginBottom: "0.3em" }}>
                     <svg viewBox="0 0 24 24" width="1.1em" height="1.1em" style={{ flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: calloutIconPath(parsed.type) }} />
                     <span style={parsed.title ? undefined : { textTransform: "capitalize" }}>{parsed.title || parsed.type}</span>
@@ -620,7 +541,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                 </div>
               );
             }
-            return <blockquote style={{ borderLeft: '4px solid var(--quote-border)', margin: '0.6em 0', paddingLeft: '16px', color: 'var(--text-muted)' }}>{children}</blockquote>;
+            return <blockquote {...props} style={{ borderLeft: '4px solid var(--quote-border)', margin: '0.6em 0', paddingLeft: '16px', color: 'var(--text-muted)' }}>{children}</blockquote>;
           },
           // A wide table scrolls inside its own box; the page never scrolls
           // sideways (feedback round 2026-09-01, T2 — same rule as the editor).
@@ -656,7 +577,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             }} {...props}>{children}</code>;
           },
           // The CodeBlock component renders its own <pre>; unwrap react-markdown's.
-          pre: ({ children }) => <>{children}</>,
+          pre: ({ node, children }) => <div data-source-from={node?.properties.dataSourceFrom} data-source-to={node?.properties.dataSourceTo} data-source-line={node?.properties.dataSourceLine}>{children}</div>,
         }}
       >
         {processedContent}

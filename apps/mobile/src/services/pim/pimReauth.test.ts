@@ -9,6 +9,7 @@ const provider = vi.fn(async () => null as unknown);
 const accountToken = vi.fn(async () => null as unknown);
 const accounts = vi.fn(async () => [] as unknown[]);
 const records = vi.fn(async () => [] as unknown[]);
+vi.mock("@capacitor/core", () => ({ Capacitor: { getPlatform: () => "android" } }));
 
 vi.mock("../vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }) }));
 vi.mock("./pimOAuth", () => ({ beginPimOAuth: (...a: unknown[]) => begin(...(a as [])) }));
@@ -34,12 +35,20 @@ import { reauthorizeCalendarAccount } from "./pimReauth";
  */
 describe("reauthorizeCalendarAccount", () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
     begin.mockClear();
     credsByAccount.clear();
     provider.mockResolvedValue(null);
     accountToken.mockResolvedValue(null);
     accounts.mockResolvedValue([]);
     records.mockResolvedValue([]);
+  });
+
+  it("uses the configured native test client for a calendar received on another device", async () => {
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", "testing");
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID", "native-test.apps.googleusercontent.com");
+    expect(await reauthorizeCalendarAccount({ id: "synced", label: "Google", provider: "google" })).toEqual({ kind: "started" });
+    expect(begin).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "native-test.apps.googleusercontent.com", accountId: "synced" }));
   });
 
   it("signs in with the client id of the file sync when the row has no slot", async () => {

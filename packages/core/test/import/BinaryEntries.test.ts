@@ -23,7 +23,7 @@ function fakeVault(seed: Record<string, string> = {}) {
     async writeTextFile(path: string, content: string) {
       files.set(path, content);
     },
-    async createFolder() {
+    async createDir() {
       // Folders are implicit in the map.
     },
   };

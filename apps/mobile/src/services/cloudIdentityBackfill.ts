@@ -102,7 +102,7 @@ export async function backfillMobileCalendarIdentity(vaultId: string): Promise<C
     if (creds?.kind !== "google") return null;
     // A stage-B account keeps its per-service token deliberately empty; the
     // shared one is the only one that can answer.
-    const refreshToken = creds.refreshToken || (await getAccountToken(vaultId, target.id))?.refreshToken;
+    const refreshToken = creds.refreshToken || (await getAccountToken(vaultId, target.id, "calendar", "google", creds))?.refreshToken;
     if (!refreshToken) return null;
     return await apply(vaultId, records, target.id, await googleIdentity(creds.clientId, creds.clientSecret, refreshToken));
   } catch {
@@ -119,7 +119,8 @@ export async function backfillMobileSyncIdentity(vaultId: string): Promise<Cloud
     const provider = await getStoredProvider(vaultId);
     if (!provider) return null;
     const creds = provider.creds as { clientId?: string; clientSecret?: string; appKey?: string; refreshToken?: string };
-    const shared = (await getAccountToken(vaultId, target.id))?.refreshToken;
+    const family = provider.provider === "drive" ? "google" : provider.provider === "onedrive" ? "microsoft" : null;
+    const shared = family && creds.clientId ? (await getAccountToken(vaultId, target.id, "files", family, { clientId: creds.clientId, clientSecret: creds.clientSecret }))?.refreshToken : undefined;
     const refreshToken = creds.refreshToken || shared;
     if (!refreshToken) return null;
 

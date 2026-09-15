@@ -42,6 +42,12 @@ export interface DateJumpPickerProps {
   weekStart: WeekStartDay;
   /** Days that carry a mark (daily notes, entries): a dot under the number. */
   markedDays?: ReadonlySet<string>;
+  /** Load marks for the visible six weeks, including adjacent-month days. */
+  loadMarkedDays?: (dates: Date[]) => Promise<ReadonlySet<string>>;
+  /** Reload after file or daily-note setting changes without reopening. */
+  marksRevision?: number | string;
+  /** Offer separate calendar and daily-note actions for the selected day. */
+  onOpenDailyNote?: (dayKey: string) => void;
   /** The range the caller currently shows (a week, three days): tinted as a band. */
   band?: { from: string; to: string } | null;
   /** ISO week numbers in a first column; only offered when the week starts on Monday. */
@@ -82,6 +88,9 @@ export function DateJumpPicker({
   onClose,
   weekStart,
   markedDays,
+  loadMarkedDays,
+  marksRevision,
+  onOpenDailyNote,
   band,
   showWeekNumbers = false,
   showDays = true,
@@ -118,6 +127,21 @@ export function DateJumpPicker({
   const monthNames = useMemo(() => monthShortNames(lang), [lang]);
   const weekdays = useMemo(() => weekdayShortNames(lang, weekStart), [lang, weekStart]);
   const cells = useMemo(() => buildMonthCells(new Date(cursor.y, cursor.m, 1), weekStart), [cursor, weekStart]);
+  const [loadedMarks, setLoadedMarks] = useState<{
+    cells: Date[]; revision: number | string | undefined; loader: typeof loadMarkedDays;
+    days: ReadonlySet<string> | null; failed: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (!showDays || !loadMarkedDays) return;
+    let alive = true;
+    void Promise.resolve().then(() => loadMarkedDays(cells)).then(
+      (days) => { if (alive) setLoadedMarks({ cells, revision: marksRevision, loader: loadMarkedDays, days, failed: false }); },
+      () => { if (alive) setLoadedMarks({ cells, revision: marksRevision, loader: loadMarkedDays, days: null, failed: true }); }
+    );
+    return () => { alive = false; };
+  }, [cells, loadMarkedDays, marksRevision, showDays]);
+  const currentMarks = loadedMarks?.cells === cells && loadedMarks.revision === marksRevision && loadedMarks.loader === loadMarkedDays ? loadedMarks : null;
+  const visibleMarks = loadMarkedDays ? currentMarks?.days ?? undefined : markedDays;
   const weeks = showDays && showWeekNumbers && weekStart === 1 ? isoWeeksForCells(cells) : null;
   const fullDate = useMemo(() => new Intl.DateTimeFormat(lang, { dateStyle: "full" }), [lang]);
 
@@ -225,20 +249,35 @@ export function DateJumpPicker({
               cells={cells.slice(row * 7, row * 7 + 7)}
               week={weeks ? weeks[row] : null}
               month={cursor.m}
-              value={value}
+              value={onOpenDailyNote ? focusKey : value}
               focusKey={focusKey}
               todayKey={todayKey}
-              markedDays={markedDays}
+              markedDays={visibleMarks}
+              markedLabel={onOpenDailyNote ? t("calendar.dailyNoteExists") : undefined}
               inBand={inBand}
               fullDate={fullDate}
               testId={testId}
-              onPick={onPick}
+              onPick={onOpenDailyNote ? moveFocus : onPick}
               onFocus={setFocusKey}
             />
           ))}
         </div>
       )}
       {footer}
+      {showDays && onOpenDailyNote && (
+        <div className="pv-datejump-daily" data-testid={`${testId}-daily`}>
+          <span className="pv-datejump-hint">{fullDate.format(new Date(`${focusKey}T00:00:00`))}</span>
+          {currentMarks?.failed && <span className="pv-datejump-hint" role="status">{t("calendar.dailyNotesUnavailable")}</span>}
+          <div className="pv-datejump-daily-actions">
+            <Button variant="tonal" size="sm" onClick={() => onPick(focusKey)} data-testid={`${testId}-go`}>
+              {t("calendar.jumpToDate")}
+            </Button>
+            <Button variant="tonal" size="sm" onClick={() => onOpenDailyNote(focusKey)} data-testid={`${testId}-daily-note`}>
+              {t(visibleMarks && !visibleMarks.has(focusKey) ? "calendar.createDailyNote" : "calendar.openDailyNote")}
+            </Button>
+          </div>
+        </div>
+      )}
       {(onToday || (showDays && size === "ui")) && (
         <div className="pv-datejump-foot">
           {size === "ui" && showDays ? <span className="pv-datejump-hint">{t("calendar.pickerHint")}</span> : <span />}
@@ -261,6 +300,7 @@ function RowCells({
   focusKey,
   todayKey,
   markedDays,
+  markedLabel,
   inBand,
   fullDate,
   testId,
@@ -274,6 +314,7 @@ function RowCells({
   focusKey: string;
   todayKey: string;
   markedDays?: ReadonlySet<string>;
+  markedLabel?: string;
   inBand: (iso: string) => boolean;
   fullDate: Intl.DateTimeFormat;
   testId: string;
@@ -298,7 +339,7 @@ function RowCells({
             )}
             aria-pressed={iso === value}
             aria-current={iso === todayKey ? "date" : undefined}
-            aria-label={fullDate.format(d)}
+            aria-label={`${fullDate.format(d)}${markedLabel && markedDays?.has(iso) ? ` · ${markedLabel}` : ""}`}
             tabIndex={iso === focusKey ? 0 : -1}
             data-day={iso}
             data-testid={`${testId}-day-${iso}`}

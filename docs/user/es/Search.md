@@ -1,16 +1,16 @@
 # Buscar
 
-Última actualización: 2026-09-03
+Última actualización: 2026-09-15
 
 Plainva ofrece tres formas de buscar: búsqueda de texto completo en todo el vault, el selector rápido para abrir archivos, y buscar y reemplazar dentro de una nota.
 
 ## Búsqueda de texto completo en el vault
 
-El campo de búsqueda en la parte superior de la barra lateral busca en todo el vault — títulos *y* contenidos. Se apoya en un índice local de texto completo (SQLite FTS5) que se construye al abrir el vault y se mantiene actualizado con cada cambio; por eso la búsqueda funciona sin conexión y sin retraso apreciable.
+El campo superior de la barra lateral busca títulos y contenidos en todo el vault. El índice local de texto completo (SQLite FTS5) se construye al abrir el vault y se actualiza cuando cambian los archivos. La búsqueda funciona sin conexión.
 
 La búsqueda reacciona mientras escribes: los prefijos de palabra ya coinciden ("Proy" encuentra "Proyecto plan") — no hace falta pulsar Enter. La **X** a la derecha del campo borra la búsqueda actual (o pulsa `Esc`); la barra lateral vuelve entonces a mostrar el árbol de archivos normal.
 
-La lista de resultados muestra el número de coincidencias arriba y agrupa los resultados: primero las coincidencias de **Nombre de archivo** (el término aparece en el nombre de la nota), luego las de **Contenido**. Cada fila muestra el icono del documento, la ruta de la carpeta y — en las coincidencias de contenido — un fragmento de texto con la coincidencia resaltada. Al hacer clic en un resultado se abre la nota y salta directamente a la primera aparición; ahí queda seleccionada. Si no hay coincidencias, la lista muestra **Sin resultados**.
+La búsqueda muestra cada aparición con un fragmento, la ruta de encabezados y el número de línea. Al abrir una fila se selecciona esa aparición concreta; varias coincidencias de una misma nota aparecen por separado. El contador incluye solo los resultados ya cargados. Puedes cargar más apariciones. Las flechas cambian la selección y Enter la abre. Se indican la carga, los resultados vacíos y los errores; una nueva consulta descarta respuestas anteriores. Si una edición impide identificar la aparición de forma inequívoca, se muestra un aviso. Estas apariciones también están disponibles en el selector rápido y la búsqueda móvil. Al volver a la búsqueda en el teléfono se recuperan la consulta, los resultados cargados y la posición de la lista.
 
 El campo de búsqueda también se aplica a las demás vistas de la barra lateral: en **Etiquetas** filtra la lista de etiquetas, en **Marcadores** los marcadores.
 

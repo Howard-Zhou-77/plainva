@@ -176,7 +176,7 @@ export function PimAccountsScreen({
       const candidates = records.filter(r => r.family === q.family && (!q.context.cloudAccountId || r.id === q.context.cloudAccountId));
       const record = candidates.length === 1 ? candidates[0] : undefined;
       if (record && alive) setLabel(record.label);
-      const token = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
+      const token = record ? await getAccountToken(vault.id, record.id, "calendar", broker).catch(() => null) : null;
       // Whether the shared token EXISTS was the wrong question: a Drive-only
       // grant exists and does not read a calendar, and skipping the consent on
       // that basis is how a row was created that could never sign in (finding
@@ -499,8 +499,7 @@ export function PimAccountsScreen({
 
   const calendarConsentScope = async () => {
     if (!calendarRun) return undefined;
-    const record = (await loadCloudAccounts(calendarRun.context.vaultId)).find(r => r.id === calendarRun.context.cloudAccountId);
-    return runConsentScope(calendarRun.family, [...new Set([...runServices(calendarRun), ...Object.keys(record?.services ?? {}) as Array<"files" | "calendar" | "mail">])]) ?? undefined;
+    return runConsentScope(calendarRun.family, runServices(calendarRun)) ?? undefined;
   };
   const connectGoogle = async () => {
     if (connecting.current) return;

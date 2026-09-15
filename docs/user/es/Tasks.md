@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-09-06
+Última actualización: 2026-09-15
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -131,3 +131,14 @@ Las tareas del proveedor se identifican por su identidad. Las distintas repetici
 Estos archivos pertenecen a tareas diferentes. Las tareas recurrentes con el mismo título pueden ser instancias distintas. Ambos contenidos se conservan como tareas separadas.
 
 **Conservar como tareas separadas** — Este archivo no cambia: Archivo actual  La copia en conflicto se conserva como archivo independiente: copia de conflicto
+
+<!-- tasks-jex-2026-09-14 -->
+## Metadatos de Tasks y repetición
+
+Escritorio, móvil y vista previa en vivo reconocen ➕ creación, ✅ finalización, 📅 vencimiento, ⏳ planificación, 🛫 inicio, 🆔 ID y 🔁 repetición. Fechas: YYYY-MM-DD. Los ID existentes sobreviven al mover líneas; los datos desconocidos permanecen en Markdown.
+
+Solo se automatizan las reglas en inglés `every [N] day/week/month/year[s] [when done]` (N: 1–999). Completar avanza un período, aunque siga vencido; `when done` cuenta desde la finalización. Se conservan las distancias entre fechas y se ajusta el fin de mes. Sin fecha, la siguiente sigue sin fecha. Reglas complejas, dependencias, ID de bloque o duplicados, fechas inválidas, contenido indentado, repetición nativa y tareas de proveedores desactivan este generador.
+
+Marcar añade la fecha de finalización a las tareas con metadatos. La repetición admitida añade un ID si falta y un ID `pv-…` distinto a la siguiente. Casilla y sucesora forman una sola edición Markdown; Deshacer revierte toda la edición. Reabrir y marcar otra vez conserva la sucesora y sus cambios.
+
+Las tareas nativas de base de datos siguen saltando períodos vencidos. Un plan de destino guardado evita duplicados. Si no se confirma la sucesora, revisa la carpeta; reabrir y marcar puede reanudar un fallo de escritura. Si la fuente cambió, no se escribe una copia diferente: revisa las notas y crea la sucesora manualmente si hace falta. Una sucesora confirmada y borrada después no se restaura.

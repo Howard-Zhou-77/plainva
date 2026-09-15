@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
+import { BaseExportDialog } from "@plainva/ui";
+import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
-  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare } from "lucide-react";
+  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
@@ -200,6 +202,7 @@ export function BaseViewer({
   // Single docked, view-adaptive config panel (points 2-4) replaces the
   // header Filter/Sort/Columns dropdowns and the inline view-option bars.
   const [showConfigPanel, setShowConfigPanel] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   // Rows matching the SOURCE conditions only (property filters stripped). The
   // filter value dropdowns in the config panel derive their options from these,
@@ -2383,6 +2386,13 @@ export function BaseViewer({
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
                 </button>
                 <div className="pv-menu-sep" role="separator" />
+                <MenuItem
+                  onSelect={() => { setShowHeaderMenu(false); setShowExport(true); }}
+                  disabled={!dbConfig || isLoading || !!error}
+                  icon={<Download size={ICON.ui} />}
+                >
+                  {t("database.exportTitle")}
+                </MenuItem>
                 <button
                   onClick={() => { setShowHeaderMenu(false); onDelete?.(); }}
                   className="pv-menu-item pv-menu-item--danger"
@@ -2420,6 +2430,8 @@ export function BaseViewer({
             </div>
           )}
         </div>
+        {showExport && dbConfig && <BaseExportDialog config={dbConfig} viewIndex={activeViewIndex} rows={scopedData}
+          onExport={file => saveBaseExport(activePath, file)} onClose={() => setShowExport(false)} />}
         {showConfigPanel && !isLoading && !error && (
           <BaseConfigPanel
             currentViewType={currentViewType}

@@ -30,8 +30,8 @@ test.beforeEach(async ({ page }) => {
     // Second account with DIFFERENT folder names (the account-switch race).
     const mailAccount2 = { id: 'm2', label: 'zweit@example.net', host: 'imap.example.net', port: 993, user: 'zweit@example.net', smtpHost: 'smtp.example.net', smtpPort: 587 };
     const envelopes = [
-      { uid: 2, subject: 'Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW, seen: false, messageId: 'a@x' },
-      { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', dateTs: NOW - 86400000, seen: true, messageId: 'n@news' },
+      { uidValidity: 5, hasAttachments: true, uid: 2, subject: 'Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW, seen: false, messageId: 'a@x' },
+      { uidValidity: 5, hasAttachments: false, uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', dateTs: NOW - 86400000, seen: true, messageId: 'n@news' },
     ];
     /**
      * Conversation fixture (P9.3), only served when a test asks for it: the
@@ -40,12 +40,12 @@ test.beforeEach(async ({ page }) => {
      * The reply in the middle lives in SENT — that is what makes the thread
      * cross a folder boundary.
      */
-    const threadReply = { uid: 3, subject: 'Re: Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW + 7200000, seen: false, messageId: 'c@x', inReplyTo: 'b@x', references: 'a@x b@x' };
+    const threadReply = { uidValidity: 5, hasAttachments: false, uid: 3, subject: 'Re: Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW + 7200000, seen: false, messageId: 'c@x', inReplyTo: 'b@x', references: 'a@x b@x' };
     const sentEnvelopes = [
-      { uid: 91, subject: 'Re: Rechnung Q3', from: 'Marco <marco@example.org>', dateTs: NOW + 3600000, seen: true, messageId: 'b@x', inReplyTo: 'a@x', references: 'a@x' },
+      { uidValidity: 5, hasAttachments: false, uid: 91, subject: 'Re: Rechnung Q3', from: 'Marco <marco@example.org>', dateTs: NOW + 3600000, seen: true, messageId: 'b@x', inReplyTo: 'a@x', references: 'a@x' },
       // Answers a mail older than the loaded page: it belongs to NO thread on
       // screen and must not become an inbox row (report 2026-07-30).
-      { uid: 92, subject: 'Re: Rechnung 2019', from: 'Marco <marco@example.org>', dateTs: NOW - 99999999, seen: true, messageId: 'z@x', inReplyTo: 'ancient@x', references: 'ancient@x' },
+      { uidValidity: 5, hasAttachments: false, uid: 92, subject: 'Re: Rechnung 2019', from: 'Marco <marco@example.org>', dateTs: NOW - 99999999, seen: true, messageId: 'z@x', inReplyTo: 'ancient@x', references: 'ancient@x' },
     ];
     const fullMessage = {
       uid: 2,
@@ -134,6 +134,19 @@ test.beforeEach(async ({ page }) => {
           // when mail is left — the mock only records WHO was released.
           ((window as any).__released ||= []).push(args.user ?? null);
           return null;
+        }
+        if (cmd === 'mail_bulk_action') {
+          ((window as any).__bulkCalls ||= []).push({ mailbox: args.mailbox, uids: args.uids, action: args.action });
+          return args.uids.map((uid: number) => {
+            if ((window as any).__bulkFailUid === uid) return { uid, status: 'failed', reason: 'rejected' };
+            if (args.action.kind === 'seen') {
+              (window as any).__setSeen = { user: args.user, mailbox: args.mailbox, uid, seen: args.action.value };
+              ((window as any).__seenBoxes ??= []).push(args.mailbox);
+              ((window as any).__seenCalls ||= []).push({ user: args.user, mailbox: args.mailbox, uid });
+            }
+            if (args.action.kind === 'move') (window as any).__moved = { user: args.user, mailbox: args.mailbox, uid, target: args.action.target };
+            return { uid, status: 'done' };
+          });
         }
         if (cmd === 'mail_set_seen') {
           (window as any).__setSeen = { user: args.user, mailbox: args.mailbox, uid: args.uid, seen: args.seen };
@@ -319,6 +332,28 @@ async function openVault(page: any) {
   await page.goto('/');
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
 }
+
+test('bulk results retain failed messages and attachment filtering names the loaded scope', async ({ page }, testInfo) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  await expect(rows).toHaveCount(2);
+  await page.evaluate(() => { (window as any).__bulkFailUid = 1; });
+  await rows.first().click({ modifiers: ['Control'] });
+  await rows.nth(1).click({ modifiers: ['Control'] });
+  await page.getByTestId('mail-bulk-read').click();
+  const report = page.getByTestId('mail-bulk-report');
+  await expect(report).toContainText('Newsletter Juli');
+  await expect(report.locator('[data-mail-result="failed"]')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => (window as any).__bulkCalls?.[0].uids)).toEqual([2, 1]);
+  await expect(page.getByTestId('mail-bulkbar')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('mail-partial-desktop.png') });
+  await page.getByTestId('mail-bulk-clear').click();
+  await page.getByTestId('mail-filter-attachments').click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Rechnung Q3');
+  await expect(page.getByText('Metadata for 2 of 2 loaded messages.', { exact: false })).toBeVisible();
+});
 
 test('mail tab lists envelopes, sandboxes the message and captures it as an anchored note', async ({ page }) => {
   await openVault(page);

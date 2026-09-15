@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AVAILABLE_THEMES,
@@ -16,7 +16,11 @@ import {
   customThemeFromSwatch,
   defaultCustomTheme,
   formatRatio,
-  hexToHsl,
+  useCustomThemePair,
+  parseCustomThemeDesign,
+  defaultCustomThemeDesign,
+  CustomThemeSync,
+  usePersonalDesignSync,
   CUSTOM_ACCENT_MIN_CONTRAST,
   CUSTOM_BACKGROUND_LIGHTNESS,
   CUSTOM_TEXT_SECONDARY_MIN_CONTRAST,
@@ -29,6 +33,7 @@ import { AppBar } from "../components/AppBar";
 import { SwatchSheet } from "../components/SwatchSheet";
 import { mSelect } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { mobilePersonalDesignForEditor } from "../services/personalDesign";
 
 /**
  * "Mein Design" on the phone (plan 2026-09-04, A2): the screen the pencil on
@@ -38,7 +43,11 @@ import { getMobileSettings, updateMobileSettings } from "../services/mobileSetti
  */
 export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
-  const [spec, setSpec] = useState<CustomThemeSpec>(() => clampCustomTheme(getMobileSettings().customTheme).spec);
+  const [design, setDesign] = useState(() => parseCustomThemeDesign(getMobileSettings().customTheme) ?? defaultCustomThemeDesign());
+  const refreshDesign = useCallback(() => setDesign(getMobileSettings().customTheme), []);
+  const designSync = usePersonalDesignSync(mobilePersonalDesignForEditor, refreshDesign);
+  const pair = useCustomThemePair(design, async next => { await designSync.save(next, () => updateMobileSettings({ customTheme: next })); setDesign(next); });
+  const spec = pair.spec;
   const [sheet, setSheet] = useState<"background" | "accent" | null>(null);
   const [lastCorrection, setLastCorrection] = useState<CustomThemeCorrection | null>(null);
   const colors = useMemo(() => customThemeColors(spec), [spec]);
@@ -46,8 +55,7 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   const [lo, hi] = CUSTOM_BACKGROUND_LIGHTNESS[spec.mode];
 
   const commit = (next: CustomThemeSpec) => {
-    setSpec(next);
-    void updateMobileSettings({ customTheme: next });
+    pair.update(next);
   };
   const set = (patch: Partial<CustomThemeSpec>) => {
     const { spec: next, corrections } = clampCustomTheme({ ...spec, ...patch });
@@ -61,10 +69,8 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
       value: spec.mode,
     }).then((v) => {
       if (v !== "light" && v !== "dark") return;
-      const mode = v as CustomThemeMode;
-      const l = hexToHsl(spec.background).l;
-      const [nlo, nhi] = CUSTOM_BACKGROUND_LIGHTNESS[mode];
-      set({ mode, background: l >= nlo && l <= nhi ? spec.background : defaultCustomTheme(mode).background });
+      setLastCorrection(null);
+      pair.setMode(v as CustomThemeMode);
     });
   };
   const pickRadius = () => {
@@ -102,6 +108,9 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
       <AppBar onBack={onBack} title={t("themes.names.custom")} />
       <div className="m-settings">
         <p className="m-hint">{t("settings.customThemePageDesc")}</p>
+        <p className="m-hint">{t("settings.customThemePairHint")}</p>
+        {pair.pending && <Banner kind="info" rounded><p>{t("settings.customThemeProposal")}</p><Button onClick={pair.adopt} data-testid="custom-theme-adopt-mood">{t("settings.customThemeAdoptMood")}</Button></Banner>}
+        {pair.saveFailed && <Banner kind="error" rounded>{t("settings.customThemeSaveFailed")}</Banner>}
         <div aria-hidden="true" className="pv-card pv-card--flush" data-testid="custom-theme-preview" style={{ background: colors.background, color: colors.textMain, borderColor: colors.border, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "calc(var(--space-8) + var(--space-6)) 1fr", minHeight: "calc(var(--space-8) * 3)" }}>
             <div style={{ background: colors.surface, padding: "var(--space-2)", display: "grid", gap: "var(--space-1)", alignContent: "start" }}>
@@ -119,7 +128,7 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
         <SectionLabel>{t("settings.groupColors")}</SectionLabel>
         <GroupCard>
           <RowList>
-            <Row title={t("settings.customThemeMode")} end={<span className="m-prop-val">{spec.mode === "light" ? t("settings.themeLight") : t("settings.themeDark")}</span>} onClick={pickMode} />
+            <Row title={t("settings.customThemeMode")} end={<span className="m-prop-val">{spec.mode === "light" ? t("settings.themeLight") : t("settings.themeDark")}</span>} onClick={pickMode} data-testid="custom-theme-mood" />
             <Row title={t("settings.customThemeBackground")} subtitle={t("settings.customThemeBackgroundHint", { lo: Math.round(lo * 100), hi: Math.round(hi * 100) })} end={dot(spec.background)} onClick={() => setSheet("background")} />
             <Row title={t("settings.customThemeAccent")} subtitle={t("settings.customThemeAccentHint", { min: CUSTOM_ACCENT_MIN_CONTRAST })} end={dot(spec.accent)} onClick={() => setSheet("accent")} />
             <Row title={t("settings.customThemeText")} subtitle={t("settings.customThemeTextHint")} end={<span>{dot(colors.textMain)} {dot(colors.textMuted)} {dot(colors.textFaint)}</span>} />
@@ -153,6 +162,7 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
           <Button variant="ghost" onClick={() => { setLastCorrection(null); commit(defaultCustomTheme(spec.mode)); }}>{t("settings.customThemeReset")}</Button>
           <Button variant="ghost" onClick={adoptFrom}>{t("settings.customThemeAdoptFrom")}</Button>
         </div>
+        <CustomThemeSync {...designSync} mobile />
       </div>
 
       {sheet === "background" && (

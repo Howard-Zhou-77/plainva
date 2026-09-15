@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { createHash } from "node:crypto";
 import {
   COMMENTS_DEVICES_PATH,
   COMMENTS_ENC_PATH,
@@ -204,6 +205,41 @@ describe("reading the folder", () => {
 describe("CommentsSyncStep (one file per device)", () => {
   const now = () => NOW;
   const step = (deviceId: string, crypto?: CommentsCrypto, onFaults?: (f: CommentBundleFault[]) => void) => new CommentsSyncStep({ deviceId, crypto, now, onFaults });
+
+  it("retains validated reads across step instances and measures requests as well as bytes", async () => {
+    class ConditionalTarget extends FakeTarget {
+      transfers = { requests: 0, bytes: 0, notModified: 0 };
+      async downloadConditional(path: string, previous?: string) {
+        this.transfers.requests++;
+        const bytes = this.remote.get(path) ?? null;
+        const etag = bytes ? `"${createHash("sha256").update(bytes).digest("hex")}"` : undefined;
+        if (etag && etag === previous) { this.transfers.notModified++; return { notModified: true as const, etag }; }
+        this.transfers.bytes += bytes?.length ?? 0;
+        return { notModified: false as const, bytes, etag };
+      }
+    }
+    const vault = new FakeVault(), target = new ConditionalTarget();
+    const devices: Record<string, { updatedAt: string }> = {};
+    for (let device = 0; device < 6; device++) {
+      const name = `device-${device}`; devices[name] = { updatedAt: NOW };
+      target.remote.set(commentsDevicePath(name, false), text(bundle(Array.from({ length: 20 }, (_, index) => rec({
+        commentId: ID(device * 20 + index + 1), authorDeviceId: name, body: "A retained remark. ".repeat(50),
+      })))));
+    }
+    target.remote.set(COMMENTS_DEVICES_PATH, new TextEncoder().encode(JSON.stringify({ format: "plainva-comment-devices", version: 1, devices })));
+    let foreign = 0;
+    const run = () => new CommentsSyncStep({ deviceId: "laptop", now, downloadOnly: true, onForeignPlaintext: count => { foreign = count; } }).run(target.as(), vault.as());
+    await run();
+    const first = { ...target.transfers };
+    await run();
+    const second = { requests: target.transfers.requests - first.requests, bytes: target.transfers.bytes - first.bytes, notModified: target.transfers.notModified - first.notModified };
+    expect(first.requests).toBe(9); expect(first.bytes).toBeGreaterThan(100_000);
+    expect(second).toEqual({ requests: 9, bytes: 0, notModified: 7 });
+    expect(foreign).toBe(6);
+    expect(Object.keys((await readAllComments(vault.as(), "laptop", undefined))!.comments)).toHaveLength(120);
+    expect(target.writes).toEqual([]); expect(target.deletes).toEqual([]);
+    console.info("Sideband fixture transfer measurement", { first, unchanged: second });
+  });
 
   it.each([false, true])("workspace receive-only mode preserves old sources and never publishes sideband text (sealed: %s)", async sealed => {
     const vault = new FakeVault(), target = new FakeTarget();

@@ -1,6 +1,7 @@
 import type { SyncProviderId } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 import { getSettingsStore } from "./settingsStore";
+import { readDriveFolderSelection } from "@plainva/core";
 
 /**
  * Where the vault's remote sync folder is configured — and why it no longer
@@ -54,6 +55,10 @@ export async function readSyncRootFolder(vaultPath: string, provider: SyncProvid
   if (!STORE_PROVIDERS.has(provider)) return folderFromSlot(vaultPath, provider);
   const store = await getSettingsStore();
   const stored = await store.get<string>(syncRootFolderKey(vaultPath, provider));
+  if (provider === "drive") {
+    const selected = readDriveFolderSelection(stored);
+    if (selected) return selected.path;
+  }
   if (typeof stored === "string") return stored;
 
   const legacy = await folderFromSlot(vaultPath, provider);
@@ -68,9 +73,15 @@ export async function readSyncRootFolder(vaultPath: string, provider: SyncProvid
  * suffix, so "forget this vault" sweeps it with everything else
  * (`vaultForget.ts`).
  */
-export async function writeSyncRootFolder(vaultPath: string, provider: SyncProviderId, value: string): Promise<void> {
+export async function writeSyncRootFolder(vaultPath: string, provider: SyncProviderId, value: string, folderId?: string): Promise<void> {
   if (!STORE_PROVIDERS.has(provider)) return;
   const store = await getSettingsStore();
-  await store.set(syncRootFolderKey(vaultPath, provider), value);
+  const selection = provider === "drive" && folderId ? readDriveFolderSelection({ path: value, id: folderId }) : null;
+  await store.set(syncRootFolderKey(vaultPath, provider), selection ?? value);
   await store.save();
+}
+
+export async function readDriveDestination(vaultPath: string): Promise<{ path: string; id?: string }> {
+  const stored = await (await getSettingsStore()).get<unknown>(syncRootFolderKey(vaultPath, "drive"));
+  return readDriveFolderSelection(stored) ?? { path: typeof stored === "string" ? stored : await readSyncRootFolder(vaultPath, "drive") };
 }

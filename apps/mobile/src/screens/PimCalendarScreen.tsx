@@ -339,20 +339,23 @@ export function PimCalendarScreen({
   // folder and format — a tap on the mark opens the note, the day itself
   // still opens the day view.
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
+  const loadDailyDays = useCallback(async (dates: Date[]) => {
+    const s = getMobileSettings();
+    const v = await getMobileVault();
+    return existingDailyNoteDays(dates, { folder: s.dailyFolder, format: s.dailyFormat }, (path) => v.files.exists(path));
+  }, []);
   useEffect(() => {
     if (view !== "month") return;
     let stale = false;
-    const s = getMobileSettings();
-    void getMobileVault()
-      .then((v) => existingDailyNoteDays(days, { folder: s.dailyFolder, format: s.dailyFormat }, (p) => v.files.exists(p)))
+    void loadDailyDays(days)
       .then((set) => {
         if (!stale) setDailyDays(set);
       })
-      .catch(() => {});
+      .catch(() => { if (!stale) setDailyDays(new Set()); });
     return () => {
       stale = true;
     };
-  }, [view, days, bump]);
+  }, [view, days, bump, loadDailyDays]);
 
   // ── Writing events (S24) ──────────────────────────────────────────────────
   // The calendar could show and answer; it could not write. A tapped slot
@@ -455,6 +458,9 @@ export function PimCalendarScreen({
               value={isoOf(anchor)}
               weekStart={weekStart}
               size="sheet"
+              loadMarkedDays={loadDailyDays}
+              marksRevision={bump}
+              onOpenDailyNote={onOpenDate ? (key) => { setJumpOpen(false); onOpenDate(key); } : undefined}
               band={(view === "week" || view === "3day") && days.length > 0 ? { from: isoOf(days[0]), to: isoOf(days[days.length - 1]) } : null}
               onPick={(key) => jumpTo(new Date(`${key}T00:00:00`))}
               onToday={() => jumpTo(new Date())}

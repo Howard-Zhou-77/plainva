@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-09-07
+Stan na: 2026-09-15
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -90,3 +90,7 @@ Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mog�
 Plik zmienił się po otwarciu. Porównanie zostało wczytane ponownie. Sprawdź aktualną zawartość i wybierz ponownie.
 
 Scalanie wiersz po wierszu to narzędzie na komputer; tu przyjmujesz jedną wersję w całości albo zachowujesz obie.
+
+## Porównanie wybranej kopii
+
+Wybrana wersja pokazuje dodane i usunięte wiersze względem bieżącej notatki, nawet przy ukrytym diffie. **Otwórz w nowym oknie** zachowuje dokładnie tę kopię na komputerze. Gdy zniknie, Plainva o tym informuje. Duże pliki mogą nie mieć liczby wierszy; pliki binarne nie mają porównania tekstu. Te same liczby są dostępne w pełnym porównaniu mobilnym.

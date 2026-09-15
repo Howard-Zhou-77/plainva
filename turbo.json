@@ -2,8 +2,20 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "build/**"
+      ],
+      "env": [
+        "VITE_PLAINVA_GOOGLE_MAIL_STATE",
+        "VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID",
+        "VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET",
+        "VITE_PLAINVA_GOOGLE_IOS_CLIENT_ID",
+        "VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID"
+      ]
     },
     "dev": {
       "cache": false,
@@ -11,10 +23,17 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ],
+      "passThroughEnv": [
+        "PLAINVA_TEST_WORKERS"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": [
+        "^typecheck"
+      ]
     }
   }
 }

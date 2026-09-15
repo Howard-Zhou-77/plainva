@@ -1,16 +1,16 @@
 # Wyszukiwanie
 
-Stan na: 2026-09-03
+Stan na: 2026-09-15
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
 ## Wyszukiwanie pełnotekstowe w vaulcie
 
-Pole wyszukiwania na górze paska bocznego **Pliki** przeszukuje cały vault — tytuły *i* treść. Stoi za tym lokalny indeks pełnotekstowy (SQLite FTS5), budowany przy otwieraniu vaultu i utrzymywany na bieżąco przy każdej zmianie; wyszukiwanie działa więc również offline i bez zauważalnego opóźnienia.
+Pole u góry panelu bocznego przeszukuje tytuły i treść w całym sejfie. Lokalny indeks pełnotekstowy (SQLite FTS5) powstaje podczas otwierania sejfu i jest aktualizowany po zmianach plików. Wyszukiwanie działa offline.
 
 Wyszukiwanie reaguje w trakcie pisania: prefiksy słów pasują już od razu ("Projek" znajduje "Projekt plan") — bez potrzeby naciskania Enter. **X** po prawej stronie pola czyści bieżące wyszukiwanie (albo naciśnij `Esc`); pasek boczny pokazuje wtedy znowu zwykłe drzewo plików.
 
-Lista wyników pokazuje na górze liczbę trafień i grupuje wyniki: najpierw trafienia **Nazwa pliku** (termin występuje w nazwie notatki), potem trafienia **Treść**. Każdy wiersz pokazuje ikonę dokumentu, ścieżkę folderu oraz — przy trafieniach w treści — fragment tekstu z podświetlonym dopasowaniem. Kliknięcie wyniku otwiera notatkę i przenosi od razu do pierwszego wystąpienia; jest ono tam zaznaczone. Jeśli nic nie pasuje, lista pokazuje **Brak wyników**.
+Lista pokazuje poszczególne wystąpienia wraz z fragmentem tekstu, ścieżką nagłówków i numerem wiersza. Otwarcie pozycji zaznacza dokładnie wybrane wystąpienie; kilka dopasowań w tej samej notatce jest pokazanych osobno. Licznik obejmuje tylko załadowane wyniki. Można wczytać kolejne wystąpienia. Strzałki zmieniają wybór, a Enter go otwiera. Ładowanie, brak wyników i błędy są wyraźnie wskazane; nowe zapytanie odrzuca stare odpowiedzi. Gdy po edycji nie można jednoznacznie odnaleźć wystąpienia, pojawia się komunikat. Te same wystąpienia są dostępne w szybkim przełączniku i wyszukiwaniu mobilnym. Powrót do wyszukiwania na telefonie przywraca zapytanie, wczytane wyniki i pozycję listy.
 
 Pole wyszukiwania działa też w pozostałych widokach paska bocznego: w **Tagi** filtruje listę tagów, w **Zakładki** — zakładki.
 

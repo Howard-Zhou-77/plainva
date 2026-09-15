@@ -1,3 +1,4 @@
+import { setForeignLegacyComments } from "@plainva/ui";
 /**
  * Desktop profile-sync port (settings-sync plan P1). Bridges the vault's
  * syncable per-vault settings (content placement, backup retention, sync
@@ -83,6 +84,8 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
+import { desktopPersonalDesign } from "./personalDesign";
+import { mergePersonalDesignValues } from "@plainva/ui";
 import { getWorkspaceSecurityStatus } from "./workspaceSecurity/workspaceKeychain";
 import { hasLocalKeyfile, loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
 import {
@@ -468,6 +471,8 @@ export async function exportProfileValues(
       delete values.bookmarks;
     }
   }
+  const designProfile = await (await desktopPersonalDesign(vaultPath, context.memberId ?? null, store)).export();
+  if (designProfile) values.personalDesign = designProfile;
   return canonicalizeProfileValues(values);
 }
 
@@ -483,6 +488,7 @@ export async function applyProfileValues(
   incoming: Record<string, unknown>,
   context: DesktopProfileContext = {}
 ): Promise<void> {
+  mergePersonalDesignValues([incoming]);
   const sanitized = sanitizeProfileValues(incoming);
   const values = canonicalizeProfileValues(sanitized.values);
   if (sanitized.skipped.length > 0) {
@@ -512,7 +518,7 @@ export async function applyProfileValues(
       }
     }
 
-    const known = new Set([...profileFields().map((f) => f.logical), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
+    const known = new Set([...profileFields().map((f) => f.logical), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "personalDesign"]);
     await store.set(
       profileUnknownKey(vaultPath),
       Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)))
@@ -536,6 +542,9 @@ export async function applyProfileValues(
     throw error;
   }
   // Backup retention/ZIP + mail settings take effect live; the rest is lazy-read
+  // This monotonic register is committed after the ordinary profile journal.
+  // A retry joins it again; rollback must never discard a concurrent local edit.
+  await (await desktopPersonalDesign(vaultPath, context.memberId ?? null, store)).receive(values.personalDesign);
   // on next use (daily/template/task) or on next vault open (sync interval).
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("plainva-backup-settings-changed"));
@@ -828,6 +837,7 @@ export function createDesktopProfilePort(vaultPath: string, context: DesktopProf
   };
   return {
     normalizeValues: canonicalizeProfileValues,
+    mergeObservedValues: mergePersonalDesignValues,
     async exportValues() {
       return exportProfileValues(await getSettingsStore(), vaultPath, withReporting);
     },
@@ -862,7 +872,8 @@ export async function getActiveConnectionId(vaultPath: string): Promise<string |
   const records = await loadCloudAccounts(vaultPath);
   const provider = records.find((r) => r.services.files)?.services.files?.provider;
   if (!provider) return null;
-  const root = await getSyncRootFolder(vaultPath, provider);
+  const selected = provider === "drive" ? await import("./syncRootFolder").then(({ readDriveDestination }) => readDriveDestination(vaultPath)) : null;
+  const root = selected?.id ? `id:${selected.id}` : await getSyncRootFolder(vaultPath, provider);
   return connectionIdFor(provider, root);
 }
 
@@ -1225,6 +1236,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       }
       return new CommentsSyncStep({
         vaultKey: vaultPath,
+        onForeignPlaintext: (count) => setForeignLegacyComments(vaultPath, count),
         downloadOnly: !!(await getWorkspaceSecurityStatus(vaultPath)),
         // One file per device (N2): the same id the store writes as the author.
         deviceId: await getDeviceId(),

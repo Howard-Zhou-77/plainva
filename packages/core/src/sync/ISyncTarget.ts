@@ -150,6 +150,10 @@ export interface ISyncTarget {
    */
   pull(cursor?: string): Promise<PullResult>;
   download(filePath: string): Promise<Uint8Array | null>;
+  /** Atomic HTTP validator and content, for bounded sideband caches. */
+  downloadConditional?(filePath: string, etag?: string): Promise<
+    { notModified: true; etag: string } | { notModified: false; bytes: Uint8Array | null; etag?: string }
+  >;
   /**
    * Optional: the CURRENT remote change marker (etag/hash) for a single path, or null if
    * the file does not exist remotely. Used by the engine's optimistic-concurrency guard

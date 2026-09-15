@@ -354,7 +354,7 @@ async function addPimAccountInVault(
   // Probe in memory, including token rotation. A failed or abandoned probe
   // must not create a credential or clean up a slot in another vault.
   if (creds.kind === "google" || creds.kind === "microsoft") {
-    const provisionalAuth = !creds.refreshToken && source
+    const provisionalAuth = !creds.refreshToken && !(creds.kind === "google" && creds.nativeGoogle) && source
       ? await calendarGrantProbe(owner.vaultId, source.id, creds.kind, creds)
       : undefined;
     const auth = buildPimAuthProvider(owner.vaultId, id, creds, {

@@ -30,7 +30,8 @@ export async function lookupOAuthClientForNewAccount(
     const candidates = records.filter(r => r.family === family && (!context?.cloudAccountId || r.id === context.cloudAccountId));
     if (candidates.length > 1 || (context?.cloudAccountId && candidates.length !== 1)) return null;
     const record = candidates[0];
-    const accountToken = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
+    const accountToken = record ? await getAccountToken(vault.id, record.id, "calendar", family).catch(() => null)
+      ?? await getAccountToken(vault.id, record.id).catch(() => null) : null;
     const syncProvider = !context?.cloudAccountId || record?.services.files ? await getStoredProvider(vault.id).catch(() => null) : null;
     const siblings = (
       await Promise.all(

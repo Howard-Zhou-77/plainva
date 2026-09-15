@@ -16,6 +16,21 @@ pub struct CheckedDirEntry {
     is_file: bool,
     is_directory: bool,
     is_symlink: bool,
+    /// A directory snapshot carries regular-file metadata in the same IPC.
+    /// Links stay unresolved here; the walker applies its identity/cycle guard.
+    metadata: Option<EntryMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryMetadata {
+    size: u64,
+    mtime: Option<u64>,
+    ctime: Option<u64>,
+}
+
+fn timestamp_ms(value: io::Result<std::time::SystemTime>) -> Option<u64> {
+    value.ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis().try_into().ok()
 }
 
 fn registered_path(roots: &WriteRoots, root_id: &str, relative: &str) -> Result<PathBuf, String> {
@@ -63,11 +78,16 @@ fn collect_entries(
             let kind = entry
                 .file_type()
                 .map_err(|error| format!("cannot inspect directory entry: {error}"))?;
+            let metadata = if kind.is_file() {
+                let value = entry.metadata().map_err(|error| format!("cannot inspect file metadata: {error}"))?;
+                Some(EntryMetadata { size: value.len(), mtime: timestamp_ms(value.modified()), ctime: timestamp_ms(value.created()) })
+            } else { None };
             Ok(CheckedDirEntry {
                 name,
                 is_file: kind.is_file(),
                 is_directory: kind.is_dir(),
                 is_symlink: kind.is_symlink(),
+                metadata,
             })
         })
         .collect()
@@ -101,12 +121,14 @@ pub fn checked_read_text_file(
 }
 
 #[tauri::command]
-pub fn checked_read_dir(
+pub async fn checked_read_dir(
     root_id: String,
     rel_path: String,
     state: tauri::State<'_, WriteRoots>,
 ) -> Result<Option<Vec<CheckedDirEntry>>, String> {
-    read_directory(&registered_path(&state, &root_id, &rel_path)?)
+    let path = registered_path(&state, &root_id, &rel_path)?;
+    tauri::async_runtime::spawn_blocking(move || read_directory(&path))
+        .await.map_err(|error| format!("directory read failed: {error}"))?
 }
 
 #[cfg(test)]
@@ -143,6 +165,9 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].name, "Note.md");
         assert!(entries[0].is_file);
+        let metadata = entries[0].metadata.as_ref().unwrap();
+        assert_eq!(metadata.size, "The whole note.\n".len() as u64);
+        assert_eq!(metadata.mtime, timestamp_ms(fs::metadata(&note).unwrap().modified()));
         assert!(read_directory(&note).is_err());
         assert!(read_text(dir.path()).is_err());
     }

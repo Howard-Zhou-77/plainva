@@ -1,4 +1,4 @@
-import { defaultImportRegistry, type ImportSource } from "@plainva/core";
+import { defaultImportRegistry, type ImportSource, type ArchiveReadControl } from "@plainva/core";
 import { unpackSelection, type ExtractedArchive } from "./importArchive";
 import { pickDeviceFiles, type PickMode } from "./pickFiles";
 
@@ -37,8 +37,8 @@ export interface ImportSelection {
  * Detection is a convenience: a failure or a null leaves the choice to the
  * user rather than guessing, exactly as on the desktop.
  */
-export async function analyzeSelection(picked: File[]): Promise<ImportSelection> {
-  const archive = await unpackSelection(picked);
+export async function analyzeSelection(picked: File[], control: ArchiveReadControl = {}): Promise<ImportSelection> {
+  const archive = await unpackSelection(picked, control);
   if (archive.files.length === 0) return { archive, detected: null };
   let detected: ImportSource | null = null;
   try {

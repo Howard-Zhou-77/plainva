@@ -81,6 +81,9 @@ jobs:
 
       - name: Build web assets
         run: pnpm --filter mobile build
+        env:
+          VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
+          VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID }}
 
       - name: Capacitor sync
         working-directory: apps/mobile
@@ -132,8 +135,8 @@ jobs:
           fi
 
       # 16 KB page size: Play refuses updates without it from 2027-02-01 (apps
-      # targeting API 35+). Today the bundle's only native library is SQLCipher,
-      # 16 KB-aware since 4.6.1 — this step is the guard against a dependency
+      # targeting API 35+). SQLCipher and the camera JNI libraries all need it;
+      # this step is the guard against a dependency
       # bump quietly undoing that, and it runs BEFORE the upload so a regression
       # never reaches the internal track. Every LOAD segment of every .so must
       # be aligned to at least 0x4000 (16384). See

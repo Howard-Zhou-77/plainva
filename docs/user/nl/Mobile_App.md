@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-11
+Laatst bijgewerkt: 2026-09-15
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -28,6 +28,8 @@ Het is een vroege build: houd een back-up van je vault en laat me weten wat er m
 
 Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt over naar bewerken (met een werkbalk boven het toetsenbord: opmaak, lijsten, wiki-link, slash-commando's, foto invoegen). `![[Notitie]]`-embeds verschijnen als aantikbare voorbeeldkaarten.
 
+Houd een woord ingedrukt om tekst te selecteren. De selectiebalk biedt **Kopiëren** en **Alles selecteren**, ook om de volledige tekst van een lange notitie te kopiëren. Verborgen YAML-eigenschappen en Markdown-opmaaktekens worden niet gekopieerd. **Bewerken** schakelt over naar schrijven op de geselecteerde plek als je de notitie mag bewerken.
+
 Mappen kun je vanuit de werkbalk boven de lijst **doorzoeken** en **sorteren** — op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; nogmaals kiezen keert de richting om, en de sortering wordt op het apparaat onthouden. Bij een koude start opent de app wat je het laatst open had — notitie, map of databaseweergave, tabblad inbegrepen — en elke notitie opent waar je haar verliet; installatie-assistenten en een onvoltooide e-mail worden niet hersteld. Lijsten met subitems vouw je in en uit met een tik op hun opsommingsteken.
 
 De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
@@ -48,7 +50,7 @@ De **agendaweergave** kent drie perioden: **maand**, **week**, **dag**. De maand
 
 **Meerdere items tegelijk**: houd een rij ingedrukt en kies **Meerdere selecteren** — de eerste regel in dat blad. Daarna selecteert een tik in plaats van te openen, en een balk onderaan laat zien hoeveel er zijn. Vanaf daar kun je de selectie **verwijderen** (één vraag, geen twaalf — met hetzelfde overzicht van verbanden dat een enkele verwijdering geeft) of **Waarde instellen…** gebruiken om één eigenschap voor allemaal tegelijk in te stellen: kies eerst de eigenschap, dan de waarde. Waar bij een eigenschap **momenteel gemengd** staat, dragen de geselecteerde items verschillende waarden. Een lege waarde verwijdert de eigenschap. Terwijl het loopt zie je de voortgang en kun je annuleren; wat al is weggeschreven, blijft staan. Tags, lijsten, meervoudige selectie en relaties zijn bewust niet meegenomen — daar zou "ze allemaal op X zetten" betekenen dat elke bestaande waarde verdwijnt.
 
-Een weergave van het type **Prikbord** toont de notities als een bord met kleefbriefjes in twee kolommen: een tik opent de notitie, een lange druk toont de acties (vastzetten, labels, kleur, verwijderen), slepen na een lange druk herschikt, en selectievakjes vink je direct op de kaart af. Het invoerveld bovenaan legt een nieuwe notitie vast. Tip: richt de database op je inbox-map (**Instellingen** → **Inhoud en structuur**) en zowel de snelle ＋-notities als tekst die vanuit andere apps wordt gedeeld, belanden meteen op het bord.
+Een weergave van het type **Prikbord** toont de notities als een bord met kleefbriefjes in twee kolommen: een tik opent de notitie, een lange druk toont de acties (vastzetten, labels, kleur, verwijderen), slepen na een lange druk herschikt, en selectievakjes vink je direct op de kaart af. Het invoerveld bovenaan legt een nieuwe notitie vast. Tip: richt de database op je inbox-map (**Instellingen** → **Inhoud en structuur**) en zowel de snelle ＋-notities als tekst die vanuit andere apps wordt gedeeld, belanden meteen op het bord. Selecteer voor gedeelde inhoud eerst deze map en bevestig de import.
 
 ## Taken
 
@@ -205,7 +207,9 @@ Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notiti
 
 ## Delen en snelkoppelingen
 
-Op Android en iOS worden gedeelde tekst en URL's een nieuwe notitie in de inbox-map; gedeelde afbeeldingen en bestanden worden overgenomen als bijlage (maximaal 25 MB per bestand). Houd op Android het app-pictogram ingedrukt voor de extra snelkoppelingen **Nieuwe notitie** en **Vandaag**.
+Deel tekst, links, afbeeldingen of bestanden met Plainva vanuit een andere app. Plainva bewaart eerst een lokale privékopie. Open Plainva, bekijk de gedeelde inhoud, kies een vault en map en bevestig de import. Later importeren, het venster sluiten, de vault vergrendelen of de app herstarten behoudt de wachtende inhoud. Een begonnen import houdt bij opnieuw proberen de oorspronkelijke bestemming. Een onvolledige bronoverdracht moet opnieuw worden gedeeld; verwijder de wachtende overdracht als die niet meer nodig is.
+
+Limieten per overdracht: 10 bestanden, 25 MiB per bestand, 50 MiB totaal en 512 KiB tekst inclusief onderwerp. De wachtrij bevat maximaal 20 wachtende overdrachten en reserveert ruimte binnen een bijlagenbudget van 200 MiB. De tijdelijke kopie wordt pas verwijderd nadat de notitie en bijlagen zijn geschreven en gecontroleerd, of nadat je de overdracht uitdrukkelijk weggooit. Dit verwijdert geen bestanden die al in de vault zijn geïmporteerd. Houd op Android het app-pictogram ingedrukt voor **Nieuwe notitie** en **Vandaag**. Gebruik op de desktop de bestaande plak- en bestandsimportacties.
 
 ## Mappen, foto’s en agenda
 

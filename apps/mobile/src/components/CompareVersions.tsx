@@ -98,6 +98,7 @@ export function CompareVersions({
         {stats && stats.hunks > 0 && (
           <p className="m-compare-stats">
             {t("compare.stats", { hunks: stats.hunks, same: stats.same })}
+            <br />{t("compare.lineChanges", { added: stats.added, removed: stats.removed })}
             {cost ? <><br />{cost(stats)}</> : null}
           </p>
         )}

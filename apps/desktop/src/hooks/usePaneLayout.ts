@@ -24,6 +24,29 @@ export interface TabItem {
 export interface Pane { tabs: TabItem[]; activeIndex: number }
 export interface Layout { panes: Pane[]; direction: SplitDirection; activePaneIndex: number }
 
+/** Transfer bypasses global focus routing, which still names the source. */
+export function adoptTabInLayout(layout: Layout, incoming: TabItem): Layout {
+  const path = incoming.history[incoming.historyIndex];
+  let paneIndex = layout.activePaneIndex;
+  let index = -1;
+  layout.panes.some((pane, i) => {
+    const found = pane.tabs.findIndex(tab => tab.history[tab.historyIndex] === path);
+    if (found < 0) return false;
+    paneIndex = i; index = found; return true;
+  });
+  return { ...layout, activePaneIndex: paneIndex, panes: layout.panes.map((pane, i) => {
+    if (i !== paneIndex) return pane;
+    const tabs = [...pane.tabs];
+    if (index < 0) index = incoming.pinned ? tabs.filter(tab => tab.pinned).length : tabs.length;
+    else tabs.splice(index, 1);
+    tabs.splice(index, 0, { ...incoming, history: [...incoming.history] });
+    const selected = tabs[index];
+    // Stable partition preserves the pane's pinned-tab contract.
+    const sorted = [...tabs.filter(tab => tab.pinned), ...tabs.filter(tab => !tab.pinned)];
+    return { tabs: sorted, activeIndex: sorted.indexOf(selected) };
+  }) };
+}
+
 export const SPLIT_RATIO_MIN = 0.15;
 export const SPLIT_RATIO_MAX = 0.85;
 const DEFAULT_SPLIT_RATIO = 0.5;
@@ -360,6 +383,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // Guards saving until the current vault has been hydrated, so the interim empty
   // layout set on a vault switch never clobbers the stored snapshot.
   const hydratedForVault = useRef<string | null>(null);
+  const [readyVault, setReadyVault] = useState<string | null>(null);
 
   useEffect(() => {
     validateRef.current = validatePath;
@@ -399,6 +423,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   useEffect(() => {
     let cancelled = false;
     hydratedForVault.current = null;
+    setReadyVault(null);
     setLayout(emptyLayout());
     setSplitRatioState(DEFAULT_SPLIT_RATIO);
     if (!vaultPath) return;
@@ -410,6 +435,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
         setSplitRatioState(restored.splitRatio);
       }
       hydratedForVault.current = vaultPath;
+      setReadyVault(vaultPath);
     })();
     return () => { cancelled = true; };
   }, [vaultPath, layoutScope]);
@@ -461,6 +487,11 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // second half of a decision the caller has already made — `openView` asks the
   // owner and then calls in here to focus or create the tab. Asking again would
   // be a second round trip for the same click.
+  const adoptTransferredTab = useCallback((tab: TabItem) => {
+    notifyOpen(tab.history[tab.historyIndex]);
+    setLayout(previous => adoptTabInLayout(previous, tab));
+  }, []);
+
   const focusOrOpenVirtual = useCallback((path: string) => {
     notifyOpen(path);
     setLayout((prev) => focusOrOpenVirtualInLayout(prev, path));
@@ -642,6 +673,8 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
 
   return {
     layout,
+    layoutReady: !!vaultPath && readyVault === vaultPath,
+    adoptTransferredTab,
     splitRatio,
     ...derived,
     openTab,

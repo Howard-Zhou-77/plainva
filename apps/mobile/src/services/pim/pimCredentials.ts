@@ -1,4 +1,4 @@
-import { getPlatformServices, replaceProtectedCredential } from "@plainva/ui";
+import { getPlatformServices, replaceProtectedCredential, type StoredAccountToken } from "@plainva/ui";
 import { protectedSecrets } from "../../platform/protectedSecrets";
 
 /**
@@ -11,7 +11,7 @@ import { protectedSecrets } from "../../platform/protectedSecrets";
 
 export type PimStoredCredentials = { loginRevision?: string } & (
   | { kind: "caldav"; url: string; user: string; pass: string }
-  | { kind: "google"; clientId: string; clientSecret: string; refreshToken: string }
+  | ({ kind: "google"; clientId: string; clientSecret: string; refreshToken: string; grantedScope?: string } & Pick<StoredAccountToken, "nativeGoogle" | "providerIdentity">)
   | { kind: "microsoft"; clientId: string; refreshToken: string });
 
 /** Slot name of one account's credentials — exported so the secrets sideband

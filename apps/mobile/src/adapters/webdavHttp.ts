@@ -1,4 +1,6 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { connectionFailureCode } from "@plainva/core";
+import { logDiagnostic } from "@plainva/ui";
 
 /**
  * fetch over the native WebDavHttp plugin (M3). CapacitorHttp cannot send
@@ -29,6 +31,20 @@ interface WebDavHttpNative {
 
 const WebDavHttp = registerPlugin<WebDavHttpNative>("WebDavHttp");
 
+/** Log only a bounded code/method, never the native exception (which may
+ * contain credentials, private paths or certificate subject names). */
+async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0], signal?: AbortSignal | null) {
+  try {
+    return await WebDavHttp.request(options);
+  } catch (error) {
+    if (signal?.aborted) throw abortError(signal);
+    const code = connectionFailureCode(error) ?? "HTTP_REQUEST_FAILED";
+    const method = /^(GET|HEAD|POST|PUT|DELETE|OPTIONS|PROPFIND|MKCOL|MOVE|COPY|REPORT)$/.test(options.method) ? options.method : "OTHER";
+    logDiagnostic("native-http", `${method}: ${code}`);
+    throw Object.assign(new Error(code), { code });
+  }
+}
+
 /**
  * Registers a USER-CONFIGURED server origin with the native bridge's origin
  * policy (hardening P4.3, finding M8): fixed provider hosts (Google/MS/
@@ -37,17 +53,16 @@ const WebDavHttp = registerPlugin<WebDavHttpNative>("WebDavHttp");
  * targets the user typed in — must be allowed here before the first request.
  * No-op on the web dev server (the browser fetch has no such gate).
  *
- * Both native platforms enforce this since 2026-07-26 (H8b); before that iOS
- * had no allowlist and swallowed this call. The catch stays as a guard against
- * an outdated native shell, but a failure now means requests to that origin
- * WILL be refused — so it is logged as an error, not a shrug.
+ * Both native platforms enforce this since 2026-07-26 (H8b). If registration
+ * fails, stop before the request and report the same redacted policy error.
  */
 export async function allowHttpOrigin(urlOrOrigin: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     await WebDavHttp.allowOrigin({ origin: urlOrOrigin });
-  } catch (e) {
-    console.error("[webdavHttp] allowOrigin failed — requests to this origin will be blocked", e);
+  } catch {
+    logDiagnostic("native-http", "allow-origin: HTTP_ORIGIN_BLOCKED");
+    throw Object.assign(new Error("HTTP_ORIGIN_BLOCKED"), { code: "HTTP_ORIGIN_BLOCKED" });
   }
 }
 
@@ -147,7 +162,7 @@ const nativeFetch: typeof fetch = async (input, init) => {
   // A Blob may have yielded while converting its body. Do not start a native
   // write after the request was cancelled during that preparation.
   if (signal?.aborted) throw abortError(signal);
-  const call = WebDavHttp.request({ url, method, headers, body, bodyBase64 });
+  const call = requestNative({ url, method, headers, body, bodyBase64 }, signal);
   const res = signal ? await raceAbort(call, signal) : await call;
   const bytes = b64ToBytes(res.bodyBase64);
   const nullBody = res.status === 204 || res.status === 205 || res.status === 304;
@@ -177,7 +192,7 @@ export async function webdavRequest(opts: {
   bodyOffset: number;
   bodyLength: number;
 }): Promise<{ status: number; headers: Record<string, string>; body: string }> {
-  const res = await WebDavHttp.request(opts);
+  const res = await requestNative(opts);
   const bytes = b64ToBytes(res.bodyBase64);
   return {
     status: res.status,

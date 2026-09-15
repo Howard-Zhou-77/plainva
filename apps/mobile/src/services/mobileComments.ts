@@ -36,6 +36,18 @@ import { mobileCommentWorker } from "./commentWorker";
 /** The plain-vault set - what the surface falls back to without a workspace policy. */
 export const MOBILE_COMMENT_CAPABILITIES: readonly WorkspaceCapability[] = BUNDLE_COMMENT_CAPABILITIES;
 
+export async function listMobilePublicationFeedback(vault: MobileVault, path: string) {
+  if (!vault.workspaceState || !vault.workspaceRuntime) return [];
+  const [{ listAllMobilePublicationComments }, { getMobileWorkspaceObjectStore }] = await Promise.all([
+    import("./mobileWorkspaceSecurity"), import("./syncService"),
+  ]);
+  const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+  if (!store) return [];
+  const result = await listAllMobilePublicationComments({ state: vault.workspaceState, store,
+    runtime: vault.workspaceRuntime, vaultId: vault.vaultId, path });
+  return result.get(path) ?? [];
+}
+
 /**
  * What this device may do with ONE note, asked once for every screen that
  * needs it (finding 2026-09-04).

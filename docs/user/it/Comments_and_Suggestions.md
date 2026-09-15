@@ -1,6 +1,6 @@
 # Commenti e suggerimenti
 
-Stand: 2026-09-10
+Stand: 2026-09-15
 
 Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
@@ -71,3 +71,9 @@ Desktop e mobile usano lo stesso archivio di commenti firmati in uno spazio di l
 I commenti nei file precedenti vengono conservati e importati con i permessi di gestione e di commento. **Dalla cronologia precedente** mantiene il nome e la data originali. Queste indicazioni non attestano retroattivamente l’appartenenza allo spazio di lavoro; la nuova firma conferma l’importazione. Se mancano i permessi, la nota di destinazione sincronizzata o un salvataggio riuscito, il commento precedente resta visibile. Le azioni di risposta, eliminazione e suggerimento restano indisponibili finché la destinazione non viene assegnata in modo duraturo. L’importazione non invia nuovamente le notifiche della cronologia precedente.
 
 Se è bloccata solo la cronologia precedente, l’azione di sblocco apre il flusso della passphrase di sincronizzazione; i nuovi commenti restano disponibili. Se è bloccato lo spazio di lavoro stesso, apre le impostazioni di sicurezza. Le operazioni sui suggerimenti iniziate prima dell’aggiornamento mantengono i progressi salvati e possono riprendere con i permessi attuali. L’importazione non rimuove i file originali dei commenti.
+
+## Riscontri sulle pubblicazioni
+
+I destinatari aprono la pubblicazione come spazio di lavoro autonomo. L’accesso in lettura non consente riscontri; commentare consente annotazioni e suggerire permette anche di proporre modifiche in una copia. L’originale rimane in sola lettura. Desktop e mobile applicano gli stessi permessi e conservano i riscontri non inviati per riprovare.
+
+I riscontri compaiono accanto alla nota originale su desktop e mobile, raggruppati per pubblicazione con i nomi dei destinatari. Le proposte applicabili da una copia esatta possono essere accettate o rifiutate tramite il normale salvataggio verificato. La decisione viene registrata con l’originale nel tuo vault; non invia una risposta ai destinatari. Le copie ripulite e i passaggi che non possono essere individuati con certezza non consentono applicazioni automatiche. I riscontri creati con i client attuali rimangono leggibili dal proprietario dopo la revoca di un destinatario. I riscontri precedenti cifrati soltanto con una chiave destinatario rimossa non vengono riscritti. Se la chiave di una pubblicazione manca sul dispositivo, la relativa sezione continua a essere omessa.

@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-09-10
+Ultimo aggiornamento: 2026-09-15
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -187,3 +187,9 @@ Tutto resta Markdown standard con frontmatter standard. Obsidian apre i file com
 Quando una selezione include più righe, **grassetto**, *corsivo*, barrato, evidenziazione e codice in linea vengono applicati separatamente a ogni riga non vuota. I prefissi di elenco, citazione, titolo e attività restano fuori dai marcatori. I link restano su una riga perché un’etichetta multiriga non è Markdown portabile.
 
 Un titolo ATX e un’attività GFM sono tipi di blocco alternativi. Plainva non scrive combinazioni non valide. La formattazione in linea funziona in entrambi; usa `- [ ] **Attività importante**` per evidenziare il titolo.
+
+## Incorporare sezioni e blocchi
+
+`![[Nota#Titolo]]` mostra la sezione e i sottotitoli fino al successivo titolo di livello uguale o superiore. `![[Nota#^block-id]]` mostra il paragrafo, la voce di elenco o il blocco che precede un ID su una riga separata. Anche il collegamento normale `[[Nota#^block-id]]` porta lì in modalità lettura.
+
+Per titoli ripetuti usa una gerarchia univoca (`#Progetto#Risultato`) o un ancoraggio numerato (`#risultato-1`). Le destinazioni mancanti o ambigue mostrano un avviso; l’origine resta accessibile. La nidificazione è limitata e gli esempi di codice non eseguono incorporamenti. Sul telefono sezioni e blocchi non sono tagliati alle quattro righe dell’anteprima generale. I file esistenti restano invariati.

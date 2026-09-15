@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-09-11
+Laatst bijgewerkt: 2026-09-15
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -144,3 +144,5 @@ De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je
 Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
 
 [Google — Eigen app-registratie](Google_Drive_BYO_Guide.md)
+
+Klik of tik op de periode in de kalenderkop om een datum te kiezen. Stippen markeren bestaande dagnotities volgens de ingestelde map en bestandsnaamnotatie, ook met punten in de naam. Selecteer een dag en kies daarna **Naar datum springen** of **Dagnotitie openen** / **Dagnotitie maken**. Het maken gebruikt dezelfde sjabloon als de zijbalk en de Vandaag-weergave. De markeringen worden vernieuwd bij een andere maand of gewijzigde notities. Meerdaagse afspraken behouden hun vaste rijen en lopen vanaf het begin naar rechts; datums buiten de zichtbare periode worden afgesneden.

@@ -1,5 +1,6 @@
 import { oauthScopeFor, oauthScopesCover, normalizeOAuthScopes, type OAuthFamily } from "./oauthScopes";
 import { createTokenRefreshCoordinator } from "./tokenRefreshCoordinator";
+import { verifiedProviderIdentityKey, type VerifiedProviderIdentity } from "./accountProfile";
 
 /** One stored OAuth grant per account, with separate access tokens for its
  * services. Refreshes include confirmed persistence, not just the network call. */
@@ -7,6 +8,8 @@ import { createTokenRefreshCoordinator } from "./tokenRefreshCoordinator";
 export interface StoredAccountToken {
   clientId: string;
   refreshToken: string;
+  /** Android Google Identity Services owns renewal; no fabricated refresh token. */
+  nativeGoogle?: { email: string };
   /**
    * Google's token endpoint requires the client secret alongside the refresh
    * token; Microsoft's public-client flow has none. Optional for that reason.
@@ -14,6 +17,9 @@ export interface StoredAccountToken {
   clientSecret?: string;
   /** Scopes the account consented to, so an audience can be checked up front. */
   scopes?: string;
+  /** Proven by an authenticated provider API response, never a decoded JWT. */
+  providerIdentity?: VerifiedProviderIdentity;
+  verifiedAt?: number;
 }
 
 /** The installation-local half of an OAuth grant. */
@@ -51,7 +57,7 @@ export function replaceOAuthClientRegistration(
 }
 
 export interface AccountTokenStore {
-  read(): Promise<StoredAccountToken | null>;
+  read(audience?: string, client?: OAuthClientRegistration): Promise<StoredAccountToken | null>;
   /** Must have completed before the broker hands the access token out. */
   write(next: StoredAccountToken, expected: StoredAccountToken): Promise<void>;
 }
@@ -74,7 +80,7 @@ export interface TokenBrokerDeps {
   coordinateRefresh?(stored: StoredAccountToken, scope: string, execute: () => Promise<RefreshResult>): Promise<RefreshResult>;
   store: AccountTokenStore;
   /** Provider call; the broker never talks to the network itself. */
-  refresh(opts: { clientId: string; clientSecret?: string; refreshToken: string; scope: string }): Promise<RefreshResult>;
+  refresh(opts: StoredAccountToken & { scope: string }): Promise<RefreshResult>;
   /** Scope string per audience — supplied by the shell that knows the provider. */
   scopeFor(audience: string): string;
   /** Injectable clock so the cache can be tested deterministically. */
@@ -83,7 +89,7 @@ export interface TokenBrokerDeps {
 
 export interface TokenBroker {
   /** Cached access token for one audience, refreshing (once) when needed. */
-  getAccessToken(audience: string): Promise<string>;
+  getAccessToken(audience: string, client?: OAuthClientRegistration): Promise<string>;
   /** Invalidates cached and in-flight answers; stored credentials are untouched. */
   forget(): void;
 }
@@ -95,7 +101,13 @@ const DEFAULT_LIFETIME_MS = 55 * 60_000;
 
 export function sameStoredAccountToken(a: StoredAccountToken | null, b: StoredAccountToken): boolean {
   return !!a && a.clientId === b.clientId && (a.clientSecret ?? "") === (b.clientSecret ?? "")
-    && a.refreshToken === b.refreshToken && a.scopes === b.scopes;
+    && a.refreshToken === b.refreshToken && a.scopes === b.scopes
+    && (a.providerIdentity ? verifiedProviderIdentityKey(a.providerIdentity) : null) === (b.providerIdentity ? verifiedProviderIdentityKey(b.providerIdentity) : null)
+    && a.verifiedAt === b.verifiedAt && a.nativeGoogle?.email === b.nativeGoogle?.email;
+}
+
+export function hasStoredAccountGrant(token: StoredAccountToken | null | undefined): token is StoredAccountToken {
+  return !!token && (!!token.refreshToken || (!!token.nativeGoogle?.email && token.providerIdentity?.issuer === "google"));
 }
 
 export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
@@ -105,22 +117,23 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
   const coordinator = createTokenRefreshCoordinator<RefreshResult>();
   let generation = 0;
 
-  async function refreshFor(audience: string, capturedGeneration: number): Promise<string> {
+  async function refreshFor(audience: string, capturedGeneration: number, client: OAuthClientRegistration | undefined, cacheKey: string): Promise<string> {
     const assertCurrent = () => {
       if (generation !== capturedGeneration) throw new Error("account sign-in changed during token renewal");
     };
-    const initial = await deps.store.read();
-    if (!initial?.refreshToken) throw new Error("account is not connected");
+    const initial = await deps.store.read(audience, client);
+    if (!hasStoredAccountGrant(initial)) throw new Error("account is not connected");
     assertCurrent();
     const scope = deps.scopeFor(audience);
     const execute = async (): Promise<RefreshResult> => {
       assertCurrent();
       // A previous audience may have rotated the grant while this one waited.
-      const stored = await deps.store.read();
-      if (!stored?.refreshToken) throw new Error("account is not connected");
+      const stored = await deps.store.read(audience, client);
+      if (!hasStoredAccountGrant(stored)) throw new Error("account is not connected");
       assertCurrent();
       if (!sameOAuthClient(stored, initial)) throw new Error("account client changed during token renewal");
       const result = await deps.refresh({
+        ...(stored.nativeGoogle ? { nativeGoogle: stored.nativeGoogle, providerIdentity: stored.providerIdentity } : {}),
         clientId: stored.clientId,
         ...(stored.clientSecret ? { clientSecret: stored.clientSecret } : {}),
         refreshToken: stored.refreshToken,
@@ -138,7 +151,7 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
       // its original consent; Microsoft's scope-specific refresh uses its request.
       const granted = result.scope ?? (deps.family === "google" ? stored.scopes : scope);
       const covered = oauthScopesCover(granted, scope, deps.family);
-      if (!sameStoredAccountToken(await deps.store.read(), stored)) {
+      if (!sameStoredAccountToken(await deps.store.read(audience, client), stored)) {
         throw new Error("account sign-in changed during token renewal");
       }
       assertCurrent();
@@ -156,20 +169,21 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
       : coordinator.run("account", JSON.stringify([normalizeOAuthScopes(scope, deps.family), initial.refreshToken]), execute));
     assertCurrent();
     const lifetime = result.expiresIn ? result.expiresIn * 1000 : DEFAULT_LIFETIME_MS;
-    cache.set(audience, { token: result.accessToken, expiresAt: now() + Math.max(lifetime - EXPIRY_MARGIN_MS, 0) });
+    cache.set(cacheKey, { token: result.accessToken, expiresAt: now() + Math.max(lifetime - EXPIRY_MARGIN_MS, 0) });
     return result.accessToken;
   }
 
   return {
-    async getAccessToken(audience: string): Promise<string> {
-      const hit = cache.get(audience);
+    async getAccessToken(audience: string, client?: OAuthClientRegistration): Promise<string> {
+      const cacheKey = JSON.stringify([audience, client?.clientId, client?.clientSecret ?? ""]);
+      const hit = cache.get(cacheKey);
       if (hit && hit.expiresAt > now()) return hit.token;
-      const existing = inFlight.get(audience);
+      const existing = inFlight.get(cacheKey);
       if (existing) return existing;
-      const pending = refreshFor(audience, generation).finally(() => {
-        if (inFlight.get(audience) === pending) inFlight.delete(audience);
+      const pending = refreshFor(audience, generation, client, cacheKey).finally(() => {
+        if (inFlight.get(cacheKey) === pending) inFlight.delete(cacheKey);
       });
-      inFlight.set(audience, pending);
+      inFlight.set(cacheKey, pending);
       return pending;
     },
     forget(): void {
@@ -190,7 +204,7 @@ export function tokenCoversService(
   service: string,
   family: OAuthFamily,
 ): boolean {
-  if (!token?.refreshToken) return false;
+  if (!hasStoredAccountGrant(token)) return false;
   const requested = oauthScopeFor(family, service);
   if (!requested) return false;
   if (family === "microsoft" && token.scopes === undefined) return true;

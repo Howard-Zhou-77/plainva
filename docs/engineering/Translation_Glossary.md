@@ -1,6 +1,6 @@
 # Translation Glossary
 
-Last reviewed: 2026-09-11. Reference for ALL translation work (locale JSONs, vault
+Last reviewed: 2026-09-15. Reference for ALL translation work (locale JSONs, vault
 templates, user guide). Every session that touches strings follows these
 conventions — this keeps subsequent translations consistent, even without
 native-speaker review.
@@ -79,6 +79,10 @@ Notes:
   back to en.
 
 ## Database metadata and summaries
+
+The German timeline view is **Zeitleiste**; use **Zeitleistenansicht** in prose
+when naming the view as a compound noun. This applies in both shells, keyboard
+help and the guide. The Italian view terminology is already consistent.
 
 Use these UI terms in the guide and tour. A summary belongs to the whole visible column; a rollup belongs to one related record. Labels name the pinboard’s configured property, while whole-note tags include inline tags.
 

@@ -17,6 +17,20 @@ import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./fi
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
+import { findSearchOccurrences, type SearchOccurrence } from "./searchOccurrences.js";
+
+/** Preserve YAML null and empty strings across every indexed-property read.
+ * Objects remain serialized for existing namespace consumers; the index stores
+ * an actual null as type=object/value="null", unlike the literal text "null". */
+function decodeIndexedProperty(type: unknown, value: any): any {
+  if (type === "number") return Number(value);
+  if (type === "boolean") return value === "true";
+  if (type === "object" && value === "null") return null;
+  if (type === "list") {
+    try { return JSON.parse(value); } catch { return value; }
+  }
+  return value;
+}
 
 export interface FileRecord {
   id: string;
@@ -27,6 +41,9 @@ export interface FileRecord {
 }
 
 export interface SearchResult extends FileRecord {
+  occurrence?: SearchOccurrence;
+  /** Requested only by the bounded occurrence reader, never returned to a UI. */
+  sourceContent?: string;
   /** Content excerpt with SNIPPET_MARK sentinels around matches; null when
    *  the query had no text terms (pure path:/tag: search). */
   snippet?: string | null;
@@ -34,6 +51,15 @@ export interface SearchResult extends FileRecord {
    *  uses this both for highlighting and to group "file name" hits. */
   titleHighlighted?: string | null;
 }
+
+export interface SearchPageCursor {
+  query: string;
+  noteOffset: number;
+  from: number;
+  path?: string;
+  mtime?: number;
+}
+export interface SearchPage { hits: SearchResult[]; next: SearchPageCursor | null }
 
 /**
  * A note's provider-task anchor as the index knows it.
@@ -123,7 +149,7 @@ export class VaultQueryService {
    * parseSearchQuery — every text term becomes a quoted prefix token, so
    * results appear while typing and no input can raise FTS5 syntax errors.
    */
-  async searchFullText(query: string, limit: number = 50): Promise<SearchResult[]> {
+  async searchFullText(query: string, limit: number = 50, offset = 0, includeSource = false): Promise<SearchResult[]> {
     const parsed = parseSearchQuery(query);
     if (isEmptySearchQuery(parsed)) return [];
 
@@ -174,14 +200,39 @@ export class VaultQueryService {
     }
 
     const sql = `
-      SELECT ${select}
+      SELECT ${select}${includeSource ? ", (SELECT content FROM fts_notes WHERE path = f.path LIMIT 1) AS sourceContent" : ""}
       FROM ${from}
       WHERE ${where.join(" AND ")}
-      ORDER BY ${orderBy}
-      LIMIT ?
+      ORDER BY ${orderBy}, f.path ASC
+      LIMIT ?${offset > 0 ? " OFFSET ?" : ""}
     `;
     params.push(limit);
+    if (offset > 0) params.push(offset);
     return await this.db.query(sql, params);
+  }
+
+  /** At most sixteen notes and one display page per call; no invented total. */
+  async searchOccurrencesPage(query: string, options: { cursor?: SearchPageCursor | null; limit?: number; signal?: AbortSignal } = {}): Promise<SearchPage> {
+    const cursor = options.cursor?.query === query ? options.cursor : null;
+    const limit = Math.min(100, Math.max(1, options.limit ?? 40));
+    const offset = Math.max(0, cursor?.noteOffset ?? 0);
+    options.signal?.throwIfAborted();
+    const rows = await this.searchFullText(query, 17, offset, true);
+    options.signal?.throwIfAborted();
+    const hits: SearchResult[] = [];
+    for (let index = 0; index < Math.min(16, rows.length); index++) {
+      options.signal?.throwIfAborted();
+      const { sourceContent, ...record } = rows[index];
+      const from = index === 0 && cursor?.path === record.path && cursor.mtime === record.mtime_local ? cursor.from : 0;
+      const occurrences = findSearchOccurrences(sourceContent ?? "", query, { from, limit: limit - hits.length + 1 });
+      const visible = occurrences.slice(0, limit - hits.length);
+      hits.push(...visible.map((hit) => ({ ...record, titleHighlighted: null, ...hit })));
+      // Operator-only/title-only matches remain navigable even without a body address.
+      if (!occurrences.length && from === 0) hits.push(record);
+      if (occurrences.length > visible.length) return { hits, next: { query, noteOffset: offset + index, from: visible[visible.length - 1]?.occurrence.to ?? from, path: record.path, mtime: record.mtime_local } };
+      if (hits.length >= limit) return { hits, next: index + 1 < rows.length ? { query, noteOffset: offset + index + 1, from: 0 } : null };
+    }
+    return { hits, next: rows.length > 16 ? { query, noteOffset: offset + 16, from: 0 } : null };
   }
 
   /**
@@ -637,7 +688,13 @@ export class VaultQueryService {
       const byThrough = new Map<string, string[]>();
       for (const [, spec] of specs) {
         if (byThrough.has(spec.through)) continue;
-        const raw = row[spec.through];
+        let raw = row[spec.through];
+        if (raw === undefined) {
+          // A hidden through-property need not be a visible/configured column.
+          // Apply the same case fallback as for the linked value itself.
+          const key = Object.keys(row).find(key => key.toLowerCase() === spec.through.toLowerCase());
+          if (key !== undefined) raw = row[key];
+        }
         const targets: string[] = [];
         for (const one of Array.isArray(raw) ? raw : raw == null ? [] : [raw]) {
           const target = wikiLinkTarget(one);
@@ -682,11 +739,7 @@ export class VaultQueryService {
           byPath.set(r.path, bucket);
         }
         if (r.key == null) continue;
-        if (r.type === "number") bucket[r.key] = Number(r.value);
-        else if (r.type === "boolean") bucket[r.key] = r.value === "true";
-        else if (r.type === "list") {
-          try { bucket[r.key] = JSON.parse(r.value); } catch { bucket[r.key] = r.value; }
-        } else bucket[r.key] = r.value;
+        bucket[r.key] = decodeIndexedProperty(r.type, r.value);
       }
     }
 
@@ -825,16 +878,11 @@ export class VaultQueryService {
     for (const row of rows) {
       const type = row.type || row.TYPE;
       const key = row.key || row.KEY;
-      const value = row.value || row.VALUE;
+      const value = row.value !== undefined ? row.value : row.VALUE;
       
       if (!key) continue;
 
-      if (type === "number") props[key] = Number(value);
-      else if (type === "boolean") props[key] = value === "true";
-      else if (type === "list") {
-        try { props[key] = JSON.parse(value); } catch { props[key] = value; }
-      }
-      else props[key] = value;
+      props[key] = decodeIndexedProperty(type, value);
     }
     return props;
   }
@@ -1101,16 +1149,11 @@ export class VaultQueryService {
         
         const type = pr.type || pr.TYPE;
         const key = pr.key || pr.KEY;
-        const value = pr.value || pr.VALUE;
+        const value = pr.value !== undefined ? pr.value : pr.VALUE;
         
         if (!key) continue;
 
-        if (type === "number") propsByFileId[fileId][key] = Number(value);
-        else if (type === "boolean") propsByFileId[fileId][key] = value === "true";
-        else if (type === "list") {
-          try { propsByFileId[fileId][key] = JSON.parse(value); } catch { propsByFileId[fileId][key] = value; }
-        }
-        else propsByFileId[fileId][key] = value;
+        propsByFileId[fileId][key] = decodeIndexedProperty(type, value);
       }
     }
 

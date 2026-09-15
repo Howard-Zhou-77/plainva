@@ -43,13 +43,13 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
     await (this.raw as any).setFileTimes?.(path, times);
   }
 
-  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+  async listDirReport(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     return this.raw.listDirReport
-      ? this.raw.listDirReport(path, recursive)
-      : { files: await this.raw.listDir(path, recursive), skipped: [] };
+      ? this.raw.listDirReport(path, recursive, options)
+      : { files: await this.raw.listDir(path, recursive, options), skipped: [] };
   }
 
-  listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> { return this.raw.listDir(path, recursive); }
+  listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> { return this.raw.listDir(path, recursive, options); }
   watch?(callback: (events: WatchEvent[]) => void): Promise<() => void> { return this.raw.watch?.(callback) ?? Promise.resolve(() => {}); }
 
   async writeTextFile(path: string, content: string): Promise<void> {
