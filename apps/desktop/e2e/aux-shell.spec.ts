@@ -48,6 +48,8 @@ test.beforeEach(async ({ page }) => {
       if (kind === 'open-content') return { where: 'caller' };
       if (kind === 'focus-content') return false;
       if (kind === 'workspace-status') return null;
+      // This fixture has no bookmarks; the real owner returns an empty list.
+      if (kind === 'bookmarks-list') return [];
       return null;
     };
 

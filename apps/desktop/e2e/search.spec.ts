@@ -290,7 +290,7 @@ test('Search: results appear while typing a partial word, with mark + groups', a
   await searchInput(page).fill('projektpl');
 
   // Name hit (Projektplan.md) and content hit (Lauftagebuch.md), grouped.
-  await expect(page.getByText('2 results', { exact: true })).toBeVisible();
+  await expect(page.getByText('Occurrences shown: 2', { exact: true })).toBeVisible();
   const nameHeader = page.getByText('File name (1)', { exact: true });
   const contentHeader = page.getByText('Content (1)', { exact: true });
   await expect(nameHeader).toBeVisible();
@@ -313,7 +313,7 @@ test('Search: the X button clears the query and restores the tree', async ({ pag
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await searchInput(page).fill('projektpl');
-  await expect(page.getByText('2 results', { exact: true })).toBeVisible();
+  await expect(page.getByText('Occurrences shown: 2', { exact: true })).toBeVisible();
 
   const clear = page.getByRole('button', { name: 'Clear search' });
   await expect(clear).toBeVisible();
@@ -323,7 +323,7 @@ test('Search: the X button clears the query and restores the tree', async ({ pag
   await expect(clear).toHaveCount(0);
   // Tree is back: folders render again, the search result list is gone.
   await expect(page.getByText('Projekte', { exact: true })).toBeVisible();
-  await expect(page.getByText('2 results', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Occurrences shown: 2', { exact: true })).toHaveCount(0);
 });
 
 test('Search: operator characters do not break the query (clean empty state)', async ({ page }) => {
@@ -343,13 +343,13 @@ test('Search: -term excludes matching notes', async ({ page }) => {
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await searchInput(page).fill('projektplan');
-  await expect(page.getByText('2 results', { exact: true })).toBeVisible();
+  await expect(page.getByText('Occurrences shown: 2', { exact: true })).toBeVisible();
 
   // Lauftagebuch contains "Review" and drops out. (The surviving row's title
   // is fully marked, so target the <mark> — the plain text locator would hit
   // both the mark and its parent span.)
   await searchInput(page).fill('projektplan -review');
-  await expect(page.getByText('1 result', { exact: true })).toBeVisible();
+  await expect(page.getByText('Occurrences shown: 1', { exact: true })).toBeVisible();
   await expect(page.locator('mark.pv-search-mark').filter({ hasText: 'Projektplan' }).first()).toBeVisible();
   await expect(page.getByText('Lauftagebuch', { exact: true })).toHaveCount(0);
 });
@@ -386,7 +386,7 @@ test('Search: clicking a content hit opens the note and selects the match', asyn
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await searchInput(page).fill('besprochen');
-  await expect(page.getByText('1 result', { exact: true })).toBeVisible();
+  await expect(page.getByText('Occurrences shown: 1', { exact: true })).toBeVisible();
 
   await page.getByText('Lauftagebuch', { exact: true }).click();
 

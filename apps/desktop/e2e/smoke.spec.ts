@@ -512,7 +512,7 @@ test('Note embeds: exact sections and blocks, explicit misses and bounded recurs
   await expect(reader).toContainText('Selected item');
   await expect(reader).not.toContainText('Hidden section');
   await expect(reader).not.toContainText('Unselected item');
-  await expect(reader).toContainText(/Source#Missing.*nicht gefunden|Target.*Source#Missing.*not found/);
+  await expect(reader).toContainText(/Source#Missing.*(?:nicht gefunden|not found)/);
   await expect(reader).toContainText(/maximale Verschachtelung|maximum embed depth/);
   expect(await reader.locator('.embedded-note').count()).toBeLessThan(10);
 });
