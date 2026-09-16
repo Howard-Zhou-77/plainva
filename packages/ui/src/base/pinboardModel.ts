@@ -221,3 +221,12 @@ export function captureFileName(text: string, maxLen = 48): string | null {
   s = s.replace(/[. ]+$/, ""); // Windows: no trailing dots/spaces
   return s || null;
 }
+
+/** Third stage after source/view filters and selected label chips. */
+export function filterCardPathsByText(sequence: string[], matches: ReadonlySet<string> | null): string[] {
+  return matches === null ? sequence : sequence.filter(path => matches.has(path));
+}
+export function pinboardTextMatches(values: readonly string[], query: string): boolean {
+  const needle = query.trim().normalize("NFC").toLocaleLowerCase();
+  return !needle || values.some(value => value.normalize("NFC").toLocaleLowerCase().includes(needle));
+}

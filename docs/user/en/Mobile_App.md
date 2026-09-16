@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -276,3 +276,9 @@ Open **Cloud accounts**, choose the existing account and select **Add** for the 
 ### More room in mobile navigation
 
 The selected icon keeps its spacing from the edge in the compact bar. Tap targets stay large enough, and reserved space adapts to the text size.
+
+## Reading space and images
+
+In **Editor & notes**, turn off **Automatically hide controls while reading** if you prefer. By default the header and pencil retreat on downward scrolling. The first upward movement, the top of the note, a text selection, an open control, the keyboard or a conflict notice brings them back. The scroll viewport keeps its size and the motion preference is respected. The tablet rail stays visible. On desktop, focus mode hides surrounding controls.
+
+**Open image** is available for local images in reading mode, live preview and the image context menu. In the mobile viewer, use two fingers, a double-tap or the zoom buttons; **Reset zoom** shows the whole image. Back returns to the note. Long-pressing an embedded image keeps the operating system’s image actions, and selecting a region for a comment still works.

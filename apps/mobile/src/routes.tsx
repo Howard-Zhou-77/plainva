@@ -171,7 +171,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
     />
   ),
-  bookmarks: (_e, c) => <BookmarksScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  bookmarks: (_e, c) => <BookmarksScreen bump={c.bump} onBack={c.pop} onOpenFolder={(path) => c.push({ kind: "folder", path })} onOpenNote={c.openNote} vault={c.vault} />,
   settings: (_e, c) => (
     <SettingsScreen
       onBack={c.pop}

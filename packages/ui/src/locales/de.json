@@ -115,7 +115,8 @@
     "pasteFailed": "Einfügen aus der Zwischenablage fehlgeschlagen.",
     "copyImage": "Bild kopieren",
     "saveImageAs": "Bild speichern unter…",
-    "copyImageFailed": "Bild konnte nicht kopiert werden."
+    "copyImageFailed": "Bild konnte nicht kopiert werden.",
+    "openImage": "Bild öffnen"
   },
   "common": {
     "on": "An",
@@ -646,7 +647,6 @@
     "menu": "Menü",
     "time": "Uhrzeit",
     "addProperty": "Eigenschaft hinzufügen",
-    "key": "Key",
     "value": "Wert",
     "slashCheckbox": "Checkbox",
     "slashBulletList": "Aufzählung",
@@ -943,7 +943,8 @@
     "today": "heute",
     "viewSwitch": "Ansicht",
     "bookmarkSaveFailed": "Lesezeichen konnten nicht gespeichert werden.",
-    "search": "Suchen"
+    "search": "Suchen",
+    "bookmarkMissing": "Ziel fehlt"
   },
   "database": {
     "graphNoColumns": "Der Graph zeigt keine Eigenschaftsspalten.",
@@ -1338,7 +1339,8 @@
     "keepRatio": "Seitenverhältnis beibehalten",
     "textPlaceholder": "Text eingeben…",
     "viewOnly": "Nur Ansicht – bearbeitbar sind PNG, JPG und WebP.",
-    "loadError": "Bild konnte nicht geladen werden."
+    "loadError": "Bild konnte nicht geladen werden.",
+    "zoomReset": "Zoom zurücksetzen"
   },
   "okfInfo": {
     "title": "Was ist OKF?",
@@ -1833,7 +1835,9 @@
     "rollupFn_unchecked": "Nicht angehakt",
     "rollupFn_empty": "Ohne Wert",
     "rollupFn_filled": "Mit Wert",
-    "rollupFn_unique": "Verschiedene Werte"
+    "rollupFn_unique": "Verschiedene Werte",
+    "existingNames": "Bekannte Eigenschaften",
+    "searchWholeVault": "Im ganzen Vault suchen"
   },
   "docHeader": {
     "addIcon": "Icon hinzufügen",
@@ -2344,7 +2348,14 @@
   "conflict": {
     "resolveFailed": "Konflikt konnte nicht aufgelöst werden: {{error}}",
     "resolveAction": "Konflikt lösen…",
-    "notAConflictFile": "Diese Datei ist keine Konfliktkopie."
+    "notAConflictFile": "Diese Datei ist keine Konfliktkopie.",
+    "workingCopy": "Du bearbeitest Deine Konfliktkopie. Sie wird erst nach dem Zusammenführen synchronisiert.",
+    "workingCopyChanged": "Die Arbeitskopie wurde außerhalb dieser Bearbeitung verändert. Die andere Fassung ist gesichert.",
+    "savedRevisions": "Gesicherte Stände vergleichen",
+    "savedBase": "Gesicherter Ausgangsstand",
+    "foreignCopy": "Andere Fassung der Arbeitskopie",
+    "noSavedBase": "Für diese Kopie ist kein zusätzlicher Ausgangsstand gespeichert.",
+    "historyFailed": "Die gesicherten Stände konnten nicht geladen werden."
   },
   "mobile": {
     "tabSearch": "Suche",
@@ -2569,7 +2580,8 @@
     "swipeHint": "Zeile nach links wischen für Aktionen. Dieselben Aktionen liegen im Menü der Zeile.",
     "swipeHintAck": "Verstanden",
     "propertyWriteFailed": "Eigenschaft konnte nicht gespeichert werden: {{message}}",
-    "selectMany": "Mehrere auswählen"
+    "selectMany": "Mehrere auswählen",
+    "readerAutoHide": "Beim Lesen Leisten automatisch ausblenden"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",
@@ -2661,7 +2673,9 @@
       "taskId": "ID",
       "recurrence": "Wiederholung",
       "unsupported": "Regel bleibt erhalten; hier keine automatische Fortsetzung."
-    }
+    },
+    "resetFilters": "Filter zurücksetzen",
+    "filterUnavailable": "Nicht verfügbar"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",
@@ -2727,7 +2741,13 @@
     "labels": "Labels",
     "addLabel": "Label suchen…",
     "newLabel": "„{{name}}“ anlegen",
-    "inlineTag": "im Text"
+    "inlineTag": "im Text",
+    "loadingCards": "Karten werden geladen…",
+    "indexMissing": "Noch nicht im Index",
+    "loadFailed": "Karten konnten nicht geladen werden",
+    "searchPlaceholder": "In dieser Pinnwand suchen…",
+    "noMatches": "Keine passenden Karten",
+    "retry": "Erneut versuchen"
   },
   "compose": {
     "toolbar": "Formatierung",
@@ -4141,18 +4161,18 @@
     "title": "Was gibt's Neues in Plainva {{version}}",
     "lead": "Größte Neuerung",
     "experimental": "Experimentell",
-    "highlight1Title": "Zuverlässiger verbinden und synchronisieren",
-    "highlight1": "Unterbrechungen werden gezielt wiederholt. Anmeldeprobleme und unsichere Datenstände sind klarer erkennbar; lokale Änderungen bleiben erhalten.",
-    "highlight2Title": "Fundstellen, Embeds und Verlauf",
-    "highlight2": "Springe zur passenden Textstelle, bette einzelne Abschnitte oder Blöcke ein und vergleiche die tatsächlichen Zeilenänderungen einer Version.",
-    "highlight3Title": "JEX-Import und Datenbank-Export",
-    "highlight3": "Importiere Joplin-Archive mit Anhängen in einen neuen Ordner. Exportiere unterstützte Rollups als Obsidian-Formeln oder bewusst als Werte. Aufgaben behalten ihre Metadaten.",
-    "highlight4Title": "Mail mit klaren Ergebnissen",
-    "highlight4": "Mehrfachaktionen zeigen Erfolge und Fehler pro Nachricht. Der Anhangfilter erklärt unvollständige Metadaten; zusätzliche Kontodienste erhalten bestehende Anmeldungen.",
-    "highlight5Title": "Dein Design und tägliche Abläufe",
-    "highlight5": "Gestalte Hell und Dunkel getrennt und gleiche Dein Design auf Wunsch persönlich ab. Tagesnotizen, Fensterübergabe und wartende geteilte Inhalte sind verlässlicher.",
-    "highlight6Title": "Rückmeldungen zu Publikationen",
-    "highlight6": "Berechtigte Empfänger können kommentieren und Änderungen vorschlagen. Eigentümer können Rückmeldungen prüfen und behalten sie auch nach einem Empfängerentzug.",
+    "highlight1Title": "Konflikte sicher weiterbearbeiten",
+    "highlight1": "Eine Konflikt-Arbeitskopie begleitet weitere Änderungen und bleibt nach einem Neustart erhalten. Zwischenstände lassen sich vergleichen und bewusst übernehmen.",
+    "highlight2Title": "Ruhiger Editor, schnellere Pinnwände",
+    "highlight2": "Listen bleiben auch bei schwierigen Schriftmaßen stabil. Die Auswahlleiste bleibt im sichtbaren Bereich. Pinnwände laden sichtbare Vorschauen gezielt und merken sich Inhalt und Position für den Rückweg.",
+    "highlight3Title": "Eigenschaften und Pinnwände durchsuchen",
+    "highlight3": "Eigenschaftsnamen, Typen und einzelne Listenwerte erhalten Vorschläge. Datenbank-Vorgaben bleiben exklusiv. Die Pinnwandsuche findet auch Notiztext und lässt sich mit Etiketten kombinieren; leere Eigenschaften werden korrekt gefiltert.",
+    "highlight4Title": "Aufgabenfilter und Ordner-Lesezeichen",
+    "highlight4": "Aufgabenfilter bleiben je Vault auf diesem Gerät erhalten und lassen sich zurücksetzen. Ordner können als Lesezeichen geöffnet werden; ihre Pfade folgen Umbenennungen und Verschiebungen.",
+    "highlight5Title": "Mehr Platz beim Lesen",
+    "highlight5": "Auf Mobilgeräten fahren Kopfzeile und Bleistift beim Herunterscrollen ein und bei der ersten Aufwärtsbewegung wieder aus. Die neue Option ist beim Lesen eingeschaltet und lässt sich unter Editor & Notizen abschalten. Das Tablet-Rail bleibt sichtbar; am Desktop steht der Fokusmodus bereit.",
+    "highlight6Title": "Bilder öffnen und vergrößern",
+    "highlight6": "Bild öffnen führt aus der Lesedarstellung und Live-Vorschau in den Bildbetrachter. Mobil stehen Zwei-Finger-Zoom, Doppeltipp und Zurücksetzen bereit. Langes Drücken auf eingebettete Bilder behält die nativen Bildaktionen.",
     "readBlog": "Blogpost lesen",
     "understand": "Verstanden"
   },

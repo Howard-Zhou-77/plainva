@@ -365,8 +365,8 @@ export const FileTree: React.FC<{
   externalQuery?: string;
   /** Opens a file in the split pane (right = vertical, bottom = horizontal). */
   onOpenInSplit?: (path: string, direction: "vertical" | "horizontal") => void;
-  isBookmarked?: (path: string) => boolean;
-  onToggleBookmarkPath?: (path: string) => void;
+  isBookmarked?: (path: string, type?: "file" | "folder") => boolean;
+  onToggleBookmarkPath?: (path: string, type?: "file" | "folder") => void;
   /** Reports whether any folder is expanded — feeds the sidebar's
    *  collapse/expand-all toggle icon (E3 2026-07-09). */
   onExpandedStateChange?: (hasExpanded: boolean) => void;

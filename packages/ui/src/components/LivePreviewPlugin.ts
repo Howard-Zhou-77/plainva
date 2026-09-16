@@ -10,6 +10,7 @@ import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorH
 import i18n from "../i18n";
 import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt } from "./listIndent";
+import { onCompletedTap } from "./completedTap";
 import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
@@ -141,6 +142,7 @@ export function bulletGlyphForDepth(depth: number): string {
  * keymap and no gutter, so this is the only way folding is reachable there;
  * the desktop gets the same click on top of Ctrl/Cmd-Shift-[ and ].
  */
+const bulletTapCleanup = new WeakMap<HTMLElement, () => void>();
 class BulletWidget extends WidgetType {
   constructor(readonly glyph: string, readonly foldable: boolean, readonly folded: boolean) { super(); }
   eq(other: BulletWidget) { return other.glyph === this.glyph && other.foldable === this.foldable && other.folded === this.folded; }
@@ -151,15 +153,15 @@ class BulletWidget extends WidgetType {
     if (this.foldable) {
       span.setAttribute("role", "button");
       span.setAttribute("aria-expanded", this.folded ? "false" : "true");
-      span.addEventListener("mousedown", (e) => {
-        e.preventDefault();
+      bulletTapCleanup.set(span, onCompletedTap(span, () => {
         const pos = view.posAtDOM(span);
         toggleFoldAtLine(view, pos);
-      });
+      }));
     }
     return span;
   }
   ignoreEvent() { return !this.foldable; }
+  destroy(dom: HTMLElement) { bulletTapCleanup.get(dom)?.(); bulletTapCleanup.delete(dom); }
 }
 const bulletDecos = new Map<string, Decoration>();
 function bulletDecoFor(depth: number, foldable = false, folded = false): Decoration {

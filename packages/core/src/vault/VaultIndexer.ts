@@ -7,6 +7,7 @@ import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
+import { encodeIndexedProperty } from "./indexedProperty.js";
 
 /**
  * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
@@ -357,8 +358,8 @@ export class VaultIndexer {
         const newPropPairs: string[] = [];
         if (fmResult.success && fmResult.data) {
           for (const [key, value] of Object.entries(fmResult.data)) {
-            const strValue = typeof value === "object" ? JSON.stringify(value) : String(value);
-            newPropPairs.push(`${key}\t${strValue}`);
+            const encoded = encodeIndexedProperty(value);
+            newPropPairs.push(`${key}\t${encoded.type}\t${encoded.value}`);
           }
         }
         const newPropSig = newPropPairs.sort().join("\n");
@@ -367,11 +368,11 @@ export class VaultIndexer {
           [fileId]
         );
         const oldTagSig = [...new Set(oldTagRows.map((r) => r.tag))].sort().join("\n");
-        const oldPropRows = await this.dbAdapter.query<{ key: string; value: string }>(
-          `SELECT key, value FROM properties WHERE file_id = ?`,
+        const oldPropRows = await this.dbAdapter.query<{ key: string; value: string; type: string }>(
+          `SELECT key, value, type FROM properties WHERE file_id = ?`,
           [fileId]
         );
-        const oldPropSig = oldPropRows.map((r) => `${r.key}\t${r.value}`).sort().join("\n");
+        const oldPropSig = oldPropRows.map((r) => `${r.key}\t${r.type ?? "string"}\t${r.value}`).sort().join("\n");
         // In the !lookups branch existingFileState comes from the extended
         // queryOne (has title/mode); the bulk union type does not, hence the cast.
         const efs = existingFileState as { title?: string | null; mode?: string | null } | null;
@@ -454,10 +455,8 @@ export class VaultIndexer {
       if (fmResult.success && fmResult.data) {
         const propRows: unknown[][] = [];
         for (const [key, value] of Object.entries(fmResult.data)) {
-          let type: string = typeof value;
-          if (Array.isArray(value)) type = "list";
-          const strValue = typeof value === "object" ? JSON.stringify(value) : String(value);
-          propRows.push([fileId, key, strValue, type]);
+          const encoded = encodeIndexedProperty(value);
+          propRows.push([fileId, key, encoded.value, encoded.type]);
         }
         await this.executeBatch(
           `INSERT INTO properties (file_id, key, value, type) VALUES `,

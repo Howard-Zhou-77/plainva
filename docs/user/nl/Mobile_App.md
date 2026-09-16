@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-16
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -276,3 +276,9 @@ Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbr
 ### Meer ruimte in de mobiele navigatie
 
 Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanraakvlakken blijven groot genoeg en de gereserveerde ruimte past zich aan de tekstgrootte aan.
+
+## Leesruimte en afbeeldingen
+
+Bij **Editor en notities** kun je **Bediening tijdens het lezen automatisch verbergen** uitschakelen. Standaard verdwijnen kopbalk en potlood bij omlaag scrollen. Ze keren terug bij omhoog scrollen, bovenaan de notitie, bij tekstselectie, een open bedieningselement, het toetsenbord of een conflictmelding. Het schuifgebied houdt dezelfde grootte en de bewegingsvoorkeur wordt gevolgd. De tabletrail blijft zichtbaar; op desktop gebruik je focusmodus.
+
+**Afbeelding openen** is beschikbaar voor lokale afbeeldingen in leesmodus, livevoorbeeld en het contextmenu. Gebruik in de mobiele viewer twee vingers, dubbeltikken of de zoomknoppen; **Zoom herstellen** toont de hele afbeelding. Terug brengt je naar de notitie. Lang drukken behoudt de systeemacties en je kunt nog steeds een gebied selecteren voor een opmerking.

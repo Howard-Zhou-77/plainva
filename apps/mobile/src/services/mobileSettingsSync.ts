@@ -75,7 +75,7 @@ import {
   parseTypeTemplateRules,
   sanitizeAreaOrder,
   saveBarLayout,
-  serializeBookmarksFile,
+  applyBookmarkProfileOnDisk, validBookmarkPaths,
 } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
@@ -634,7 +634,7 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
       // (`.plainva` is excluded from the file sync); the list does.
       try {
         const parsed = parseBookmarksFile(await vault.adapter.readTextFile(".plainva/bookmarks.json"));
-        if (parsed.existed) values.bookmarks = parsed.paths;
+        if (parsed.existed) { values.bookmarks = parsed.paths; values.bookmarkFolders = parsed.entries.filter((e) => e.type === "folder").map((e) => e.path); }
       } catch {
         // no bookmarks on this device yet — nothing to publish
       }
@@ -705,23 +705,15 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         // either lands completely or not at all. That is the part of the desktop's
         // import journal that matters here — the phone has no snapshot/rollback
         // around the whole apply, and this field does not need one.
-        const bookmarkValue = values.bookmarks;
-        const bookmarkPaths = Array.isArray(bookmarkValue)
-          ? bookmarkValue.filter((path): path is string => typeof path === "string" && !!path && !path.startsWith("/"))
-          : [];
-        const invalidBookmarks = bookmarkValue !== undefined
-          && (!Array.isArray(bookmarkValue) || bookmarkPaths.length !== bookmarkValue.length);
-        if (invalidBookmarks) {
-          skipped.push("invalid bookmarks in settings profile");
-          await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
-        } else {
-          if (bookmarkPaths.length > 0) {
-            await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(bookmarkPaths));
-          } else if (await vault.adapter.exists(".plainva/bookmarks.json")) {
-            await vault.adapter.deleteItem(".plainva/bookmarks.json");
+        const preserveBookmarks = new Set<string>();
+        for (const field of ["bookmarks", "bookmarkFolders"]) {
+          if (values[field] !== undefined && !validBookmarkPaths(values[field])) {
+            preserveBookmarks.add(field); skipped.push(`invalid ${field} in settings profile`);
           }
-          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
         }
+        if (preserveBookmarks.size) await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
+        await applyBookmarkProfileOnDisk(vault.adapter, values, preserveBookmarks);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
 
         // Template rules (plan Vorlagen-Engine P6). The parsers normalize and
         // drop malformed rows, so a rule written by a newer desktop can never
@@ -754,7 +746,7 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
           await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
         }
 
-        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "personalDesign"]);
+        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "personalDesign"]);
         const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
         const store = await settingsStore();
         await store.set(unknownKey(vaultId), unknown);

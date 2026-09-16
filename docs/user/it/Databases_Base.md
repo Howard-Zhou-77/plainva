@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-09-16
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -150,7 +150,7 @@ Il pulsante **Voce** in alto a sinistra (in precedenza **Nuovo**; chiaramente di
 
 Il tipo di vista **Bacheca appunti** mostra le note del database come schede con il loro contenuto renderizzato — una bacheca piena di note adesive. Le schede renderizzano testo, elenchi e caselle di controllo cliccabili (un clic spunta l'attività direttamente nella nota), immagini e formattazione; tabelle, formule e incorporamenti appaiono come segnaposto discreti. Cliccare su una scheda apre la nota nella finestra di anteprima.
 
-- **Cattura rapida**: il campo **Scrivi una nota…** sopra la bacheca si espande in un piccolo popup con un campo **Titolo** e il testo della nota su più righe — come in Google Keep. Un titolo digitato diventa il nome del file E la prima intestazione della nota; senza titolo il file riceve un nome basato sul timestamp e la nota non ha intestazione. Il testo è comunque il contenuto — nessun modello, nessuna deviazione (Ctrl/Cmd+Invio salva).
+- **Cattura rapida**: **Voce** apre una finestra per titolo e testo. Il titolo diventa il nome del file e la prima intestazione. Senza titolo, il nome contiene data e ora. Ctrl/Cmd+Invio salva.
 - **Fissaggio**: il pulsante per fissare (in alto a destra al passaggio del mouse su una scheda) solleva una scheda nella sezione **Fissate**.
 - **Disposizione**: trascina le schede per riordinarle; l'ordine vive nel file `.base` e si sincronizza con esso. Le schede non ancora disposte (catturate di recente o create dall'esterno) compaiono in cima, dalla più recente. Se sotto **Configura** è impostata una regola di ordinamento, questa prevale — il trascinamento viene allora disattivato.
 - **Etichette**: la barra dei chip sopra la bacheca filtra le schede — per impostazione predefinita per tag, commutabile su una proprietà a selezione multipla (**Configura** → **Origine delle etichette**). Selezionare più chip filtra in combinazione (E); la selezione è effimera e non viene mai scritta nel file. Modifica le etichette di una scheda tramite **Etichette** nel menu contestuale della scheda.
@@ -295,3 +295,11 @@ Apri **Esporta tabella** nel menu del database sul desktop oppure usa l’icona 
 **Formule (.base)** crea una tabella con una selezione fissa delle righe attuali. Questi calcoli tramite relazioni salvate restano formule: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Apri il file nello stesso vault con le note collegate. La finestra indica i calcoli non supportati e le relazioni inverse; per queste colonne usa l’esportazione dei valori.
 
 **Valori (.csv)** contiene i valori calcolati attuali e i percorsi dei file. I valori non si aggiorneranno; gli elenchi restano in formato JSON. I testi simili a formule vengono protetti come testo per i fogli di calcolo. Nessuna delle due opzioni scrive proprietà calcolate nelle note originali.
+
+## Proprietà vuote
+
+Un valore YAML vuoto, `~` o `null` senza virgolette appare come proprietà vuota e corrisponde ai filtri per valori vuoti. Il testo esplicitamente tra virgolette `"null"` rimane testo. Vale per tabelle, elenchi, bacheche, gallerie e pannelli di note. L’aggiornamento ricostruisce solo l’indice di ricerca derivato; i file delle note non cambiano.
+
+## Cercare nella bacheca e tornare
+
+La ricerca nella bacheca include titoli, testo, tag e proprietà visibili. Si combina con i filtri della vista e le etichette selezionate. Cancella o Esc rimuove la ricerca. Anche le bacheche incorporate hanno questo campo. Aprendo una scheda e tornando si conservano ricerca, etichette e posizione durante la sessione. Le anteprime memorizzate appaiono subito; i contenuti modificati vengono ricaricati. Le immagini si caricano quando sono visibili. Le voci non indicizzate vengono segnalate e gli errori di caricamento consentono di riprovare.

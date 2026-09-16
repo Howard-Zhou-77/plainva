@@ -1,6 +1,8 @@
+import { clearPinboardCache } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
+  ConflictFileStore,
   ConflictError,
   mergeEditorText,
   containsTextChanges,
@@ -44,7 +46,7 @@ import {
   LOCAL_VAULT_ID,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
 import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
-import { clearMobileSyncState } from "./mobileSettingsSync";
+import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
@@ -64,11 +66,10 @@ import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
   buildDailyNotePath,
   conflictCopyPath,
-  parseBookmarksFile,
+  importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, type BookmarkEntry,
   parseRecentsFile,
   pushRecentEntry,
   renameFileWithLinkUpdates,
-  serializeBookmarksFile,
   serializeRecentsFile,
   setPendingTemplateCaret,
   sweepPinboardRefs,
@@ -560,10 +561,10 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       await workspaceState!.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
     }) : null;
     const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : new QueueingVaultAdapter(backup, queue);
-    syncRepo = new SyncStateRepository(db);
+    syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
-    }, workspaceState ?? syncRepo);
+    }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
     files = conflictAware;
 
     indexer = new VaultIndexer(files, db, {
@@ -606,8 +607,14 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     searchAvailable = true;
   } catch (err) {
     console.warn("[mobile] index unavailable (expected on the plain web dev server)", err);
-    files = adapter;
-    backup = null;
+    // The search index is optional; durable conflict editing is not. The
+    // same file journal is used before and after the database recovers.
+    const settings = getMobileSettings();
+    backup = new BackupVaultAdapter(adapter, { policy: { ...DEFAULT_BACKUP_RETENTION,
+      minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
+      onBackupError: reportSnapshotFailure, snapshotRecursiveDeletes: true });
+    files = new ConflictAwareVaultAdapter(backup, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
+      isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud");
     queue = null;
     syncRepo = null;
     indexer = null;
@@ -653,6 +660,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       }
     },
     dispose: async () => {
+      clearPinboardCache(queryService ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();
       if (db) await db.close().catch(() => {});
@@ -784,6 +792,7 @@ export const vaultOps = {
         }
       }
     }
+    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return newPath;
@@ -803,8 +812,7 @@ export const vaultOps = {
     // save (TestFlight feedback Build 91, P1). The desktop drops the row in
     // the same case (VaultContext.onLocalFileDeleted).
     if (!v.syncQueue && !v.workspaceState && v.syncRepo) await v.syncRepo.deleteSyncState(path).catch(() => {});
-    // Drop a bookmark to the deleted note so it can't be tapped into a crash.
-    await this.removeBookmark(v, path).catch(() => {});
+    // Keep the bookmark visible as missing; deletion is not an unstar action.
     notifyFileOps([{ type: "delete", path }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
@@ -819,18 +827,23 @@ export const vaultOps = {
 
   /** Folder renames/deletes re-run the full index (children change paths). */
   async renameFolder(v: MobileVault, oldPath: string, newName: string): Promise<void> {
+    const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
+    return vaultOps.moveFolder(v, oldPath, `${dir}${newName}`);
+  },
+
+  async moveFolder(v: MobileVault, oldPath: string, newPath: string): Promise<void> {
+    if (newPath === oldPath) return;
+    if (newPath.startsWith(oldPath + "/")) throw new Error("Cannot move a folder inside itself");
     // S2, whole-queue variant: every note UNDER the folder changes path, and
     // we do not know which of them the editor holds — so everything pending
     // lands first. With nothing pending this costs nothing.
     await noteSaver.flushAll(v);
-    const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
-    const newPath = `${dir}${newName}`;
-    if (newPath === oldPath) return;
     await v.files.renameItem(oldPath, newPath);
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
     await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
     if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     notifyFileOps([{ type: "move", from: oldPath, to: newPath, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
@@ -865,6 +878,7 @@ export const vaultOps = {
         }
       }
     }
+    await renameBookmarksOnDisk(v.adapter, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     notifyFileOps([{ type: "move", from: path, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return newPath;
@@ -897,49 +911,18 @@ export const vaultOps = {
 
   /* ---- P3: bookmarks (device-local, .plainva/bookmarks.json) ---- */
 
-  async getBookmarks(v: MobileVault): Promise<string[]> {
-    try {
-      const raw = await v.adapter.readTextFile(".plainva/bookmarks.json");
-      // Shared parser (package A5): accepts the legacy bare-array shape this
-      // shell used to write AND the desktop {items:[...]} object.
-      const paths = parseBookmarksFile(raw).paths;
-      // A bookmark to a note deleted/renamed elsewhere (sync, folder delete,
-      // move) silently falls out — mirrors getRecents so a stale bookmark can
-      // never point at a missing file (tapping it used to crash the app).
-      const out: string[] = [];
-      for (const p of paths) {
-        if (await v.adapter.exists(p)) out.push(p);
-      }
-      return out;
-    } catch {
-      return [];
-    }
+  async getBookmarks(v: MobileVault): Promise<BookmarkEntry[]> {
+    return importObsidianBookmarks(v.adapter);
   },
-
-  async toggleBookmark(v: MobileVault, path: string): Promise<boolean> {
-    const marks = await this.getBookmarks(v);
-    const idx = marks.indexOf(path);
-    if (idx >= 0) marks.splice(idx, 1);
-    else marks.push(path);
-    await v.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(marks));
+  async toggleBookmark(v: MobileVault, path: string, type: BookmarkEntry["type"] = "file"): Promise<boolean> {
+    const marks = await toggleBookmarkOnDisk(v.adapter, path, type);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
-    return idx < 0;
+    window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
+    return marks.some((m) => m.path === path && m.type === type);
   },
-
-  /** Removes a path from bookmarks if present (e.g. on delete); persists the
-   *  cleanup by reading the RAW file so it works even after the note is gone. */
   async removeBookmark(v: MobileVault, path: string): Promise<void> {
-    let paths: string[];
-    try {
-      paths = parseBookmarksFile(await v.adapter.readTextFile(".plainva/bookmarks.json")).paths;
-    } catch {
-      return; // no bookmarks file yet
-    }
-    if (!paths.includes(path)) return;
-    await v.adapter.writeTextFile(
-      ".plainva/bookmarks.json",
-      serializeBookmarksFile(paths.filter((p) => p !== path)),
-    );
+    await removeBookmarksOnDisk(v.adapter, [path]);
+    window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
   },
 
   async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {
@@ -1014,6 +997,12 @@ export const vaultOps = {
 
   async read(v: MobileVault, path: string): Promise<string> {
     return v.files.readTextFile(path);
+  },
+
+  async readEditor(v: MobileVault, path: string): Promise<string> {
+    const session = await v.files.getConflictSession?.(path);
+    if (session) noteConflict(path, session.workingCopyPath, v.vaultId, session);
+    return v.files.readTextFile(session?.workingCopyPath ?? path);
   },
 
   async save(v: MobileVault, path: string, text: string): Promise<void> {
@@ -1238,6 +1227,15 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   contextKey: (vault) => vault.vaultId,
   write: async (vault, path, text, revision) => {
     const key = JSON.stringify([vault.vaultId, path]);
+    if (vault.files.writeEditorText) {
+      const result = await vault.files.writeEditorText(path, text, editorBaseText.get(key) ?? null);
+      if (result.session) noteConflict(path, result.session.workingCopyPath, vault.vaultId, result.session);
+      editorBaseText.set(key, text);
+      lastPersistedText.set(key, result.stored);
+      try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch { /* a later index pass repairs the derived data */ }
+      window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored: result.stored, revision } }));
+      return;
+    }
     const disk = await vault.files.readTextFile(path);
     const base = editorBaseText.get(key);
     let candidate = text;
@@ -1246,11 +1244,7 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
     if (base !== undefined && disk !== base && disk !== text) {
       const merged = mergeEditorText(base, text, disk);
       if (merged.hasConflicts) {
-        const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
-        const stem = ext ? path.slice(0, -ext.length) : path;
-        const copy = stem + ".CONFLICT-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID() + ext;
-        await vault.files.writeTextFile(copy, text);
-        throw new ConflictError("Cannot automatically merge the pending editor changes", copy);
+        throw new Error("Conflict-safe editing is unavailable; the pending draft has been retained");
       }
       candidate = merged.mergedText;
     }

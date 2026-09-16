@@ -1,3 +1,4 @@
+import { taskViewStateKey, forgetTaskViewState } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, remove } from "@tauri-apps/plugin-fs";
 import { getSettingsStore } from "./settingsStore";
@@ -57,7 +58,7 @@ export function collectPerVaultLocalStorageKeys(vaultPath: string, allKeys: stri
     `plainva-last-open-${vaultPath}`,
     `plainva-profile-announced-${vaultPath}`,
   ];
-  return allKeys.filter((k) => prefixes.some((p) => k === p || k.startsWith(p)));
+  return allKeys.filter((k) => k === taskViewStateKey(vaultPath) || prefixes.some((p) => k === p || k.startsWith(p)));
 }
 
 export interface ForgetVaultResult {
@@ -138,6 +139,7 @@ export async function forgetVaultData(
   vaultPath: string,
   opts: { deleteZipBackups: boolean }
 ): Promise<ForgetVaultResult> {
+  forgetTaskViewState(vaultPath);
   const errors: string[] = [];
   const attempt = async (what: string, fn: () => Promise<void>) => {
     try {

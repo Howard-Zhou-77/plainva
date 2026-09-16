@@ -1,3 +1,4 @@
+import { clearPinboardCache } from "@plainva/ui";
 import { projectPublicationFeedbackForOwner } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
@@ -647,6 +648,8 @@ export const VaultProvider: React.FC<{
     autoOpenLastVault: false,
   });
 
+  useEffect(() => () => clearPinboardCache(state.queryService), [state.queryService]);
+
   // Raw (unwrapped) sync target of the open vault, captured before the content-E2E
   // decorator wraps it. Held on a ref (not state) so the encryption activation can
   // write the remote manifest + drive the migration sweep synchronously, without
@@ -834,7 +837,7 @@ export const VaultProvider: React.FC<{
         ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore)
         : new QueueingVaultAdapter(backupVaultAdapter, syncQueue);
 
-      const syncRepo = new SyncStateRepository(dbAdapter);
+      const syncRepo = new SyncStateRepository(dbAdapter, backupVaultAdapter, await getDeviceId());
       const vaultAdapter = new ConflictAwareVaultAdapter(
         queueingVaultAdapter,
         syncRepo,
@@ -843,7 +846,8 @@ export const VaultProvider: React.FC<{
           // Tell the editor so it adopts the merged content instead of overwriting it on the next save.
           window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
         },
-        workspaceStateStore ?? syncRepo
+        workspaceStateStore ?? syncRepo,
+        "external-folder"
       );
 
       // Read this vault's sync credentials once: decides whether locally-detected changes

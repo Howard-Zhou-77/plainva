@@ -13,7 +13,7 @@ import {
   updateMobileSettings,
   type DefaultView,
 } from "../services/mobileSettings";
-import type { MobileVault } from "../services/vaultService";
+import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
 import { FolderField } from "../components/FolderField";
@@ -84,7 +84,9 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
           label={t("mobile.settingDefaultView")}
           onClick={pickDefaultView}
           value={viewLabel(settings.defaultView)}
-        /></RowList></GroupCard>
+        />
+          <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
+        </RowList></GroupCard>
 
         {/* S39: the desktop has had this since the unresolved-links work; the
             phone created the note without asking because the toggle had no
@@ -460,6 +462,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
         webView: navigator.userAgent.match(/(Chrome|AppleWebKit)\/[\d.]+/)?.[0],
         os: Capacitor.getPlatform(),
         language: i18nInstance.language,
+        conflicts: await (await getMobileVault()).files.listConflictDiagnostics?.(),
       });
       const name = `plainva-diagnostics-${new Date().toISOString().slice(0, 10)}.md`;
       if (Capacitor.getPlatform() === "web") {

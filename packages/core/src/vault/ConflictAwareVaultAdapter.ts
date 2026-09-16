@@ -1,8 +1,9 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
-import { SyncStateRepository, type SyncState } from "./SyncStateRepository.js";
-import { mergeText } from "../conflict-resolver.js";
+import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
+import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
 import { withPathMutation } from "./pathMutation.js";
+import { ConflictSessions, conflictDiagnostic, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
 
 export class ConflictError extends Error {
   public conflictPath?: string;
@@ -28,12 +29,78 @@ async function sha256BytesHex(bytes: Uint8Array): Promise<string> {
 }
 
 export class ConflictAwareVaultAdapter implements IVaultAdapter {
+  private readonly sessions: ConflictSessions;
   constructor(
     private readonly inner: IVaultAdapter,
-    private readonly syncRepo: SyncStateRepository,
+    private readonly syncRepo: Pick<SyncStateRepository, "getSyncState" | "getBaseText" | "updateLocalHash" | "updateLocalHashAndBaseText" | "getConflictSession" | "listConflictSessions" | "saveConflictSession" | "removeConflictSession" | "recordConflictDiagnostic" | "listConflictDiagnostics">,
     private readonly onAutoMerge?: (path: string, mergedText: string) => void,
-    private readonly mutationScope: object = syncRepo
-  ) {}
+    private readonly mutationScope: object = syncRepo,
+    private readonly adapterKind = "local"
+  ) { this.sessions = new ConflictSessions(inner, syncRepo, mutationScope); }
+
+  getConflictSession(path: string): Promise<ConflictEditSession | null> { return this.sessions.get(path); }
+  listConflictSessions(): Promise<ConflictEditSession[]> { return this.sessions.list(); }
+  listConflictDiagnostics() { return this.syncRepo.listConflictDiagnostics(); }
+
+  async preserveConflict(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession> {
+    const state = await this.syncRepo.getSyncState(path);
+    return this.sessions.withMutation(path, async gate => this.preserveLocked(gate, path, text, state, writer));
+  }
+
+  private async preserveLocked(gate: ConflictSessionGate, path: string, text: string, state: SyncState | null, writer: ConflictWriter,
+    diagnosticBase?: { text: string | null; source: "captured" | "backup" | "none" }): Promise<ConflictEditSession> {
+    const disk = await this.inner.exists(path) ? await this.inner.readTextFile(path) : null;
+    const base = state?.base_text ?? null;
+    return this.sessions.preserveLocked(gate, { path, text, base, external: disk, writer,
+      diagnostic: await conflictDiagnostic({ path, adapter: this.adapterKind, writer, disk,
+        expectedLocalHash: state?.local_sha256 ?? null, base: diagnosticBase ? diagnosticBase.text : base, baseSource: diagnosticBase?.source ?? (base === null ? "none" : "captured"),
+        wasWrittenByUs: disk !== null && this.wasWrittenByUs(path, await sha256Hash(disk)) }) });
+  }
+
+  /** The editor's ancestry travels with its request, including across windows. */
+  async writeEditorText(path: string, text: string, baseText: string | null): Promise<EditorWriteResult> {
+    const requestedState = await this.syncRepo.getSyncState(path);
+    return this.sessions.withMutation(path, async gate => {
+      if (gate.session) {
+        const session = await this.sessions.writeLocked(gate.session, text, baseText);
+        return { stored: await this.inner.readTextFile(session.workingCopyPath), session };
+      }
+      const disk = await this.inner.exists(path) ? await this.inner.readTextFile(path) : null;
+      let candidate = text;
+      if (baseText !== null && disk !== null && disk !== baseText && disk !== text) {
+        const merged = mergeEditorText(baseText, text, disk);
+        if (merged.hasConflicts) {
+          const session = await this.preserveLocked(gate, path, text, requestedState, "editor-save");
+          return { stored: await this.inner.readTextFile(session.workingCopyPath), session };
+        }
+        candidate = merged.mergedText;
+      }
+      if (baseText !== null) {
+        // This request carries the actual editor ancestry; merging it again
+        // through a possibly older sync marker can fabricate a conflict.
+        await this.inner.writeTextFile(path, candidate);
+        const stored = await this.inner.readTextFile(path);
+        if (!containsTextChanges(disk ?? "", candidate, stored)) throw new Error("The saved note could not be confirmed");
+        const hash = await sha256Hash(stored);
+        this.rememberWrite(path, hash);
+        if (disk !== null) await this.syncRepo.updateLocalHash(path, hash);
+        return { stored, session: null };
+      }
+      try { await this.writeTextFileLocked(path, candidate, requestedState, gate); }
+      catch (error) {
+        const session = gate.session as ConflictEditSession | null;
+        if (!(error instanceof ConflictError) || !session) throw error;
+        return { stored: await this.inner.readTextFile(session.workingCopyPath), session };
+      }
+      const stored = await this.inner.readTextFile(path);
+      if (!containsTextChanges(disk ?? "", candidate, stored)) throw new Error("The saved note could not be confirmed");
+      return { stored, session: null };
+    });
+  }
+
+  async resolveConflict(path: string, resolution: ConflictResolution): Promise<void> {
+    await this.sessions.resolve(path, resolution);
+  }
 
   /**
    * Per-path serialization of operations that read the file and then update the stored
@@ -108,10 +175,16 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     // Capture the base before waiting behind an incoming write. Its completion
     // advances sync_state, but cannot retroactively update the user's draft.
     const requestedState = await this.syncRepo.getSyncState(path);
-    return this.runExclusive(path, () => this.writeTextFileLocked(path, localContent, requestedState));
+    return this.sessions.withMutation(path, async gate => {
+      if (gate.session) {
+        await this.sessions.writeLocked(gate.session, localContent);
+        throw new ConflictError("The changes are saved in the local conflict working copy", gate.session.workingCopyPath);
+      }
+      return this.writeTextFileLocked(path, localContent, requestedState, gate);
+    });
   }
 
-  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null): Promise<void> {
+  private async writeTextFileLocked(path: string, localContent: string, syncState: SyncState | null, gate: ConflictSessionGate): Promise<void> {
     const isNew = !(await this.inner.exists(path));
     if (isNew) {
       await this.inner.writeTextFile(path, localContent);
@@ -151,28 +224,16 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       console.warn(`[ConflictAware] disk changed under us for ${path} (diskSha=${diskSha256.slice(0, 8)}, expected local=${syncState.local_sha256.slice(0, 8)}) -> attempting merge`);
       const capturedBase = syncState.base_text;
       const baseContent = capturedBase != null && await sha256Hash(capturedBase) === syncState.local_sha256
-        ? capturedBase : await this.findBaseContent(path, syncState.local_sha256);
+        ? { text: capturedBase, source: "captured" as const } : await this.findBaseContent(path, syncState.local_sha256);
       if (baseContent === null) {
-        // We cannot merge without the base version. Save the user's edits as a CONFLICT file.
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const extMatch = path.match(/(\.[^.]+)$/);
-        const ext = extMatch ? extMatch[1] : "";
-        const base = extMatch ? path.substring(0, path.length - ext.length) : path;
-        const conflictPath = `${base}.CONFLICT-${timestamp}${ext}`;
-        await this.inner.writeTextFile(conflictPath, localContent);
-        throw new ConflictError(`Cannot automatically merge ${path}: base version not found. Saved locally as ${conflictPath}.`, conflictPath);
+        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", { text: null, source: "none" });
+        throw new ConflictError(`Cannot automatically merge ${path}: base version not found. Saved locally as ${session.workingCopyPath}.`, session.workingCopyPath);
       }
 
-      const mergeResult = mergeText(baseContent, localContent, currentDiskContent);
+      const mergeResult = mergeText(baseContent.text, localContent, currentDiskContent);
       if (mergeResult.hasConflicts) {
-        // Save the user's local content to a CONFLICT file so no data is lost
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const extMatch = path.match(/(\.[^.]+)$/);
-        const ext = extMatch ? extMatch[1] : "";
-        const base = extMatch ? path.substring(0, path.length - ext.length) : path;
-        const conflictPath = `${base}.CONFLICT-${timestamp}${ext}`;
-        await this.inner.writeTextFile(conflictPath, localContent);
-        throw new ConflictError(`Cannot automatically merge ${path}: conflicting changes. Saved locally as ${conflictPath}.`, conflictPath);
+        const session = await this.preserveLocked(gate, path, localContent, syncState, "adapter", baseContent);
+        throw new ConflictError(`Cannot automatically merge ${path}: conflicting changes. Saved locally as ${session.workingCopyPath}.`, session.workingCopyPath);
       }
       
       // Auto-merge successful, save the merged content and update our expected local hash.
@@ -197,13 +258,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     }
   }
 
-  private async findBaseContent(path: string, targetHash: string): Promise<string | null> {
+  private async findBaseContent(path: string, targetHash: string): Promise<{ text: string; source: "captured" | "backup" } | null> {
     // 1. Check the reliable base_text from sync_state
     const baseText = await this.syncRepo.getBaseText(path);
     if (baseText !== null) {
       const hash = await sha256Hash(baseText);
       if (hash === targetHash) {
-        return baseText;
+        return { text: baseText, source: "captured" };
       }
     }
     
@@ -229,7 +290,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
           const content = await this.inner.readTextFile(backup.path);
           const hash = await sha256Hash(content);
           if (hash === targetHash) {
-            return content;
+            return { text: content, source: "backup" };
           }
         } catch {
           // ignore read errors on backups
@@ -248,11 +309,25 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   }
 
   async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
-    return this.runExclusive(path, () => this.inner.deleteItem(path, recursive, confirmation));
+    return this.runExclusive(path, async () => {
+      await this.requireResolved(path);
+      return this.inner.deleteItem(path, recursive, confirmation);
+    });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    return withPathMutation(this.mutationScope, [oldPath, newPath], () => this.inner.renameItem(oldPath, newPath));
+    return withPathMutation(this.mutationScope, [oldPath, newPath], async () => {
+      await this.requireResolved(oldPath);
+      await this.requireResolved(newPath);
+      return this.inner.renameItem(oldPath, newPath);
+    });
+  }
+
+  private async requireResolved(path: string): Promise<void> {
+    const key = path.replace(/\\/g, "/").normalize("NFC").replace(/\/$/, "").toLowerCase();
+    const affected = (candidate: string) => candidate.toLowerCase() === key || candidate.toLowerCase().startsWith(key + "/");
+    const session = (await this.sessions.list()).find(s => affected(s.originalPath) || affected(s.workingCopyPath));
+    if (session) throw new ConflictError("Resolve the open conflict before moving or deleting this file or folder", session.workingCopyPath);
   }
 
   async exists(path: string): Promise<boolean> {

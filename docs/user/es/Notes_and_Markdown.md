@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-16
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -193,3 +193,19 @@ Un encabezado ATX y una tarea GFM son tipos de bloque alternativos. Plainva no e
 `![[Nota#Título]]` muestra la sección y sus subtítulos hasta el siguiente título de nivel igual o superior. `![[Nota#^block-id]]` muestra el párrafo, elemento de lista o bloque anterior a un ID de bloque en una línea independiente. El enlace normal `[[Nota#^block-id]]` también salta allí en modo lectura.
 
 Si hay títulos repetidos, usa una jerarquía única (`#Proyecto#Resultado`) o un ancla numerada (`#resultado-1`). Los destinos ausentes o ambiguos muestran un aviso y el origen sigue accesible. El anidamiento está limitado; los ejemplos de código no ejecutan inserciones. En el teléfono, las secciones y bloques no se recortan a las cuatro líneas de la vista previa general. No se modifican archivos existentes.
+
+## Usar listas
+
+Un elemento de lista solo se contrae al completar un toque o clic en su viñeta. Arrastrar, desplazarse, cancelar el contacto o usar varios dedos no lo contrae. La sangría permanece estable al cambiar de fuente o usar ventanas estrechas; se conservan el texto fuente, los tabuladores y la posición del cursor.
+
+## Barras de selección visibles
+
+La barra de formato sigue la selección al desplazarse y mantiene un margen respecto a los bordes. Si falta espacio, cambia al otro lado de la selección o distribuye sus botones en varias líneas. En el modo de lectura móvil, las etiquetas largas se convierten en iconos con nombres accesibles cuando es necesario; Copiar, Seleccionar todo y las acciones disponibles de edición o comentarios siguen siendo accesibles.
+
+## Completar propiedades
+
+Al añadir una propiedad aparecen nombres conocidos con su tipo y frecuencia. Se excluyen nombres existentes y reservados. Tiene prioridad el tipo de la base correspondiente, después el del índice y el registro local. Las sugerencias de texto y listas proceden de la carpeta de la nota; « Buscar en toda la bóveda » amplía el ámbito. Las listas ofrecen valores individuales. Las opciones definidas por la base son exclusivas, incluso si la lista está vacía. Se permite la entrada libre; solo una edición confirmada cambia la nota. Textos y listas conservan su tipo en propiedades y celdas de bases, tanto en escritorio como en móvil.
+
+### Abrir imagen
+
+**Abrir imagen** está disponible para imágenes locales en lectura, vista previa y el menú contextual. En el visor móvil, amplía con dos dedos, un doble toque o los botones; **Restablecer zoom** muestra la imagen completa. Atrás vuelve a la nota. La pulsación larga conserva las acciones del sistema y sigue siendo posible seleccionar una región para comentarla.

@@ -168,12 +168,12 @@ function App() {
       return;
     }
     let alive = true;
-    queryService.db
-      .query<{ path: string }>(`SELECT path FROM files WHERE path LIKE ? ORDER BY path LIMIT 5`, ["%.CONFLICT-%"])
-      .then((rows) => { if (alive) setDialogConflicts(rows.map((r) => r.path)); })
+    Promise.all([queryService.db
+      .query<{ path: string }>(`SELECT path FROM files WHERE path LIKE ? ORDER BY path LIMIT 5`, ["%.CONFLICT-%"]), vaultAdapter?.listConflictSessions?.() ?? Promise.resolve([])])
+      .then(([rows, sessions]) => { if (alive) setDialogConflicts([...new Set([...sessions.map(s => s.workingCopyPath), ...rows.map((r) => r.path)])].slice(0, 5)); })
       .catch(() => { if (alive) setDialogConflicts([]); });
     return () => { alive = false; };
-  }, [showErrorModal, queryService]);
+  }, [showErrorModal, queryService, vaultAdapter]);
   // The status bar's "Offline" button routes here: same error dialog as the
   // vault-switcher warning triangle.
   useEffect(() => {

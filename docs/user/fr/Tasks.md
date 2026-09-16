@@ -142,3 +142,7 @@ Seules les règles anglaises `every [N] day/week/month/year[s] [when done]` (N :
 Cocher ajoute la date de fin aux tâches avec métadonnées. Une répétition prise en charge ajoute si nécessaire un ID et donne à la suite un ID `pv-…`. Tout forme une seule modification Markdown, annulable dans l’éditeur. Rouvrir puis recocher conserve la suite existante et ses modifications.
 
 Les tâches natives de base de données sautent toujours les périodes manquées. Un plan de destination enregistré empêche les doublons. Si la suite n’est pas confirmée, vérifiez le dossier ; rouvrir et recocher peut reprendre après une erreur d’écriture. Si la source a changé, aucune copie différente n’est produite : vérifiez les notes et créez la suite manuellement si nécessaire. Une suite confirmée puis supprimée n’est pas recréée.
+
+## Retrouver les filtres des tâches
+
+Le statut, le texte recherché, le dossier, l’étiquette, les tâches avec échéance et l’affichage des tâches masquées sont mémorisés par coffre sur cet appareil, même après ouverture d’une note ou redémarrage. « Réinitialiser les filtres » revient aux tâches ouvertes sans autre filtre. Les dossiers et étiquettes indisponibles restent visibles et peuvent être retirés dans leur sélecteur. Oublier le coffre efface cet état. La base de tâches par défaut reste le réglage du coffre ; les filtres ne sont pas synchronisés.

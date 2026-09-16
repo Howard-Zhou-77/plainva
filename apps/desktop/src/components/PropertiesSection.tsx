@@ -8,7 +8,7 @@ import {
   generatedAtOf,
   getPlatformServices,
   ICON,
-  parseBaseConfig,
+  parseBaseConfig, propertyIndexTypes, reservedPropertyName,
   toast,
   TRUST_LEVEL_I18N,
   trustLevelOf,
@@ -176,6 +176,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // Resolve which `.base` governs this note (its column schema drives typed rendering).
   useEffect(() => {
     let alive = true;
+    setGoverning(null); setShowAdd(false);
     if (doc.kind === "markdown" && doc.path) {
       resolveGoverningBase(doc.path, queryService, vaultAdapter).then((g) => { if (alive) setGoverning(g); }).catch((e) => { console.warn("[PropertiesSection] resolving governing .base failed", e); if (alive) setGoverning(null); });
     } else {
@@ -309,7 +310,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       let n = 2;
       while (properties[finalName] !== undefined) finalName = `${base} ${n++}`;
     }
-    if (properties[finalName] !== undefined) return;
+    if (Object.prototype.hasOwnProperty.call(properties, finalName) || reservedPropertyName(finalName)) return;
     setPropertyType(vaultPath, finalName, type);
     setTypeReg(loadPropertyTypes(vaultPath));
     commit({ ...properties, [finalName]: defaultValueForType(type) as any });
@@ -327,13 +328,13 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   const folderPrefix = useMemo(() => {
     if (!doc.path) return "";
     const i = doc.path.lastIndexOf("/");
-    return i < 0 ? "" : doc.path.slice(0, i + 1);
+    return i < 0 ? "/" : doc.path.slice(0, i + 1);
   }, [doc.path]);
 
-  const getValueSuggestions = useCallback(async (key: string) => {
+  const getValueSuggestions = useCallback(async (key: string, wholeVault = false) => {
     if (!queryService) return [];
-    try { return await queryService.getDistinctPropertyValues(key, folderPrefix); } catch { return []; }
-  }, [queryService, folderPrefix]);
+    try { return await queryService.getDistinctPropertyValues(key, wholeVault ? undefined : folderPrefix, propertyIndexTypes(baseInputToType(governing?.columns?.[key]?.input) ?? typeReg[key] ?? inferType(normalizeFrontmatterValue(properties[key]), key))); } catch { return []; }
+  }, [queryService, folderPrefix, governing, typeReg, properties]);
 
   // Relation candidates: from the target `.base`'s notes if the column declares one,
   // else any note in the vault. Cached per scope; filtered by the typed query.
@@ -542,7 +543,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
           <Plus size={ICON.ui} />
           {t("properties.addProperty")}
         </button>
-        {showAdd && <AddPropertyPopover onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}
+        {showAdd && <AddPropertyPopover source={queryService} columns={governing?.columns} registry={typeReg} existing={Object.keys(properties)} onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}
       </div>
     </div>
   );

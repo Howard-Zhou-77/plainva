@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../../services/fileActions";
 import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { chipClass, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { Button, chipClass, inferType, propertyFolder, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { PlainInput, SelectChip } from "../PropertyValues";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
@@ -150,6 +151,15 @@ export function useBaseCells({
   const getRollup = (col: string) => (getColumnSchema(col) as any)?.rollup ?? null;
   const isRollupColumn = (col: string): boolean => getRollup(col) !== null;
 
+  const editingInput = editingCell ? getColumnInput(editingCell.col) ?? inferType(dbData.find((r) => r["file.path"] === editingCell.path)?.[editingCell.col], editingCell.col) : "text";
+  const editingCurated = editingCell ? getColumnSchema(editingCell.col)?.options : undefined;
+  const loadSuggestions = useCallback(async (key: string, all = false) => queryService
+    ? queryService.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(editingCell?.path ?? ""), propertyIndexTypes(editingInput)) : [],
+  [queryService, editingCell?.path, editingInput]);
+  const suggestions = usePropertyValues(!!editingCell && editingCurated === undefined, editingCell?.col ?? "", loadSuggestions);
+  const scopeAction = editingCurated === undefined && !suggestions.wholeVault
+    ? <Button variant="ghost" className="pv-popover-row" onClick={suggestions.expand}>{t("properties.searchWholeVault")}</Button> : null;
+
   // Options for inline select/status editing: curated options from the .base when
   // present, otherwise the distinct values actually used by the matching notes — so
   // a Status cell offers the real options instead of an empty dropdown (point 9).
@@ -157,7 +167,8 @@ export function useBaseCells({
   // those offer their parts as separate options (P1). Curated sets stay as authored.
   const getInlineOptions = (col: string): CuratedOption[] => {
     const curated = getColumnOptions(col) as CuratedOption[];
-    const opts = inlineOptionsFrom(curated, dbData, col);
+    const opts = getColumnSchema(col)?.options !== undefined ? curated
+      : editingCell?.col === col ? suggestions.values.map((v) => ({ value: v.value })) : inlineOptionsFrom([], dbData, col);
     const input = getColumnInput(col);
     if (curated.length > 0 || (input !== "select" && input !== "status" && input !== "multiselect")) return opts;
     const seen = new Set<string>();
@@ -521,7 +532,7 @@ export function useBaseCells({
     // A rollup is derived: there is nothing in this note to edit. Typing into
     // it would suggest the number lives here, which is exactly what it does not.
     const isReadOnly = col.startsWith('file.') || col === 'okf_version' || isRollupColumn(col);
-    const input = getColumnInput(col);
+    const input = getColumnInput(col) ?? inferType(val, col);
     // Checkboxes toggle on click; they have no separate edit mode.
     const isCheckbox = input === 'checkbox' || typeof val === 'boolean';
 
@@ -538,6 +549,9 @@ export function useBaseCells({
         );
       }
       if (input === 'select' || input === 'status') {
+        if (getColumnSchema(col)?.options === undefined) return <SelectChip autoOpen value={splitMultiValue(val)[0] ?? ""}
+          propKey={col} getValueSuggestions={loadSuggestions} onChange={(v) => handleCellSave(path, col, v)}
+          onClose={() => setEditingCell(null)} grouped={input === "status"} t={t} />;
         // Legacy multi-values (list / comma string) preselect their first entry;
         // picking an option writes a clean scalar (P1).
         const curVal = splitMultiValue(val)[0] ?? "";
@@ -568,10 +582,10 @@ export function useBaseCells({
           </div>
         );
       }
-      if (input === 'multiselect') {
+      if (input === 'multiselect' || input === 'list' || input === 'tags') {
         // Comma-joined legacy strings edit as their entries; committing writes a
         // native YAML list (P1).
-        return <InlineMultiSelect value={splitMultiValue(val)} options={getInlineOptions(col)} onCommit={(arr) => commitCellValue(path, col, arr)} onClose={() => setEditingCell(null)} t={t} />;
+        return <InlineMultiSelect scopeAction={scopeAction} neutral={input !== "multiselect"} value={splitMultiValue(val)} options={getInlineOptions(col)} onCommit={(arr) => commitCellValue(path, col, arr)} onClose={() => setEditingCell(null)} t={t} />;
       }
       if (isReverseColumn(col)) {
         // Computed reverse column: candidates are the OWNING base's notes;
@@ -608,6 +622,9 @@ export function useBaseCells({
           />
         );
       }
+      if (input !== "number") return <PlainInput autoFocus value={val == null ? "" : String(val)} type={input === "url" || input === "email" || input === "phone" ? input : "text"}
+        propKey={col} getValueSuggestions={loadSuggestions} curated={getColumnSchema(col)?.options}
+        onChange={(v) => handleCellSave(path, col, v)} onClose={() => setEditingCell(null)} t={t} />;
       return (
         <input
           autoFocus

@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-16
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -193,3 +193,19 @@ Um título ATX e uma tarefa GFM são tipos de bloco alternativos. O Plainva não
 `![[Nota#Título]]` exibe a seção e seus subtítulos até o próximo título do mesmo nível ou superior. `![[Nota#^block-id]]` exibe o parágrafo, item de lista ou bloco anterior a um ID em uma linha separada. Um link comum `[[Nota#^block-id]]` também salta até esse ponto no modo de leitura.
 
 Para títulos repetidos, use uma hierarquia única (`#Projeto#Resultado`) ou uma âncora numerada (`#resultado-1`). Destinos ausentes ou ambíguos mostram uma mensagem, e a origem continua acessível. O aninhamento é limitado; exemplos de código não executam incorporações. No telefone, seções e blocos não são cortados nas quatro linhas da prévia geral de notas. Os arquivos existentes permanecem inalterados.
+
+## Usar listas
+
+Um item de lista só é recolhido após concluir um toque ou clique no marcador. Arrastar, rolar, cancelar o contato ou usar vários dedos não o recolhe. O recuo permanece estável ao trocar a fonte ou usar janelas estreitas; o texto-fonte, as tabulações e a posição do cursor são preservados.
+
+## Barras de seleção visíveis
+
+A barra de formatação acompanha a seleção durante a rolagem e mantém uma margem das bordas. Quando falta espaço, muda para o outro lado da seleção ou distribui os botões em mais linhas. Na leitura móvel, rótulos longos se tornam ícones com nomes acessíveis quando necessário; Copiar, Selecionar tudo e as ações disponíveis de edição ou comentários continuam acessíveis.
+
+## Completar propriedades
+
+Ao adicionar uma propriedade, nomes conhecidos aparecem com tipo e frequência. Nomes existentes e reservados são excluídos. O tipo da base correspondente tem prioridade, seguido pelo tipo indexado e pelo registro local. Sugestões de texto e listas vêm da pasta da nota; “Pesquisar em todo o cofre” amplia o escopo. As listas oferecem valores individuais. Opções definidas pela base permanecem exclusivas, mesmo quando a lista está vazia. A entrada livre continua disponível; apenas uma edição confirmada altera a nota. Textos e listas mantêm seu tipo nas propriedades e células de bases, no desktop e no celular.
+
+### Abrir imagem
+
+**Abrir imagem** está disponível para imagens locais na leitura, prévia e menu de contexto. No visualizador móvel, use dois dedos, toque duplo ou botões; **Redefinir zoom** mostra a imagem inteira. Voltar retorna à nota. Pressionar a imagem incorporada mantém as ações do sistema e a seleção de regiões para comentários.

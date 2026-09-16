@@ -313,6 +313,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         webView: webViewVersion,
         os: aboutInfo?.os ?? "?",
         language: i18n.language,
+        conflicts: await vaultAdapter?.listConflictDiagnostics?.(),
       });
       await writeTextFile(target, text);
       toast.success(t("settings.diagnosticsExported"));

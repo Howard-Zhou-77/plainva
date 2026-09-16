@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -201,3 +201,9 @@ The right panel cannot go below **200 px** — no section is usable under that. 
 ## Returning a tab
 
 In a separate or second full window, right-click a tab and choose **Return to main window**. Plainva carries its current text, selection, view, scroll position, history and pin state over. The source tab closes only after receipt is confirmed. If the main window cannot confirm, the tab and its draft stay available. Bookmark changes appear in every window.
+
+## Folder bookmarks
+
+Add a bookmark from a file or folder context menu. Folder bookmarks have a folder icon: mobile opens the folder, while desktop expands it in the file tree. Renaming and moving items in Plainva also updates bookmarks for nested folders and their files. Missing targets stay visible with a label; remove those bookmarks explicitly.
+
+When a vault opens, Plainva automatically imports file and folder bookmarks from Obsidian, including groups. Type and path prevent duplicates. The Obsidian file stays unchanged. Settings profiles carry folder bookmarks separately from files; an older profile without a folder field keeps existing folder bookmarks.

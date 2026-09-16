@@ -117,7 +117,8 @@
     "pasteFailed": "Impossible de coller depuis le presse-papiers.",
     "copyImage": "Copier l'image",
     "saveImageAs": "Enregistrer l'image sous…",
-    "copyImageFailed": "Impossible de copier l'image."
+    "copyImageFailed": "Impossible de copier l'image.",
+    "openImage": "Ouvrir l’image"
   },
   "common": {
     "on": "Activé",
@@ -656,7 +657,6 @@
     "missingFileRefresh": "Retirer de l'index",
     "notTextTitle": "Ce fichier n'est pas du texte",
     "notTextBody": "Son extension annonce du texte, son contenu non. Plainva ne l'affiche pas, car l'enregistrer l'endommagerait.",
-    "key": "Clé",
     "value": "Valeur",
     "slashCheckbox": "Case à cocher",
     "slashBulletList": "Liste à puces",
@@ -945,7 +945,8 @@
     "today": "aujourd'hui",
     "viewSwitch": "Vue",
     "bookmarkSaveFailed": "Impossible d'enregistrer les signets.",
-    "search": "Rechercher"
+    "search": "Rechercher",
+    "bookmarkMissing": "Cible introuvable"
   },
   "database": {
     "graphNoColumns": "Le graphe n'affiche aucune colonne de propriété.",
@@ -1344,7 +1345,8 @@
     "keepRatio": "Conserver les proportions",
     "textPlaceholder": "Saisir du texte…",
     "viewOnly": "Affichage seul – les formats modifiables sont PNG, JPG et WebP.",
-    "loadError": "Impossible de charger l'image."
+    "loadError": "Impossible de charger l'image.",
+    "zoomReset": "Réinitialiser le zoom"
   },
   "okfInfo": {
     "title": "Qu'est-ce que l'OKF ?",
@@ -1839,7 +1841,9 @@
     "rollupFn_unchecked": "Non coché",
     "rollupFn_empty": "Sans valeur",
     "rollupFn_filled": "Avec une valeur",
-    "rollupFn_unique": "Valeurs distinctes"
+    "rollupFn_unique": "Valeurs distinctes",
+    "existingNames": "Propriétés connues",
+    "searchWholeVault": "Rechercher dans tout le coffre"
   },
   "docHeader": {
     "addIcon": "Ajouter une icône",
@@ -2355,7 +2359,14 @@
   "conflict": {
     "resolveFailed": "Impossible de résoudre le conflit : {{error}}",
     "resolveAction": "Résoudre le conflit…",
-    "notAConflictFile": "Ce fichier n'est pas une copie de conflit."
+    "notAConflictFile": "Ce fichier n'est pas une copie de conflit.",
+    "workingCopy": "Vous modifiez votre copie en conflit. Elle sera synchronisée après la fusion.",
+    "workingCopyChanged": "La copie de travail a été modifiée en dehors de cette session. L’autre version a été conservée.",
+    "savedRevisions": "Comparer les versions conservées",
+    "savedBase": "Version initiale conservée",
+    "foreignCopy": "Autre version de la copie de travail",
+    "noSavedBase": "Aucune version initiale supplémentaire n’est enregistrée pour cette copie.",
+    "historyFailed": "Les versions conservées n’ont pas pu être chargées."
   },
   "mobile": {
     "tabSearch": "Recherche",
@@ -2587,7 +2598,8 @@
     "swipeHint": "Balayez une ligne vers la gauche pour les actions. Les mêmes actions figurent dans le menu de la ligne.",
     "swipeHintAck": "Compris",
     "propertyWriteFailed": "La propriété n'a pas pu être enregistrée : {{message}}",
-    "selectMany": "Sélectionner plusieurs"
+    "selectMany": "Sélectionner plusieurs",
+    "readerAutoHide": "Masquer automatiquement les commandes pendant la lecture"
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",
@@ -2683,7 +2695,9 @@
       "taskId": "ID",
       "recurrence": "Récurrence",
       "unsupported": "Règle conservée ; aucune continuation automatique ici."
-    }
+    },
+    "resetFilters": "Réinitialiser les filtres",
+    "filterUnavailable": "Indisponible"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",
@@ -2752,7 +2766,13 @@
     "labels": "Libellés",
     "addLabel": "Rechercher un libellé…",
     "newLabel": "Créer « {{name}} »",
-    "inlineTag": "dans le texte"
+    "inlineTag": "dans le texte",
+    "loadingCards": "Chargement des cartes…",
+    "indexMissing": "Pas encore indexée",
+    "loadFailed": "Impossible de charger les cartes",
+    "searchPlaceholder": "Rechercher dans ce tableau…",
+    "noMatches": "Aucune carte correspondante",
+    "retry": "Réessayer"
   },
   "compose": {
     "toolbar": "Mise en forme",
@@ -4189,18 +4209,18 @@
     "title": "Nouveautés dans Plainva {{version}}",
     "lead": "Nouveauté principale",
     "experimental": "Expérimental",
-    "highlight1Title": "Connexions et synchronisation plus fiables",
-    "highlight1": "Les opérations interrompues sont relancées de manière ciblée. Les problèmes de connexion et les données incertaines sont mieux signalés, tout en préservant les modifications locales.",
-    "highlight2Title": "Résultats précis, intégrations et historique",
-    "highlight2": "Accédez au passage correspondant, intégrez une section ou un bloc et comparez les véritables modifications de lignes d’une version.",
-    "highlight3Title": "Import JEX et export de bases",
-    "highlight3": "Importez des archives Joplin avec leurs pièces jointes dans un nouveau dossier. Exportez les rollups compatibles sous forme de formules Obsidian ou de valeurs explicites. Les tâches conservent leurs métadonnées.",
-    "highlight4Title": "Des résultats clairs pour le courrier",
-    "highlight4": "Les actions groupées affichent les réussites et les échecs par message. Le filtre des pièces jointes explique les métadonnées incomplètes ; l’ajout de services préserve les connexions existantes.",
-    "highlight5Title": "Votre design et vos usages quotidiens",
-    "highlight5": "Personnalisez séparément les modes clair et sombre et synchronisez votre design personnel si vous le souhaitez. Les notes quotidiennes, le transfert entre fenêtres et les contenus partagés en attente sont plus fiables.",
-    "highlight6Title": "Retours sur les publications",
-    "highlight6": "Les destinataires autorisés peuvent commenter et proposer des modifications. Les propriétaires peuvent examiner les retours et les conserver après la révocation d’un destinataire.",
+    "highlight1Title": "Continuer malgré un conflit",
+    "highlight1": "La copie de travail d’un conflit conserve les modifications suivantes et résiste au redémarrage. Comparez les instantanés précédents et choisissez la version à garder.",
+    "highlight2Title": "Éditeur stable et tableaux plus rapides",
+    "highlight2": "Les listes restent stables même avec des métriques de police délicates. Les commandes de sélection restent visibles. Les tableaux chargent les aperçus utiles et retrouvent leur contenu et leur position à votre retour.",
+    "highlight3Title": "Suggestions et recherche dans les tableaux",
+    "highlight3": "Des suggestions proposent noms, types et valeurs individuelles des listes. Les options définies par la base restent exclusives. Recherchez le texte des notes avec des étiquettes ; les propriétés vides sont correctement filtrées.",
+    "highlight4Title": "Filtres de tâches et favoris de dossiers",
+    "highlight4": "Les filtres sont conservés par coffre sur cet appareil et peuvent être réinitialisés. Ouvrez un dossier depuis ses favoris ; les chemins suivent les déplacements et changements de nom.",
+    "highlight5Title": "Plus de place pour lire",
+    "highlight5": "Sur mobile, l’en-tête et le crayon se retirent en descendant et reviennent dès le premier mouvement vers le haut. Cette option de lecture est activée par défaut et se désactive dans Éditeur et notes. Le rail de la tablette reste visible ; le bureau dispose du mode concentration.",
+    "highlight6Title": "Ouvrir et agrandir les images",
+    "highlight6": "Ouvrir l’image mène de la lecture ou de l’aperçu au visualiseur. Sur mobile : zoom à deux doigts, double appui et réinitialisation. L’appui long sur une image intégrée conserve les actions natives.",
     "readBlog": "Lire l'article de blog",
     "understand": "Compris"
   },

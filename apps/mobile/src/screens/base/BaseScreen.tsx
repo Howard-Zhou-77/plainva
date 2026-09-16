@@ -1,3 +1,4 @@
+import { pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { usePageSwipe } from "../../lib/usePageSwipe";
@@ -117,6 +118,13 @@ const VIEW_ICON: Record<string, typeof Table> = {
   pinboard: StickyNote,
 };
 
+/** Sequences asynchronous queries without coupling the token to render state. */
+class QueryEpoch {
+  private value = 0;
+  next() { return ++this.value; }
+  matches(value: number) { return value === this.value; }
+}
+
 export function BaseScreen({
   vault,
   path,
@@ -133,9 +141,13 @@ export function BaseScreen({
 }) {
   const { t, i18n: i18nInstance } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.base$/i, "");
-  const [loaded, setLoaded] = useState<LoadedBase | null>(null);
-  const [viewIndex, setViewIndex] = useState(0);
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const cache = useMemo(() => pinboardCache(vault.queryService ?? vault.files), [vault.queryService, vault.files]);
+  const snapshot = useMemo(() => cache.base<{ loaded: LoadedBase; rows: Row[]; viewIndex: number }>(path), [cache, path]);
+  const [loaded, setLoaded] = useState<LoadedBase | null>(() => snapshot?.loaded ?? null);
+  const [viewIndex, setViewIndex] = useState(() => snapshot?.viewIndex ?? 0);
+  const [rows, setRows] = useState<Row[] | null>(() => snapshot?.rows ?? null);
+  const [queryEpoch] = useState(() => new QueryEpoch());
+  useEffect(() => () => { queryEpoch.next(); }, [vault, path, queryEpoch]);
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [cellEditCanComment, setCellEditCanComment] = useState(false);
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
@@ -264,9 +276,9 @@ export function BaseScreen({
 
   useEffect(() => {
     let stale = false;
-    setLoaded(null);
-    setRows(null);
-    setViewIndex(0);
+    setLoaded(snapshot?.loaded ?? null);
+    setRows(snapshot?.rows ?? null);
+    setViewIndex(snapshot?.viewIndex ?? 0);
     void loadBase(vault, path)
       .then((l) => {
         if (stale) return;
@@ -286,11 +298,16 @@ export function BaseScreen({
 
   const requery = useCallback(
     (cfg: any, idx: number) => {
+      const epoch = queryEpoch.next();
       void queryView(vault, cfg, idx)
-        .then(setRows)
-        .catch(() => setRows([]));
+        .then((next) => {
+          if (!queryEpoch.matches(epoch)) return;
+          setRows(next);
+          if (next.length <= 4000) cache.rememberBase(path, { loaded: { config: cfg, stem: title }, rows: next, viewIndex: idx });
+        })
+        .catch(() => { if (queryEpoch.matches(epoch)) toast.warning(t("pinboard.loadFailed")); });
     },
-    [vault],
+    [vault, cache, path, title, t, queryEpoch],
   );
 
   useEffect(() => {
@@ -541,6 +558,7 @@ export function BaseScreen({
       input,
       value: r[col],
       options: config?.columns?.[col]?.options ?? [],
+      curated: config?.columns?.[col]?.options !== undefined,
       relationBase: config?.columns?.[col]?.relationBase,
       relationLimit: config?.columns?.[col]?.relationLimit,
     });
@@ -1951,6 +1969,8 @@ export function BaseScreen({
       ) : effectiveRender === "pinboard" ? (
         // Before the empty check: the capture field must show on an empty board.
         <PinboardView
+          key={`${path}#${viewStateName(view, viewIndex)}`}
+          viewKey={`${path}#${viewStateName(view, viewIndex)}`}
           captureSignal={captureSignal}
           vault={vault}
           config={config}
@@ -2127,7 +2147,7 @@ export function BaseScreen({
       })()}
 
       {cellEdit && (
-        <CellEditSheet
+        <CellEditSheet key={`${vault.vaultId}:${cellEdit.notePath}:${cellEdit.col}`}
           onClose={() => setCellEdit(null)}
           onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
           onCommit={commitCell}

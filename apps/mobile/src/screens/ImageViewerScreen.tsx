@@ -1,3 +1,4 @@
+import { ZoomableImage } from "../components/ZoomableImage";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Share2 } from "lucide-react";
@@ -6,19 +7,8 @@ import { AppBar } from "../components/AppBar";
 import { shareVaultFile } from "../services/shareFile";
 import type { MobileVault } from "../services/vaultService";
 
-/**
- * The image viewer (S42).
- *
- * An attachment was invisible on the phone: the navigator listed notes and
- * databases only, so a photo you had just inserted could not be looked at
- * again. This is the smallest thing that fixes that honestly — the picture at
- * full width, its name, and a way to hand it to another app.
- *
- * Deliberately NOT the desktop's editor (crop, rotate, draw). That is a canvas
- * pipeline with an undo stack; offering a cut-down version of it would invite
- * edits the phone cannot finish. Viewing is the gap; editing is a decision for
- * its own step.
- */
+/** Image viewing with pinch, double-tap and reset. Crop/paint remain delegated
+ * to the phone's own image editor through Share (see the parity catalog). */
 export function ImageViewerScreen({
   vault,
   path,
@@ -34,6 +24,7 @@ export function ImageViewerScreen({
   const name = path.split("/").pop() ?? path;
 
   useEffect(() => {
+    setUrl(null); setFailed(false);
     let objectUrl: string | null = null;
     let stale = false;
     void (async () => {
@@ -58,13 +49,13 @@ export function ImageViewerScreen({
     <div className="m-page m-page--viewer">
       <AppBar onBack={onBack} title={name} />
       {failed ? (
-        <p className="m-hint">{t("mobile.noteMissing")}</p>
+        <p className="m-hint">{t("imageViewer.loadError")}</p>
       ) : (
-        url && <img alt={name} className="m-viewerimg" src={url} />
+        url && <ZoomableImage key={`${path}:${url}`} url={url} name={name} onError={() => setFailed(true)} />
       )}
       <div className="m-sync-actions">
         <Button
-          disabled={!url}
+          disabled={!url || failed}
           onClick={() => {
             void shareVaultFile(vault, path).catch(() => toast.warning(t("mobile.vaultExportFailed")));
           }}

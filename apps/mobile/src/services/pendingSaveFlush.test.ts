@@ -57,12 +57,18 @@ describe("vaultOps: pending saves land before a path changes", () => {
     },
   );
 
-  it.each(["renameFolder", "removeFolder"])(
+  it.each(["moveFolder", "removeFolder"])(
     "%s flushes the whole queue — the affected child paths are unknown",
     (name) => {
       expect(flushesFirst(methodBody(source, name), /noteSaver\.flushAll\(/)).toBe(true);
     },
   );
+
+  it("folder renaming delegates to the guarded folder move before any file access", () => {
+    const body = methodBody(source, "renameFolder");
+    expect(body).toMatch(/return vaultOps\.moveFolder\(v, oldPath,/);
+    expect(body).not.toMatch(/v\.files\./);
+  });
 
   it("does not flush inside save itself — that is the coordinator's own write", () => {
     // A flush here would call back into the coordinator that is writing, so

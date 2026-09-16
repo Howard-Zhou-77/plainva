@@ -142,3 +142,7 @@ Solo se automatizan las reglas en inglés `every [N] day/week/month/year[s] [whe
 Marcar añade la fecha de finalización a las tareas con metadatos. La repetición admitida añade un ID si falta y un ID `pv-…` distinto a la siguiente. Casilla y sucesora forman una sola edición Markdown; Deshacer revierte toda la edición. Reabrir y marcar otra vez conserva la sucesora y sus cambios.
 
 Las tareas nativas de base de datos siguen saltando períodos vencidos. Un plan de destino guardado evita duplicados. Si no se confirma la sucesora, revisa la carpeta; reabrir y marcar puede reanudar un fallo de escritura. Si la fuente cambió, no se escribe una copia diferente: revisa las notas y crea la sucesora manualmente si hace falta. Una sucesora confirmada y borrada después no se restaura.
+
+## Restaurar filtros de tareas
+
+El estado, texto de búsqueda, carpeta, etiqueta, filtro de vencimiento y visibilidad de tareas ocultas se recuerdan por bóveda en este dispositivo, incluso al abrir una nota o reiniciar. « Restablecer filtros » vuelve a las tareas abiertas sin otros filtros. Las carpetas y etiquetas no disponibles siguen visibles y se pueden quitar desde sus selectores. Olvidar la bóveda elimina este estado. La base de tareas predeterminada conserva su configuración de bóveda; los filtros no se sincronizan.

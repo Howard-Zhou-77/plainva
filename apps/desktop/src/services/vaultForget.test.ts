@@ -116,6 +116,7 @@ describe("collectPerVaultLocalStorageKeys", () => {
       `plainva-layout-${VAULT}`,
       `recentPaths-${VAULT}`,
       `plainva-base-active-view-${VAULT}`,
+      `plainva-task-view-${VAULT}`,
       `plainva-base-active-view-${VAULT}:Projekte.base`,
       `plainva-base-subitems-${VAULT}`,
       `plainva-prop-types::${VAULT}`,
@@ -138,7 +139,7 @@ describe("collectPerVaultLocalStorageKeys", () => {
       "plainva-recent-emoji",
     ];
     const hit = collectPerVaultLocalStorageKeys(VAULT, all);
-    expect(hit).toHaveLength(13);
+    expect(hit).toHaveLength(14);
     expect(hit).not.toContain("plainva-layout-C:/Vaults/Anderer");
     expect(hit).not.toContain("plainva-left-sections-C:/Vaults/Anderer-order");
     expect(hit).not.toContain("plainva-mail-cols-C:/Vaults/Anderer");

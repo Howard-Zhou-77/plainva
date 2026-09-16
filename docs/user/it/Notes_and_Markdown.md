@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-09-16
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -193,3 +193,19 @@ Un titolo ATX e un’attività GFM sono tipi di blocco alternativi. Plainva non 
 `![[Nota#Titolo]]` mostra la sezione e i sottotitoli fino al successivo titolo di livello uguale o superiore. `![[Nota#^block-id]]` mostra il paragrafo, la voce di elenco o il blocco che precede un ID su una riga separata. Anche il collegamento normale `[[Nota#^block-id]]` porta lì in modalità lettura.
 
 Per titoli ripetuti usa una gerarchia univoca (`#Progetto#Risultato`) o un ancoraggio numerato (`#risultato-1`). Le destinazioni mancanti o ambigue mostrano un avviso; l’origine resta accessibile. La nidificazione è limitata e gli esempi di codice non eseguono incorporamenti. Sul telefono sezioni e blocchi non sono tagliati alle quattro righe dell’anteprima generale. I file esistenti restano invariati.
+
+## Usare gli elenchi
+
+Un elemento si comprime solo dopo un tocco o clic completato sul suo punto elenco. Il trascinamento, lo scorrimento, un contatto annullato o un gesto con più dita non lo comprimono. Il rientro rimane stabile cambiando carattere o usando finestre strette; testo sorgente, tabulazioni e posizione del cursore vengono conservati.
+
+## Barre di selezione sempre visibili
+
+La barra di formattazione segue la selezione durante lo scorrimento e mantiene un margine dai bordi. Se lo spazio manca, passa all’altro lato della selezione o dispone i pulsanti su più righe. Nella lettura mobile, le etichette lunghe diventano icone con nomi accessibili quando necessario; Copia, Seleziona tutto e le azioni disponibili di modifica o commento restano raggiungibili.
+
+## Completare le proprietà
+
+Aggiungendo una proprietà vengono proposti nomi noti con tipo e frequenza. I nomi già presenti e riservati sono esclusi. Prevale il tipo del database pertinente, seguito dal tipo indicizzato e dal registro locale. I suggerimenti per testo ed elenchi provengono dalla cartella della nota; « Cerca in tutto il vault » amplia la ricerca. Gli elenchi propongono singoli valori. Le opzioni definite dal database restano esclusive, anche se vuote. È possibile inserire testo libero; solo una modifica confermata cambia la nota. Testi ed elenchi mantengono il proprio tipo nelle proprietà e nelle celle dei database, su desktop e dispositivi mobili.
+
+### Apri immagine
+
+**Apri immagine** è disponibile per immagini locali in lettura, anteprima e nel menu contestuale. Nel visualizzatore mobile usa due dita, doppio tocco o pulsanti; **Reimposta zoom** mostra l’intera immagine. Indietro torna alla nota. La pressione prolungata conserva le azioni del sistema e puoi ancora selezionare una regione da commentare.

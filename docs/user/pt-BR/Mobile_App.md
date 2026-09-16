@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-09-15
+Última atualização: 2026-09-16
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -276,3 +276,9 @@ Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço 
 ### Mais espaço na navegação móvel
 
 O ícone selecionado mantém espaço até a borda na barra compacta. As áreas de toque continuam amplas, e o espaço reservado se adapta ao tamanho do texto.
+
+## Espaço de leitura e imagens
+
+Em **Editor e notas**, você pode desativar **Ocultar controles automaticamente durante a leitura**. Por padrão, cabeçalho e lápis se recolhem ao rolar para baixo. Eles voltam ao subir, no início da nota, com seleção de texto, controle aberto, teclado ou aviso de conflito. A área de rolagem mantém o tamanho e respeita a preferência de movimento. A barra do tablet permanece visível; no desktop há o modo de foco.
+
+**Abrir imagem** está disponível para imagens locais na leitura, prévia e menu de contexto. No visualizador móvel, use dois dedos, toque duplo ou botões; **Redefinir zoom** mostra a imagem inteira. Voltar retorna à nota. Pressionar a imagem incorporada mantém as ações do sistema e a seleção de regiões para comentários.

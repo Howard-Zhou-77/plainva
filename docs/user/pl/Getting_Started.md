@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-15
+Stan na: 2026-09-16
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -201,3 +201,9 @@ Prawy panel nie może zejść poniżej **200 px** — poniżej tej wartości ża
 ## Przenoszenie karty z powrotem
 
 W osobnym lub drugim pełnym oknie kliknij kartę prawym przyciskiem i wybierz **Wróć do głównego okna**. Tekst, zaznaczenie, widok, przewinięcie, historia i przypięcie zostają zachowane. Karta źródłowa zamyka się dopiero po potwierdzeniu. Bez potwierdzenia karta i szkic pozostają dostępne. Zakładki są aktualizowane we wszystkich oknach.
+
+## Zakładki folderów
+
+Dodaj zakładkę z menu kontekstowego pliku lub folderu. Zakładki folderów mają ikonę folderu: na telefonie otwierają folder, a na komputerze rozwijają go w drzewie. Zmiany nazw i przenoszenie w Plainva aktualizują też zakładki podfolderów i plików. Brakujące cele pozostają oznaczone; usuń te zakładki świadomie.
+
+Przy otwarciu sejfu Plainva automatycznie importuje zakładki plików i folderów z Obsidian, także z grup. Typ i ścieżka zapobiegają duplikatom. Plik Obsidian pozostaje bez zmian. Profile ustawień przenoszą foldery osobno; starszy profil bez tego pola zachowuje istniejące zakładki folderów.

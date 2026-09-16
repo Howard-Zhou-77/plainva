@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Menu, Search } from "lucide-react";
 import { ICON, IconButton } from "@plainva/ui";
-import { resetChromeScroll, setChromeScroll } from "../services/chromeScroll";
+import { chromeScrollPublisher, resetChromeScroll, type ChromeScroll } from "../services/chromeScroll";
 
 /**
  * The app bar — ONE header for every surface (redesign P2 / S11).
@@ -37,7 +37,7 @@ import { resetChromeScroll, setChromeScroll } from "../services/chromeScroll";
  * height-changing element back into the flow, a single correction could not
  * start the oscillation again.
  */
-const CHROME_SCROLL_DEAD_ZONE = 24;
+
 
 export function AppBar({
   onBack,
@@ -50,6 +50,7 @@ export function AppBar({
   titleAs,
   className,
   testId,
+  scrollState,
 }: {
   /** Absent on a tab root — there is nothing to go back to. */
   onBack?: () => void;
@@ -78,18 +79,19 @@ export function AppBar({
   className?: string;
   /** Names the surface for the screenshot baseline's `requires` proof (5.7): a surface that renders this bar shows its subject. */
   testId?: string;
+  /** A nested editor publishes its own scroll state. */
+  scrollState?: ChromeScroll;
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
-  const lastTop = useRef(0);
 
   // The bar raises itself against whatever actually scrolls beneath it. Which
   // element that is differs per screen, so it is looked up rather than assumed
   // — an assumption here would silently leave single screens flat.
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || scrollState !== undefined) return;
     let scroller: HTMLElement | null = el.parentElement;
     while (scroller) {
       const oy = getComputedStyle(scroller).overflowY;
@@ -97,31 +99,20 @@ export function AppBar({
       scroller = scroller.parentElement;
     }
     const target: HTMLElement | Window = scroller ?? window;
+    const publish = chromeScrollPublisher();
     const read = () => {
       const top = scroller ? scroller.scrollTop : window.scrollY;
-      setScrolled(top > 2);
-      // Direction, with a dead zone: a bar that flips on every pixel of
-      // rubber-banding is worse than one that never moves. It comes back on the
-      // first deliberate move upwards, and always near the top.
-      const delta = top - lastTop.current;
-      if (Math.abs(delta) > CHROME_SCROLL_DEAD_ZONE) {
-        setChromeScroll({ scrolled: top > 2, away: delta > 0 && top > 48 });
-        lastTop.current = top;
-      } else if (top <= 2) {
-        setChromeScroll({ scrolled: false, away: false });
-        lastTop.current = top;
-      }
+      setScrolled(top > 2); publish(top);
     };
     resetChromeScroll();
-    lastTop.current = 0;
     read();
     target.addEventListener("scroll", read, { passive: true });
     return () => target.removeEventListener("scroll", read);
-  }, []);
+  }, [scrollState]);
 
   return (
     <header
-      className={`m-appbar${large ? " m-appbar--lg" : ""}${scrolled ? " is-scrolled" : ""}${className ? ` ${className}` : ""}`}
+      className={`m-appbar${large ? " m-appbar--lg" : ""}${(scrollState?.scrolled ?? scrolled) ? " is-scrolled" : ""}${className ? ` ${className}` : ""}`}
       data-testid={testId}
       ref={ref}
     >

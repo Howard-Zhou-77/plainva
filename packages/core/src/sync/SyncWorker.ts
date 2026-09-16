@@ -12,6 +12,7 @@ import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, type SyncErrorKind } from "./errorKind.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
+import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -796,11 +797,14 @@ export class SyncWorker {
    * no local edits are lost when we adopt the remote version. .CONFLICT files are
    * excluded from pushes by the sync target, so they stay local-only.
    */
-  private async preserveLocalAsConflict(path: string, localContent: string): Promise<string> {
-    const conflictPath = this.conflictPathFor(path);
-    console.warn(`[SyncWorker] CONFLICT: preserving local copy of ${path} as ${conflictPath}`);
-    await this.vault.writeTextFile(conflictPath, localContent);
-    return conflictPath;
+  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate): Promise<string> {
+    const base = state?.base_text ?? await this.stateRepo.getBaseText(path);
+    const session = await new ConflictSessions(this.vault, this.stateRepo, this.stateRepo).preserveLocked(gate, {
+      path, text: localContent, base, external, writer: "sync-pull",
+      diagnostic: await conflictDiagnostic({ path, adapter: "cloud", writer: "sync-pull", disk: localContent,
+        expectedLocalHash: state?.local_sha256 ?? null, base, baseSource: base === null ? "none" : "captured", wasWrittenByUs: false }),
+    });
+    return session.workingCopyPath;
   }
 
   /**
@@ -964,18 +968,18 @@ export class SyncWorker {
     const contentBytes = await (download ? download() : this.target.download(path));
     if (!contentBytes) return;
 
-    await withPathMutation(this.stateRepo, [path], async () => {
+    await new ConflictSessions(this.vault, this.stateRepo, this.stateRepo).withMutation(path, async gate => {
       if (await this.queue.hasPendingStructuralOp(path)) return;
       // The listing snapshot can predate a local save or another window's
       // conflict resolution. Re-read only after entering their shared gate.
       const current = await this.stateRepo.getSyncState(path);
-      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths);
+      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths, gate);
     });
   }
 
   private async reconcileDownloadedFile(
     path: string, contentBytes: Uint8Array, remoteEtag: string,
-    state: SyncState | null, now: number, changedPaths: string[]
+    state: SyncState | null, now: number, changedPaths: string[], gate: ConflictSessionGate
   ): Promise<void> {
 
     // Defensive end-to-end-encryption guard (A3): if the remote bytes are a PVE1
@@ -1045,14 +1049,14 @@ export class SyncWorker {
         if (baseText !== null) {
           const mergeRes = mergeText(baseText, localContent, remoteContent);
           if (mergeRes.hasConflicts) {
-            const cp = await this.preserveLocalAsConflict(path, localContent);
+            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
             changedPaths.push(cp);
             mergedContent = remoteContent; // adopt remote; local kept as .CONFLICT
           } else {
             mergedContent = mergeRes.mergedText;
           }
         } else {
-          const cp = await this.preserveLocalAsConflict(path, localContent);
+          const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
           changedPaths.push(cp);
           mergedContent = remoteContent;
         }
@@ -1060,7 +1064,7 @@ export class SyncWorker {
         // No reliable base (e.g. first connect) and content diverges. Never
         // silently overwrite the working copy: preserve it as .CONFLICT and
         // adopt remote as canonical local.
-        const cp = await this.preserveLocalAsConflict(path, localContent);
+        const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
         changedPaths.push(cp);
         mergedContent = remoteContent;
       }

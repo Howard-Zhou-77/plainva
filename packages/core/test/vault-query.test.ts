@@ -193,7 +193,7 @@ describe("VaultQueryService", () => {
   it("stays global when no folder prefix is given", async () => {
     db.mockedResults.push([{ value: "final", count: 2 }]);
     await queryService.getDistinctPropertyValues("status");
-    expect(db.queries[0].query).not.toContain("JOIN files");
+    expect(db.queries[0].query).not.toContain("f.path LIKE");
     expect(db.queries[0].params as any[]).toEqual(["status"]);
   });
 

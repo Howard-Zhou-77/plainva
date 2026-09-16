@@ -56,6 +56,7 @@ export interface DiagnosticsAppInfo {
   webView?: string;
   os: string;
   language: string;
+  conflicts?: readonly import("@plainva/core").ConflictDiagnostic[];
 }
 
 export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
@@ -79,6 +80,12 @@ export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
   }
   for (const e of entries) {
     lines.push(`- ${new Date(e.ts).toISOString()} [${e.source}] ${e.message}`);
+  }
+  if (info.conflicts?.length) {
+    // An explicit projection keeps note text and extra local metadata out.
+    const conflicts = info.conflicts.map(({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }) =>
+      ({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }));
+    lines.push("", "## Lokale Konfliktdiagnose (ohne Dateinamen oder Notizinhalte)", "", "```json", redactDiagnosticText(JSON.stringify(conflicts, null, 2)), "```");
   }
   return lines.join("\n") + "\n";
 }

@@ -63,10 +63,10 @@ export async function settlePendingWrites(vaultPath: string): Promise<void> {
 }
 
 /** Serializes a captured write or an external-update preservation operation. */
-export function withPendingWrite(vaultPath: string, path: string, work: () => Promise<void>): Promise<void> {
+export function withPendingWrite<T>(vaultPath: string, path: string, work: () => Promise<T>): Promise<T> {
   const previous = pendingWriteFor(vaultPath, path);
   const run = (previous ?? Promise.resolve()).catch(() => {}).then(work);
-  return trackPendingWrite(vaultPath, path, run);
+  return trackPendingWrite(vaultPath, path, run.then(() => {})).then(() => run);
 }
 
 /** Strict counterpart to teardown's drain: rewriting a file requires success. */

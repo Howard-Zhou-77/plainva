@@ -1,10 +1,18 @@
 # Configurar Sincronização
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-16
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
 Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop do provedor) está descrito em [Compatibilidade de Sincronização](Sync_Compatibility.md).
+
+## Comparar versões preservadas
+
+Quando um conflito de texto não pode ser mesclado automaticamente, uma única cópia de trabalho local permanece aberta por original. As próximas edições são salvas nessa mesma cópia, inclusive após reabrir a nota ou reiniciar o aplicativo. O aviso explica: **Você está editando sua cópia em conflito. Ela será sincronizada após a mesclagem.**
+
+Na comparação, **Comparar versões preservadas** mostra a versão inicial salva, quando disponível. Se a cópia de trabalho mudar fora desta sessão, a outra versão também será preservada e poderá ser comparada ali. Adotar, manter ambas e descartar verificam os arquivos atuais novamente; recarregue uma comparação desatualizada. Resolva o conflito antes de mover ou excluir o arquivo afetado ou sua pasta. Cópias antigas em conflito continuam listadas separadamente.
+
+A exportação de diagnóstico também inclui conflitos recentes: tipo de armazenamento, componente que gravou, comparação de hashes e diferenças de finais de linha, BOM ou quebra de linha final. Esses registros não contêm texto das notas nem nomes de arquivos.
 
 ## Fundamentos
 

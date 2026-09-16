@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   resolveTaskOrdinal, tasksDescription,
   setFrontmatterPath,
@@ -120,19 +120,7 @@ export function TasksScreen({
   const { t } = useTranslation();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<TaskStatusFilter>("open");
-  const [text, setText] = useState("");
-  /**
-   * The rest of the desktop's filters (S31). The rules were already shared —
-   * `filterTasks` has taken folder, tag, dueOnly and includeHidden since it was
-   * written; the phone simply passed two of the six. On a phone they matter
-   * MORE, not less: the list is the same length and the screen is a fifth of
-   * the size, so "everything, sorted by nothing" is what you get without them.
-   */
-  const [folder, setFolder] = useState("");
-  const [tag, setTag] = useState("");
-  const [dueOnly, setDueOnly] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
+  const { status, text, folder, tag, dueOnly, showHidden, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, resetFilters } = useTaskViewState(vault.vaultId);
   const [tick, setTick] = useState(0);
   const [taskDb, setTaskDb] = useState("");
   const [dbRows, setDbRows] = useState<TaskDbRow[] | null>(null);
@@ -318,7 +306,8 @@ export function TasksScreen({
   const pickFolder = async () => {
     const picked = await mSelect({
       title: t("tasks.folderFilter"),
-      options: [{ value: "", label: t("tasks.allFolders") }, ...folderOptions.map((f) => ({ value: f, label: f }))],
+      value: folder,
+      options: [{ value: "", label: t("tasks.allFolders") }, ...(folder && !folderOptions.includes(folder) ? [{ value: folder, label: `${folder} (${t("tasks.filterUnavailable")})` }] : []), ...folderOptions.map((f) => ({ value: f, label: f }))],
     });
     if (picked !== null) setFolder(picked);
   };
@@ -326,7 +315,8 @@ export function TasksScreen({
   const pickTag = async () => {
     const picked = await mSelect({
       title: t("tasks.tagFilter"),
-      options: [{ value: "", label: t("tasks.allTags") }, ...tagOptions.map((g) => ({ value: g, label: `#${g}` }))],
+      value: tag,
+      options: [{ value: "", label: t("tasks.allTags") }, ...(tag && !tagOptions.includes(tag) ? [{ value: tag, label: `#${tag} (${t("tasks.filterUnavailable")})` }] : []), ...tagOptions.map((g) => ({ value: g, label: `#${g}` }))],
     });
     if (picked !== null) setTag(picked);
   };
@@ -686,10 +676,10 @@ export function TasksScreen({
           value, so "Ordner: Projekte" says what it is doing. */}
       <div className="m-turninto" data-testid="tasks-filters">
         <Chip onClick={() => void pickFolder()} selected={folder !== ""}>
-          {folder ? `${t("tasks.folderFilter")}: ${folder.split("/").pop()}` : t("tasks.folderFilter")}
+          {folder ? `${t("tasks.folderFilter")}: ${folder}${!loading && !folderOptions.includes(folder) ? ` (${t("tasks.filterUnavailable")})` : ""}` : t("tasks.folderFilter")}
         </Chip>
         <Chip onClick={() => void pickTag()} selected={tag !== ""}>
-          {tag ? `#${tag}` : t("tasks.tagFilter")}
+          {tag ? `#${tag}${!loading && !tagOptions.includes(tag) ? ` (${t("tasks.filterUnavailable")})` : ""}` : t("tasks.tagFilter")}
         </Chip>
         <Chip onClick={() => setDueOnly((v) => !v)} selected={dueOnly}>
           {t("tasks.dueOnly")}
@@ -697,6 +687,7 @@ export function TasksScreen({
         <Chip onClick={() => setShowHidden((v) => !v)} selected={showHidden}>
           {t("tasks.showHidden")}
         </Chip>
+        <Button variant="ghost" size="sm" onClick={resetFilters} data-testid="tasks-reset-filters">{t("tasks.resetFilters")}</Button>
         {templateNotePaths.length > 0 && (
           <Chip onClick={() => void hideAllTemplates()}>{t("tasks.hideTemplates")}</Chip>
         )}

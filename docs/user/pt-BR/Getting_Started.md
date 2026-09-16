@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-16
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -201,3 +201,9 @@ A barra lateral direita não pode ficar abaixo de **200 px** — nenhuma seção
 ## Devolver uma aba
 
 Em uma janela separada ou em uma segunda janela completa, clique com o botão direito na aba e escolha **Voltar à janela principal**. Texto, seleção, visualização, rolagem, histórico e fixação são mantidos. A aba de origem só fecha após a confirmação. Sem ela, a aba e o rascunho permanecem disponíveis. Os favoritos são atualizados em todas as janelas.
+
+## Favoritos de pastas
+
+Adicione um favorito pelo menu de contexto de um arquivo ou pasta. Os favoritos de pastas mostram um ícone próprio: no celular abrem a pasta, no desktop a expandem na árvore. Renomear e mover itens no Plainva também atualiza favoritos de subpastas e arquivos. Destinos ausentes continuam sinalizados; remova esses favoritos explicitamente.
+
+Ao abrir um cofre, o Plainva importa automaticamente favoritos de arquivos e pastas do Obsidian, inclusive grupos. Tipo e caminho evitam duplicatas. O arquivo do Obsidian permanece intacto. Perfis de configuração transportam as pastas separadamente; um perfil antigo sem esse campo mantém os favoritos de pastas existentes.

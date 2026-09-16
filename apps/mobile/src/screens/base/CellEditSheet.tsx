@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { type CuratedOption, getPlatformServices, ICON, IconButton, inlineOptionsFrom, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { type CuratedOption, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -21,6 +21,8 @@ export interface CellEditTarget {
   input: string;
   value: unknown;
   options: CuratedOption[];
+  /** Distinguishes a declared empty vocabulary from no schema. */
+  curated?: boolean;
   relationBase?: string;
   relationLimit?: "one";
 }
@@ -68,10 +70,16 @@ export function CellEditSheet({
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Array<{ path: string; title: string }>>([]);
 
-  const options = useMemo(
-    () => inlineOptionsFrom(target.options, rows, col),
-    [target.options, rows, col],
-  );
+  const usingCurated = target.curated ?? target.options.length > 0;
+  const loadSuggestions = useCallback(async (key: string, all = false) => vault.queryService
+    ? vault.queryService.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(target.notePath), propertyIndexTypes(input)) : [],
+  [vault, target.notePath, input]);
+  const suggestions = usePropertyValues(!usingCurated && !isRelation && !isDate, col, loadSuggestions);
+  const options = useMemo<CuratedOption[]>(() => usingCurated ? target.options
+    : vault.queryService ? suggestions.values.map((v) => ({ value: v.value })) : inlineOptionsFrom([], rows, col),
+  [usingCurated, target.options, vault.queryService, suggestions.values, rows, col]);
+  const needle = (isMulti || isSelect ? free : text).trim().toLocaleLowerCase();
+  const matches = options.filter((o) => !needle || (o.label ?? o.value).toLocaleLowerCase().includes(needle));
 
   useEffect(() => {
     if (!isRelation) return;
@@ -122,7 +130,7 @@ export function CellEditSheet({
 
         {isSelect && (
           <>
-            {options.map((o) => (
+            {matches.map((o) => (
               <button className="m-row" key={o.value} onClick={() => onCommit(o.value)}>
                 <span>{o.label ?? o.value}</span>
                 {String(value ?? "") === o.value && <Check className="m-accent" size={ICON.head} />}
@@ -150,7 +158,7 @@ export function CellEditSheet({
 
         {isMulti && (
           <>
-            {[...new Set([...options.map((o) => o.value), ...multi])].map((val) => {
+            {[...new Set([...matches.map((o) => o.value), ...multi])].map((val) => {
               const on = multi.includes(val);
               return (
                 <button
@@ -220,6 +228,8 @@ export function CellEditSheet({
           </>
         )}
 
+        {input === "checkbox" && <button className="m-row" onClick={() => onCommit(value !== true)}>
+          <span>{col}</span><span className={`m-slotmark${value === true ? " is-on" : ""}`} /></button>}
         {isDate && (
           <div className="m-sheet-inputrow">
             <TextInput
@@ -233,7 +243,7 @@ export function CellEditSheet({
           </div>
         )}
 
-        {!isSelect && !isMulti && !isRelation && !isDate && (
+        {!isSelect && !isMulti && !isRelation && !isDate && input !== "checkbox" && (
           <>
             <div className="m-sheet-inputrow">
               <TextInput
@@ -262,6 +272,8 @@ export function CellEditSheet({
                 <Check size={ICON.head} />
               </IconButton>
             </div>
+            {matches.filter((o) => o.value !== text).map((o) => <button className="m-row" key={o.value}
+              onClick={() => setText(o.value)}>{o.label ?? o.value}</button>)}
             {/* Contact types open externally (E3 parity to the desktop cells). */}
             {(input === "url" || input === "email" || input === "phone") && text.trim() !== "" && (
               <button
@@ -286,6 +298,9 @@ export function CellEditSheet({
           </>
         )}
 
+        {!isRelation && !isDate && input !== "checkbox" && !usingCurated && !suggestions.wholeVault && (
+          <button className="m-row" onClick={suggestions.expand}>{t("properties.searchWholeVault")}</button>
+        )}
         {onCommentProperty && (
           <button className="m-row" onClick={onCommentProperty} data-testid="base-comment-property">
             <MessageSquare size={ICON.head} />

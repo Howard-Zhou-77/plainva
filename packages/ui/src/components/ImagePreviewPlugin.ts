@@ -39,20 +39,21 @@ export type ImageLookupFn = () => ImageLookup & {
   resolveByName?: (basename: string) => Promise<string | null>;
 };
 
-// One object URL per absolute path for the app's lifetime: images repeat
-// across rebuilds (every cursor line change), and revoking per-widget would
-// flash. Failed loads are retried on the next build.
-const blobUrlCache = new Map<string, Promise<string | null>>();
+// URLs belong to one editor view. Mobile vaults share relative paths, so a
+// process-global path cache could display another vault's image. Cursor rebuilds
+// reuse this view cache; closing or reconfiguring the view revokes every URL.
+interface ImageCache { urls: Map<string, Promise<string | null>>; closed: boolean }
 
-function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn): Promise<string | null> {
-  let pending = blobUrlCache.get(absolutePath);
+function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn, cache: ImageCache): Promise<string | null> {
+  if (cache.closed) return Promise.resolve(null);
+  let pending = cache.urls.get(absolutePath);
   if (!pending) {
     pending = readBinary(absolutePath)
-      .then((bytes) => URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: imageMimeType(absolutePath) })))
+      .then((bytes) => cache.closed ? null : URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: imageMimeType(absolutePath) })))
       .catch(() => null);
-    blobUrlCache.set(absolutePath, pending);
+    cache.urls.set(absolutePath, pending);
     void pending.then((url) => {
-      if (url === null) blobUrlCache.delete(absolutePath); // allow retry later
+      if (url === null) cache.urls.delete(absolutePath); // allow retry later
     });
   }
   return pending;
@@ -62,15 +63,16 @@ function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn): Promise<str
 async function loadVaultImage(
   source: Extract<ImageSource, { kind: "vault" }>,
   readBinary: ReadBinaryFn,
+  cache: ImageCache,
 ): Promise<{ url: string; absolutePath: string } | null> {
   for (const absolutePath of source.candidates) {
-    const url = await blobUrlFor(absolutePath, readBinary);
+    const url = await blobUrlFor(absolutePath, readBinary, cache);
     if (url) return { url, absolutePath };
   }
   if (source.resolveByIndex) {
     const absolutePath = await source.resolveByIndex().catch(() => null);
     if (absolutePath) {
-      const url = await blobUrlFor(absolutePath, readBinary);
+      const url = await blobUrlFor(absolutePath, readBinary, cache);
       if (url) return { url, absolutePath };
     }
   }
@@ -78,13 +80,14 @@ async function loadVaultImage(
 }
 
 /** Right-click on a vault image → the host opens its own copy/save-as menu. */
-export type ImageContextFn = (e: MouseEvent, absolutePath: string) => void;
+export type ImageContextFn = (e: MouseEvent, absolutePath: string, fromAction?: boolean) => boolean | void;
 
 class ImageWidget extends WidgetType {
   constructor(
     readonly source: ImageSource,
     readonly key: string,
     readonly readBinary: ReadBinaryFn,
+    readonly cache: ImageCache,
     /** The embed's range in the document — what a comment on the picture anchors to. */
     readonly from: number,
     readonly to: number,
@@ -99,19 +102,24 @@ class ImageWidget extends WidgetType {
     /** Obsidian's `|300`: a display width in CSS pixels, or null. */
     readonly width: number | null,
     readonly onImageContext?: ImageContextFn,
+    readonly onOpenImage?: (absolutePath: string) => void,
+    readonly alt = "",
   ) { super(); }
 
   eq(other: ImageWidget) {
     // The frames join the identity: without them CodeMirror reuses the DOM it
     // already built and a frame - or a region moved by an edit - never appears.
-    return this.key === other.key && this.width === other.width && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames);
+    return this.key === other.key && this.width === other.width && this.alt === other.alt && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames);
   }
 
   toDOM(view: EditorView) {
     const container = document.createElement("span");
     container.className = "pv-image-embed";
 
+    const frame = document.createElement("span");
+    frame.className = "cm-anchor-region-host pv-image-frame";
     const img = document.createElement("img");
+    img.alt = this.alt;
     img.style.maxWidth = "100%";
     img.style.maxHeight = "400px";
     img.style.borderRadius = "4px";
@@ -122,33 +130,43 @@ class ImageWidget extends WidgetType {
       img.src = this.source.url;
     } else {
       const source = this.source;
-      void loadVaultImage(source, this.readBinary).then((loaded) => {
+      void loadVaultImage(source, this.readBinary, this.cache).then((loaded) => {
         if (!loaded || img.isConnected === false) return;
         img.src = loaded.url;
+        if (this.onOpenImage) {
+          const open = document.createElement("button");
+          open.type = "button"; open.className = "pv-image-open pv-btn pv-btn--ghost pv-btn--sm";
+          open.textContent = i18n.t("contextMenu.openImage");
+          open.onclick = (event) => { event.preventDefault(); event.stopPropagation(); this.onOpenImage?.(loaded.absolutePath); };
+          open.oncontextmenu = (event) => {
+            if (this.onImageContext?.(event, loaded.absolutePath, true) !== false) { event.preventDefault(); event.stopPropagation(); }
+          };
+          container.appendChild(open);
+        }
         if (this.onImageContext) {
           const onCtx = this.onImageContext;
           img.oncontextmenu = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onCtx(e, loaded.absolutePath);
+            if (onCtx(e, loaded.absolutePath, false) !== false) {
+              e.preventDefault(); e.stopPropagation();
+            }
           };
         }
       });
     }
 
-    container.appendChild(img);
+    frame.appendChild(img); container.appendChild(frame);
     // Regions are positioned in percent against this box, and the class is what
     // makes the box equal the picture: an inline-block around an inline image
     // inherits the baseline gap, and those stray pixels would skew every
     // fraction downwards.
-    container.classList.add("cm-anchor-region-host");
+
     // A comment on the WHOLE picture still frames the whole picture; one with a
     // rectangle draws its own overlay instead, so it must not do both.
     const whole = this.frames.find((f) => !f.rect) ?? null;
     const regions = this.frames.filter((f) => f.rect);
     decorateAnchorTarget({
       view,
-      host: container,
+      host: frame,
       // The frame goes around the picture, not the inline-block that carries
       // the vertical margins — otherwise it would float above and below it.
       target: img,
@@ -160,7 +178,7 @@ class ImageWidget extends WidgetType {
       // Plainva can guarantee neither the size the fractions were measured
       // against nor that the picture is still the same one.
       pickRegion: this.source.kind === "vault"
-        ? () => pickImageRegion({ host: container, box: img }, { hint: i18n.t("comments.commentRegionHint") })
+        ? () => pickImageRegion({ host: frame, box: img }, { hint: i18n.t("comments.commentRegionHint") })
         : undefined,
       bubbleLabel: i18n.t("comments.commentOnImage"),
     });
@@ -197,12 +215,20 @@ export function imagePreviewPlugin(
   readBinary: ReadBinaryFn,
   onImageContext?: ImageContextFn,
   lookup?: ImageLookupFn,
+  onOpenImage?: (absolutePath: string) => void,
 ) {
   return ViewPlugin.fromClass(class {
     decorations: DecorationSet;
+    readonly imageCache: ImageCache = { urls: new Map(), closed: false };
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
+    }
+
+    destroy() {
+      this.imageCache.closed = true;
+      for (const pending of this.imageCache.urls.values()) void pending.then((url) => { if (url) URL.revokeObjectURL(url); });
+      this.imageCache.urls.clear();
     }
 
     update(update: ViewUpdate) {
@@ -258,11 +284,14 @@ export function imagePreviewPlugin(
             source,
             source.kind === "direct" ? source.url : source.key,
             readBinary,
+            this.imageCache,
             matchStart,
             matchEnd,
             anchorFramesAt(view.state, matchStart, matchEnd),
             embed.width,
             onImageContext,
+            onOpenImage,
+            embed.alt || embed.target,
           );
           if (!hideSyntax || isFocused) {
             // Cursor is here or source mode: show text AND image below it

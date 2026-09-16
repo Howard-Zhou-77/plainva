@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { applyPin, applyUnpin, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -32,9 +32,11 @@ interface CardVM {
 }
 
 function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; target: string; alt: string; notePath: string }) {
+  const { ref: imageRef, visible: imageVisible, loaded: onImageLoad, placeholderStyle } = useVisibleImage(vault, `${notePath}#${target}`);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
+    if (!imageVisible) return;
     let alive = true;
     let objectUrl: string | null = null;
     setUrl(null);
@@ -66,10 +68,10 @@ function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; targe
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vault, target, notePath]);
+  }, [vault, target, notePath, imageVisible]);
   if (failed) return <span className="m-pin-imgfail">{alt || target}</span>;
-  if (!url) return <span aria-hidden="true" className="m-pin-imgskeleton" />;
-  return <img alt={alt} className="m-pin-img" src={url} />;
+  if (!url) return <span ref={imageRef} aria-hidden="true" className="m-pin-imgskeleton" style={placeholderStyle} />;
+  return <img alt={alt} className="m-pin-img" src={url} onLoad={onImageLoad} />;
 }
 
 export function PinboardView({
@@ -86,6 +88,7 @@ export function PinboardView({
   askStorageFolder,
   viewIndex = 0,
   captureSignal,
+  viewKey = "default",
 }: {
   vault: MobileVault;
   config: any;
@@ -111,30 +114,26 @@ export function PinboardView({
   viewIndex?: number;
   /** Bumped by the screen's FAB: open the capture card (M2). */
   captureSignal?: number;
+  viewKey?: string;
 }) {
   const { t } = useTranslation();
   const rowPath = (r: Record<string, any>) => String(r["file.path"] ?? "");
   const paths = useMemo(() => rows.map(rowPath).filter(Boolean), [rows]);
 
-  // ── Card data from the FTS index (shared getCardData, P2) ──
-  const [cardData, setCardData] = useState<Record<string, NoteCardData>>({});
-  useEffect(() => {
-    if (!vault.queryService || paths.length === 0) {
-      setCardData({});
-      return;
-    }
-    let alive = true;
-    vault.queryService.getCardData(paths).then((d) => { if (alive) setCardData(d); }).catch(() => {});
-    return () => { alive = false; };
-  }, [vault, paths]);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cache = useMemo(() => pinboardCache(vault.queryService ?? vault.files), [vault.queryService, vault.files]);
+  const session = useMemo(() => cache.session(viewKey), [cache, viewKey]);
+  const previews = usePinboardCards(vault.queryService ?? vault.files, vault.queryService, rows, containerRef);
+  const cardData = previews.data;
+  usePinboardScroll(containerRef, cache, viewKey);
 
   const cards = useMemo(() => {
     const map = new Map<string, CardVM>();
     for (const row of rows) {
       const path = rowPath(row);
       if (!path) continue;
-      const data = cardData[path] ?? { content: "", tags: [], ctime: null };
-      const parsed = parseNoteCard(data.content, { dropLeadingH1: true });
+      const data = cardData[path] ?? { content: "", tags: [], ctime: row["file.ctime"] ?? null };
+      const parsed = parsedPinboardCard(data);
       map.set(path, { path, mtime: Number(row["file.mtime"] ?? 0), parsed, title: parsed.fmTitle ?? parsed.leadingH1 ?? null, data, row });
     }
     return map;
@@ -171,7 +170,7 @@ export function PinboardView({
     const m = new Map<string, string[]>();
     for (const [p, vm] of cards) {
       if (labelProp) m.set(p, splitMultiValue(vm.row?.[labelProp]).map(String));
-      else m.set(p, vm.data.tags.filter((tg) => !sourceTags.has(tg)));
+      else m.set(p, (Array.isArray(vm.row["file.tags"]) ? vm.row["file.tags"].map((tag: string) => tag.replace(/^#/, "")) : vm.data.tags).filter((tg: string) => !sourceTags.has(tg)));
     }
     return m;
   }, [cards, labelProp, sourceTags]);
@@ -179,7 +178,8 @@ export function PinboardView({
     () => (labelProp && Array.isArray(config?.columns?.[labelProp]?.options) ? config.columns[labelProp].options : []),
     [config, labelProp],
   );
-  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const [selectedLabels, setSelectedLabels] = useState<string[]>(() => session.labels);
+  useEffect(() => { cache.updateSession(viewKey, { labels: selectedLabels }); }, [cache, viewKey, selectedLabels]);
   const chipEntries = useMemo(() => {
     const counts = new Map<string, number>();
     for (const labels of labelsByPath.values()) for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
@@ -200,28 +200,35 @@ export function PinboardView({
     const rws = paths.map((p) => ({ path: p, ctime: cards.get(p)?.data.ctime ?? null, mtime: cards.get(p)?.mtime ?? 0 }));
     return orderCards(rws, order, pinnedList);
   }, [hasSort, paths, cards, order, pinnedList]);
+  const [searchText, setSearchText] = useState(() => session.search);
+  useEffect(() => { cache.updateSession(viewKey, { search: searchText }); }, [cache, viewKey, searchText]);
+  const searchMetadata = useMemo(() => new Map(rows.map(row => [String(row["file.path"]), [
+    String(row["file.name"] ?? ""), ...(labelsByPath.get(String(row["file.path"])) ?? []), ...(Array.isArray(row["file.tags"]) ? row["file.tags"].map(String) : []),
+    ...(propCols ?? []).map(col => displayCell ? displayCell(col, row[col]) : String(row[col] ?? "")),
+  ]])), [rows, propCols, displayCell, labelsByPath]);
+  const searchRevision = useMemo(() => JSON.stringify(rows.map(row => [row["file.path"], cardRevision(row)])), [rows]);
+  const search = usePinboardSearch(vault.queryService, paths, searchText, searchMetadata, cache, viewKey, searchRevision);
   const visibleSections = useMemo(
     () => ({
-      pinned: filterCardPaths(sections.pinned, labelsByPath, selectedLabels),
-      unpinned: filterCardPaths(sections.unpinned, labelsByPath, selectedLabels),
+      pinned: filterCardPathsByText(filterCardPaths(sections.pinned, labelsByPath, selectedLabels), search.matches),
+      unpinned: filterCardPathsByText(filterCardPaths(sections.unpinned, labelsByPath, selectedLabels), search.matches),
     }),
-    [sections, labelsByPath, selectedLabels],
+    [sections, labelsByPath, selectedLabels, search.matches],
   );
 
   // ── Two/three-column masonry with measured heights ──
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(() => session.width);
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
-      for (const e of entries) setContainerWidth(e.contentRect.width);
+      for (const e of entries) { cache.updateSession(viewKey, { width: e.contentRect.width }); setContainerWidth(e.contentRect.width); }
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-  const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map());
-  const heightsRef = useRef<Map<string, number>>(new Map());
+  }, [cache, viewKey]);
+  const [heights, setHeights] = useState<ReadonlyMap<string, number>>(() => new Map(session.heights));
+  const heightsRef = useRef<Map<string, number>>(new Map(session.heights));
   const rafRef = useRef<number | null>(null);
   const cardObserverRef = useRef<ResizeObserver | null>(null);
   const cardElsRef = useRef<Map<string, HTMLElement>>(new Map());
@@ -241,6 +248,7 @@ export function PinboardView({
       if (changed && rafRef.current === null) {
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
+          cache.updateSession(viewKey, { heights: new Map(heightsRef.current) });
           setHeights(new Map(heightsRef.current));
         });
       }
@@ -252,8 +260,10 @@ export function PinboardView({
       cardObserverRef.current = null;
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [cache, viewKey]);
+  const registerPreview = previews.registerPreview;
   const registerCard = useCallback((path: string) => (el: HTMLElement | null) => {
+    registerPreview(path, el);
     const prev = cardElsRef.current.get(path);
     if (prev && prev !== el) cardObserverRef.current?.unobserve(prev);
     if (el) {
@@ -262,7 +272,7 @@ export function PinboardView({
     } else {
       cardElsRef.current.delete(path);
     }
-  }, []);
+  }, [registerPreview]);
   const columnCount = containerWidth >= 660 ? 3 : 2;
   const columns = useMemo(
     () => ({
@@ -593,16 +603,22 @@ export function PinboardView({
         data-pinboard-path={path}
         data-pinboard-section={section}
         data-pinboard-card="true"
+        data-card-status={previews.status(vm.row)}
         role="button"
         tabIndex={0}
         onClick={() => onOpenNote(path)}
         onKeyDown={(e) => { if (e.key === "Enter") onOpenNote(path); }}
         className={`m-pin-card${drag?.path === path ? " is-dragging" : ""}${showDropBefore ? " is-dropbefore" : ""}`}
         /* The tint is the note's OWN colour and cannot come from a class. */
-        style={tint
-          ? { background: `color-mix(in srgb, ${tint} calc(var(--pinboard-tint, 16) * 1%), var(--bg-secondary))` }
-          : undefined}
+        style={{
+          containIntrinsicSize: `auto ${heights.get(path) ?? 160}px`,
+          background: tint ? `color-mix(in srgb, ${tint} calc(var(--pinboard-tint, 16) * 1%), var(--bg-secondary))` : undefined,
+        }}
       >
+        {previews.status(vm.row) !== "ready" && <div className="pv-pinboard-placeholder" aria-busy={previews.status(vm.row) === "loading"}>
+          <strong>{String(vm.row["file.name"] ?? path.split("/").pop())}</strong>
+          <span>{t(previews.status(vm.row) === "missing" ? "pinboard.indexMissing" : previews.status(vm.row) === "error" ? "pinboard.loadFailed" : "pinboard.loadingCards")}</span>
+        </div>}
         {isPinned && (
           <span aria-hidden="true" className="m-pin-flag">
             <Pin size={ICON.meta} />
@@ -681,19 +697,11 @@ export function PinboardView({
        bar and the FAB hover over — this used to state all three again, with its
        own numbers. */
     <div className="m-page m-pinboard" ref={containerRef}>
-      {/* Collapsed capture field — expands to the Keep-style title + text card
-          (2026-07-17): a typed title becomes file name + H1, otherwise the
-          note gets a timestamp name and no H1. */}
-      {!captureOpen && (
-        <button
-          type="button"
-          data-pinboard-capture="true"
-          className="m-pin-capture"
-          onClick={() => setCaptureOpen(true)}
-        >
-          {t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-        </button>
-      )}
+      {previews.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={previews.retry}>{t("pinboard.retry")}</Button></div>}
+      {/* Search is view state; the header Entry action opens capture. */}
+      <PinboardSearch value={searchText} onChange={setSearchText} busy={search.busy} />
+      {search.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={search.retry}>{t("pinboard.retry")}</Button></div>}
+      {!!searchText.trim() && !search.busy && !search.failed && visibleSections.pinned.length + visibleSections.unpinned.length === 0 && <p role="status">{t("pinboard.noMatches")}</p>}
       {captureOpen && (
         <div
           data-pinboard-capture-popup="true"

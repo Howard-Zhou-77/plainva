@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-16
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -201,3 +201,9 @@ De rechterzijbalk kan niet onder **200 px** komen — geen enkele sectie is daar
 ## Een tabblad terugplaatsen
 
 Klik in een apart of tweede volledig venster met rechts op het tabblad en kies **Terug naar het hoofdvenster**. Tekst, selectie, weergave, scrollpositie, geschiedenis en vastzetten blijven behouden. Het brontabblad sluit pas na bevestiging. Zonder bevestiging blijven tabblad en concept beschikbaar. Wijzigingen in bladwijzers verschijnen in alle vensters.
+
+## Mapbladwijzers
+
+Voeg een bladwijzer toe via het contextmenu van een bestand of map. Mapbladwijzers hebben een mapicoon: mobiel opent de map, desktop vouwt deze in de bestandsboom uit. Hernoemen en verplaatsen in Plainva werkt ook bladwijzers van onderliggende mappen en bestanden bij. Ontbrekende doelen blijven gemarkeerd staan; verwijder deze bladwijzers zelf.
+
+Bij het openen van een kluis importeert Plainva automatisch bestands- en mapbladwijzers uit Obsidian, inclusief groepen. Type en pad voorkomen duplicaten. Het Obsidian-bestand blijft ongewijzigd. Instellingenprofielen vervoeren mappen apart; een ouder profiel zonder mapveld behoudt bestaande mapbladwijzers.

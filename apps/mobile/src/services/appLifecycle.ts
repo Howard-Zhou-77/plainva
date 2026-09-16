@@ -1,3 +1,4 @@
+import { flushTaskViewStates } from "@plainva/ui";
 import { foregroundSync } from "./syncService";
 import { pimForegroundSync } from "./pim/pimService";
 
@@ -52,6 +53,7 @@ export function onAppForeground(): void {
  * would hang the next mail action instead of failing fast (P7.3).
  */
 export function onAppBackground(): void {
+  flushTaskViewStates();
   void import("./draftJournal").then(({ flushDrafts }) => flushDrafts()).catch(() => {});
   void import("./vaultService")
     .then(({ noteSaver }) => noteSaver.flushAll())

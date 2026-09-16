@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { SidebarStepContext } from "../lib/sidebarStep";
-import { ICON, useFixedPopover } from "@plainva/ui";
+import { Button, IconButton, ICON, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, MessageSquare,
@@ -62,30 +62,41 @@ function findOption(curated: CuratedOption[] | undefined, value: string): Curate
 
 /* ------------------------------------------------------------------ inputs */
 
-function PlainInput({ value, onChange, type, t }: { value: any; onChange: (v: any) => void; type: PropertyType; t: TFn }) {
+export function PlainInput({ value, onChange, type, t, propKey = "", getValueSuggestions, curated, autoFocus, onClose }: {
+  value: any; onChange: (v: any) => void; type: PropertyType; t: TFn; propKey?: string;
+  getValueSuggestions?: ValueSuggestionLoader; curated?: CuratedOption[]; autoFocus?: boolean; onClose?: () => void;
+}) {
   const [v, setV] = useState(String(value ?? ""));
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const suggestions = usePropertyValues(open && curated === undefined, propKey, getValueSuggestions);
+  const options = curated ?? suggestions.values;
+  const matches = options.filter((o) => o.value !== v && o.value.toLocaleLowerCase().includes(v.toLocaleLowerCase()));
+  const popRef = useFixedPopover(open && (!!getValueSuggestions || curated !== undefined), wrapRef);
   useEffect(() => setV(String(value ?? "")), [value]);
-  const commit = () => { if (v !== String(value ?? "")) onChange(v); };
+  const commit = () => { if (v !== String(value ?? "")) onChange(v); onClose?.(); };
+  const pick = (next: string) => { setV(next); setOpen(false); onChange(next); onClose?.(); };
   const href = type === "url" ? v : type === "email" ? `mailto:${v}` : type === "phone" ? `tel:${v}` : "";
-  return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-      <input
-        type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
-        className="pv-field pv-field--compact"
-        style={{ flex: 1, minWidth: 0 }}
-        value={v}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
-        placeholder={t("properties.value")}
-      />
-      {type !== "text" && v && (
-        <button type="button" className="pv-iconbtn pv-iconbtn--sm" data-tip={t("properties.openLink")} aria-label={t("properties.openLink")} onClick={() => openExternal(href)}>
-          <ExternalLink size={ICON.ui} />
-        </button>
-      )}
-    </div>
-  );
+  return <div ref={wrapRef} className="pv-property-text" onBlur={(e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) { setOpen(false); commit(); }
+  }}>
+    <input autoFocus={autoFocus} type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
+      className="pv-field pv-field--compact" value={v} onFocus={() => setOpen(true)}
+      onChange={(e) => { setV(e.target.value); setActive(-1); setOpen(true); }}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, Math.min(matches.length - 1, a + (e.key === "ArrowDown" ? 1 : -1)))); }
+        if (e.key === "Enter") { e.preventDefault(); if (active >= 0 && matches[active]) pick(matches[active].value); else e.currentTarget.blur(); }
+        if (e.key === "Escape") { e.stopPropagation(); setOpen(false); setV(String(value ?? "")); onClose?.(); }
+      }} placeholder={t("properties.value")} />
+    {open && (!!getValueSuggestions || curated !== undefined) && <div ref={popRef} className="pv-popover pv-popover--fixed">
+      {matches.map((o, i) => <Button variant="ghost" key={o.value} type="button" className="pv-popover-row" aria-pressed={active === i}
+        onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.value)}>{"label" in o ? o.label ?? o.value : o.value}</Button>)}
+      {curated === undefined && getValueSuggestions && !suggestions.wholeVault && <Button variant="ghost" type="button" className="pv-popover-row"
+        onMouseDown={(e) => e.preventDefault()} onClick={suggestions.expand}>{t("properties.searchWholeVault")}</Button>}
+    </div>}
+    {type !== "text" && v && <IconButton size="sm" label={t("properties.openLink")} onClick={() => openExternal(href)}><ExternalLink size={ICON.ui} /></IconButton>}
+  </div>;
 }
 
 function NumberInput({ value, onChange, t }: { value: any; onChange: (v: any) => void; t: TFn }) {
@@ -147,38 +158,6 @@ function DateValue({ value, onChange, includeTime, locale }: { value: any; onCha
 
 /* ------------------------------------------------------------------ chips: list / tags / link */
 
-function ChipAdder({ onAdd, placeholder }: { onAdd: (v: string) => void; placeholder: string }) {
-  const [v, setV] = useState("");
-  const commit = () => { const trimmed = v.trim(); if (trimmed) { onAdd(trimmed); setV(""); } };
-  return (
-    <input
-      className="pv-chip-input" value={v} placeholder={placeholder}
-      onChange={(e) => setV(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit(); }
-        if (e.key === "Backspace" && v === "") { /* handled by parent if desired */ }
-      }}
-      onBlur={commit}
-    />
-  );
-}
-
-function ListChips({ value, onChange, t }: { value: any; onChange: (v: any) => void; t: TFn }) {
-  const items: string[] = Array.isArray(value) ? value.map(String) : value ? [String(value)] : [];
-  const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
-  const add = (v: string) => onChange([...items, v]);
-  return (
-    <div className="pv-chips">
-      {items.map((it, i) => (
-        <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-plain">
-          <span className="pv-chip-text">{it}</span>
-          <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
-        </span>
-      ))}
-      <ChipAdder onAdd={add} placeholder={t("properties.addItem")} />
-    </div>
-  );
-}
 
 function RelationPicker(props: {
   value: any; onChange: (v: any) => void;
@@ -219,7 +198,7 @@ function RelationPicker(props: {
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
   const matches = cands.filter((c) => !existing.has(c.title.toLowerCase()));
   const canCreate = query.trim() !== "" && !existing.has(query.trim().toLowerCase()) && !matches.some((m) => m.title.toLowerCase() === query.trim().toLowerCase());
-  const popRef = useFixedPopover(open && (matches.length > 0 || canCreate), wrapRef);
+  const popRef = useFixedPopover(open, wrapRef);
 
   return (
     <div className="pv-tags" ref={wrapRef}>
@@ -246,7 +225,7 @@ function RelationPicker(props: {
           }}
         />
       </div>
-      {open && (matches.length > 0 || canCreate) && (
+      {open && (
         <div ref={popRef} className="pv-popover pv-popover--fixed">
           {matches.length > 0 && <div className="pv-popover-label">{t("properties.linkNotes")}</div>}
           {matches.slice(0, 12).map((c) => (
@@ -286,7 +265,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
   };
   const matches = filterTagSuggestions(suggestions, query, items);
   const canCreate = query.trim() !== "" && !suggestions.some((s) => s.tag.toLowerCase() === query.trim().toLowerCase()) && !items.includes(query.trim());
-  const popRef = useFixedPopover(open && (matches.length > 0 || canCreate), wrapRef);
+  const popRef = useFixedPopover(open, wrapRef);
 
   return (
     <div className="pv-tags" ref={wrapRef}>
@@ -312,7 +291,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
           }}
         />
       </div>
-      {open && (matches.length > 0 || canCreate) && (
+      {open && (
         <div ref={popRef} className="pv-popover pv-popover--fixed">
           {matches.length > 0 && <div className="pv-popover-label">{t("properties.existingTags")}</div>}
           {matches.map((m) => {
@@ -338,34 +317,26 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
 
 /* ------------------------------------------------------------------ select / status / multiselect */
 
-function useValueSuggestions(open: boolean, propKey: string, getValueSuggestions?: (key: string) => Promise<{ value: string; count: number }[]>) {
-  const [opts, setOpts] = useState<{ value: string; count: number }[]>([]);
-  useEffect(() => {
-    let alive = true;
-    if (open && getValueSuggestions) getValueSuggestions(propKey).then((r) => { if (alive) setOpts(r); }).catch(() => {});
-    return () => { alive = false; };
-  }, [open, propKey, getValueSuggestions]);
-  return opts;
-}
 
-function SelectChip(props: {
+export function SelectChip(props: {
   value: any; onChange: (v: any) => void; propKey: string;
-  getValueSuggestions?: (key: string) => Promise<{ value: string; count: number }[]>;
-  curated?: CuratedOption[]; grouped?: boolean; t: TFn;
+  getValueSuggestions?: ValueSuggestionLoader;
+  curated?: CuratedOption[]; grouped?: boolean; t: TFn; autoOpen?: boolean; onClose?: () => void;
 }) {
-  const { value, onChange, propKey, getValueSuggestions, curated, grouped, t } = props;
-  const [open, setOpen] = useState(false);
+  const { value, onChange, propKey, getValueSuggestions, curated, grouped, t, onClose } = props;
+  const [open, setOpen] = useState(props.autoOpen ?? false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const usingCurated = !!(curated && curated.length > 0);
-  const discovered = useValueSuggestions(open && !usingCurated, propKey, getValueSuggestions);
+  const usingCurated = curated !== undefined;
+  const suggestions = usePropertyValues(open && !usingCurated, propKey, getValueSuggestions);
+  const discovered = suggestions.values;
   const current = value == null ? "" : String(value);
 
   useEffect(() => {
-    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
+    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) { setOpen(false); onClose?.(); } };
     if (open) document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  }, [open, onClose]);
 
   const list: CuratedOption[] = usingCurated ? curated! : discovered.map((d) => ({ value: d.value }));
   const countOf = (v: string) => (usingCurated ? undefined : discovered.find((d) => d.value === v)?.count);
@@ -398,7 +369,7 @@ function SelectChip(props: {
       </button>
       {open && (
         <div ref={popRef} className="pv-popover pv-popover--fixed">
-          <div className="pv-popover-search"><Search size={ICON.ui} /><input autoFocus value={query} placeholder={t("properties.selectValue")} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (matches[0] || canCreate)) pick(matches[0]?.value ?? query.trim()); if (e.key === "Escape") setOpen(false); }} /></div>
+          <div className="pv-popover-search"><Search size={ICON.ui} /><input autoFocus value={query} placeholder={t("properties.selectValue")} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (matches[0] || canCreate)) pick(matches[0]?.value ?? query.trim()); if (e.key === "Escape") { setOpen(false); onClose?.(); } }} /></div>
           {current && <button type="button" className="pv-popover-row pv-popover-clear" onClick={() => pick("")}>{t("properties.clearValue")}</button>}
           {grouped && usingCurated
             ? groupOptions(matches).map((g) => (
@@ -413,6 +384,7 @@ function SelectChip(props: {
               <Plus size={ICON.ui} className="pv-popover-ic" /> {t("properties.createValue", { value: query.trim() })}
             </button>
           )}
+          {!usingCurated && getValueSuggestions && !suggestions.wholeVault && <Button variant="ghost" className="pv-popover-row" onClick={suggestions.expand}>{t("properties.searchWholeVault")}</Button>}
           {matches.length === 0 && !canCreate && !current && <div className="pv-popover-empty">{t("properties.noValues")}</div>}
         </div>
       )}
@@ -420,18 +392,19 @@ function SelectChip(props: {
   );
 }
 
-function MultiSelectChips(props: {
+export function MultiSelectChips(props: {
   value: any; onChange: (v: any) => void; propKey: string;
-  getValueSuggestions?: (key: string) => Promise<{ value: string; count: number }[]>;
-  curated?: CuratedOption[]; t: TFn;
+  getValueSuggestions?: ValueSuggestionLoader;
+  curated?: CuratedOption[]; t: TFn; neutral?: boolean; autoOpen?: boolean;
 }) {
-  const { value, onChange, propKey, getValueSuggestions, curated, t } = props;
+  const { value, onChange, propKey, getValueSuggestions, curated, t, neutral } = props;
   const items: string[] = Array.isArray(value) ? value.map(String) : value ? [String(value)] : [];
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(props.autoOpen ?? false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const usingCurated = !!(curated && curated.length > 0);
-  const discovered = useValueSuggestions(open && !usingCurated, propKey, getValueSuggestions);
+  const usingCurated = curated !== undefined;
+  const suggestions = usePropertyValues(open && !usingCurated, propKey, getValueSuggestions);
+  const discovered = suggestions.values;
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
@@ -446,7 +419,7 @@ function MultiSelectChips(props: {
   const q = query.trim().toLowerCase();
   const matches = list.filter((o) => !items.includes(o.value) && (q === "" || (o.label ?? o.value).toLowerCase().includes(q) || o.value.toLowerCase().includes(q)));
   const canCreate = q !== "" && !list.some((o) => o.value.toLowerCase() === q) && !items.includes(query.trim());
-  const popRef = useFixedPopover(open && (matches.length > 0 || canCreate), wrapRef);
+  const popRef = useFixedPopover(open, wrapRef);
 
   return (
     <div className="pv-select" ref={wrapRef}>
@@ -454,8 +427,8 @@ function MultiSelectChips(props: {
         {items.map((it, i) => {
           const opt = findOption(curated, it);
           return (
-            <span key={`${it}-${i}`} className={`${chipClass(it, opt?.color)} pv-chip--removable`}>
-              <span className="pv-dot" /><span className="pv-chip-text">{opt?.label ?? it}</span>
+            <span key={`${it}-${i}`} className={`${neutral ? "pv-chip pv-chip--neutral" : chipClass(it, opt?.color)} pv-chip--removable`}>
+              {!neutral && <span className="pv-dot" />}<span className="pv-chip-text">{opt?.label ?? it}</span>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={(e) => { e.stopPropagation(); remove(i); }}><X size={ICON.meta} /></button>
             </span>
           );
@@ -466,15 +439,16 @@ function MultiSelectChips(props: {
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (matches[0] || canCreate) add(matches[0]?.value ?? query); } if (e.key === "Backspace" && query === "" && items.length) remove(items.length - 1); if (e.key === "Escape") setOpen(false); }}
         />
       </div>
-      {open && (matches.length > 0 || canCreate) && (
+      {open && (
         <div ref={popRef} className="pv-popover pv-popover--fixed">
           {matches.length > 0 && <div className="pv-popover-label">{t("properties.existingValues")}</div>}
           {matches.map((o) => (
             <button key={o.value} type="button" className="pv-popover-row" onMouseDown={(e) => { e.preventDefault(); add(o.value); }}>
-              <span className={chipClass(o.value, o.color)}><span className="pv-dot" />{o.label ?? o.value}</span>
+              <span className={neutral ? "pv-chip pv-chip--neutral" : chipClass(o.value, o.color)}>{!neutral && <span className="pv-dot" />}{o.label ?? o.value}</span>
               {countOf(o.value) !== undefined && <span className="pv-popover-count">{countOf(o.value)}</span>}
             </button>
           ))}
+          {!usingCurated && getValueSuggestions && !suggestions.wholeVault && <Button variant="ghost" className="pv-popover-row" onMouseDown={(e) => e.preventDefault()} onClick={suggestions.expand}>{t("properties.searchWholeVault")}</Button>}
           {canCreate && (
             <button type="button" className="pv-popover-row pv-popover-create" onMouseDown={(e) => { e.preventDefault(); add(query); }}>
               <Plus size={ICON.ui} className="pv-popover-ic" /> {t("properties.createValue", { value: query.trim() })}
@@ -494,7 +468,7 @@ export interface PropertyValueProps {
   propKey: string;
   onChange: (v: any) => void;
   tagSuggestions: TagSuggestion[];
-  getValueSuggestions?: (key: string) => Promise<{ value: string; count: number }[]>;
+  getValueSuggestions?: ValueSuggestionLoader;
   /** Curated options from the governing `.base` column schema (value/label/color/group). */
   curatedOptions?: CuratedOption[];
   getRelationCandidates?: (query: string) => Promise<RelationCandidate[]>;
@@ -511,13 +485,13 @@ export function PropertyValue({ type, value, propKey, onChange, tagSuggestions, 
     case "number": return <NumberInput value={value} onChange={onChange} t={t} />;
     case "date": return <DateValue value={value} onChange={onChange} includeTime={false} locale={locale} />;
     case "datetime": return <DateValue value={value} onChange={onChange} includeTime locale={locale} />;
-    case "list": return <ListChips value={value} onChange={onChange} t={t} />;
+    case "list": return <MultiSelectChips value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} neutral t={t} />;
     case "tags": return <TagPills value={value} onChange={onChange} suggestions={tagSuggestions} t={t} />;
     case "link": return <RelationPicker value={value} onChange={onChange} getRelationCandidates={getRelationCandidates} onOpenLink={onOpenLink} relationLimit={relationLimit} t={t} />;
     case "select":
     case "status": return <SelectChip value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} grouped={type === "status"} t={t} />;
     case "multiselect": return <MultiSelectChips value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} t={t} />;
-    default: return <PlainInput value={value} onChange={onChange} type={type} t={t} />;
+    default: return <PlainInput value={value} onChange={onChange} type={type} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} t={t} />;
   }
 }
 
@@ -566,7 +540,7 @@ export interface PropertyRowProps {
   onDelete: (key: string) => void;
   onChangeType: (key: string, t: PropertyType) => void;
   tagSuggestions: TagSuggestion[];
-  getValueSuggestions?: (key: string) => Promise<{ value: string; count: number }[]>;
+  getValueSuggestions?: ValueSuggestionLoader;
   curatedOptions?: CuratedOption[];
   getRelationCandidates?: (query: string) => Promise<RelationCandidate[]>;
   onOpenLink?: (target: string) => void;
@@ -660,12 +634,10 @@ export function PropertyRow(props: PropertyRowProps) {
 
 /* ------------------------------------------------------------------ add popover */
 
-export function AddPropertyPopover({ onAdd, onClose, t, anchorRef }: { onAdd: (name: string, type: PropertyType) => void; onClose: () => void; t: TFn; anchorRef?: React.RefObject<HTMLElement | null> }) {
+export function AddPropertyPopover({ onAdd, onClose, t, anchorRef, source, columns, registry = {}, existing = [] }: { source?: PropertySuggestionSource | null; columns?: Record<string, { input?: string }>; registry?: Record<string, PropertyType>; existing?: string[]; onAdd: (name: string, type: PropertyType) => void; onClose: () => void; t: TFn; anchorRef?: React.RefObject<HTMLElement | null> }) {
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
   const ref = useFixedPopover(!!anchorRef, anchorRef, { minWidth: 240 });
-  useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
     const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
     document.addEventListener("mousedown", onDoc);
@@ -679,8 +651,8 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef }: { onAdd: (n
 
   return (
     <div className={`pv-popover pv-add-popover${anchorRef ? " pv-popover--fixed" : ""}`} ref={ref}>
-      <input ref={inputRef} className="pv-field pv-field--compact" value={name} placeholder={t("properties.namePlaceholder")}
-        onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }} />
+      <PropertyNameInput source={source} columns={columns} registry={registry} existing={existing}
+        value={name} onChange={setName} onClose={onClose} onPick={(key, type) => { onAdd(key, type); onClose(); }} />
       <div className="pv-popover-search"><Search size={ICON.ui} /><input value={query} placeholder={t("properties.chooseType")} onChange={(e) => setQuery(e.target.value)} /></div>
       <div className="pv-add-types">
         {TYPE_GROUPS.map((g) => {

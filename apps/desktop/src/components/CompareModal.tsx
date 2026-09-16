@@ -7,6 +7,7 @@ import { appConfirm } from "../services/appDialogs";
 import {
   Button,
   FileComparisonDetails,
+  ConflictHistory,
   Checkbox,
   ICON,
   Modal,
@@ -392,9 +393,14 @@ export const CompareModal: React.FC<{
     await resolve(async () => {
       // Same handshake as the version restore: a pending 1-s editor save for
       // the note would otherwise overwrite the resolution a second later.
-      await vaultAdapter.writeTextFile(originalOfConflict, merged);
-      if (await vaultAdapter.readTextFile(conflictPath) !== copySnapshot.current) throw new Error("comparisonChanged");
-      await vaultAdapter.deleteItem(conflictPath);
+      const session = await vaultAdapter.getConflictSession?.(originalOfConflict);
+      if (session?.workingCopyPath === conflictPath && vaultAdapter.resolveConflict) {
+        await vaultAdapter.resolveConflict(originalOfConflict, { originalText: originalSnapshot.current, copyText: copySnapshot.current!, content: merged });
+      } else {
+        await vaultAdapter.writeTextFile(originalOfConflict, merged);
+        if (await vaultAdapter.readTextFile(conflictPath) !== copySnapshot.current) throw new Error("comparisonChanged");
+        await vaultAdapter.deleteItem(conflictPath);
+      }
       toast.success(rightEdited ? t("compare.resolvedMerged") : t("compare.resolvedAdopted"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: rightEdited ? "merged" : "adopted", mergedContent: merged, touched: [originalOfConflict, conflictPath] };
     });
@@ -412,7 +418,10 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      if (differentTasks) await separateTaskConflict(vaultAdapter, originalOfConflict, originalSnapshot.current!, conflictPath, copySnapshot.current!, candidate);
+      const session = await vaultAdapter.getConflictSession?.(originalOfConflict);
+      if (session?.workingCopyPath === conflictPath && vaultAdapter.resolveConflict) {
+        await vaultAdapter.resolveConflict(originalOfConflict, { originalText: originalSnapshot.current, copyText: copySnapshot.current!, content: originalSnapshot.current ?? "", disposition: "discard", keepCopyAs: candidate });
+      } else if (differentTasks) await separateTaskConflict(vaultAdapter, originalOfConflict, originalSnapshot.current!, conflictPath, copySnapshot.current!, candidate);
       else { if (await vaultAdapter.exists(candidate)) throw new Error("comparisonChanged"); await vaultAdapter.renameItem(conflictPath, candidate); }
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
@@ -430,7 +439,10 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      await vaultAdapter.deleteItem(conflictPath);
+      const session = await vaultAdapter.getConflictSession?.(originalOfConflict);
+      if (session?.workingCopyPath === conflictPath && vaultAdapter.resolveConflict) {
+        await vaultAdapter.resolveConflict(originalOfConflict, { originalText: originalSnapshot.current, copyText: copySnapshot.current!, content: originalSnapshot.current ?? "", disposition: "discard" });
+      } else await vaultAdapter.deleteItem(conflictPath);
       toast.success(t("compare.resolvedDiscarded"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
     });
@@ -547,6 +559,7 @@ export const CompareModal: React.FC<{
         {isConflict && <> — {t("compare.conflictExplainer")}</>}
       </div>}
       {isConflict && <p className="pv-comparison-explainer">{t(differentTasks ? "compare.differentTasksHint" : "compare.replaceHint", { name: basename })}</p>}
+      {isConflict && vaultAdapter && conflictPath && <ConflictHistory files={vaultAdapter} path={path} copyPath={conflictPath} current={currentText} copy={conflictText} />}
 
       {isConflict && !originalOfConflict ? (
         <div style={{ padding: "1rem", color: "var(--error-text)" }}>{t("conflict.notAConflictFile")}</div>

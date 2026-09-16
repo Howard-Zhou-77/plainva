@@ -1,3 +1,4 @@
+import { VaultFileNotFoundError } from "@plainva/core";
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PROFILE_SYNC_PATH, stableStringify, type IVaultAdapter, type PimAccountRow } from "@plainva/core";
@@ -96,7 +97,7 @@ function mobileVault(vaultId = "fixture-vault"): MobileVault {
     },
     async readTextFile(path: string) {
       const value = files.get(path);
-      if (value === undefined) throw new Error(`missing fixture file: ${path}`);
+      if (value === undefined) throw new VaultFileNotFoundError(path);
       return value;
     },
     async writeTextFile(path: string, value: string) {
@@ -124,6 +125,7 @@ function fullProfile(): Record<string, unknown> {
   values.calendarOverlays = ["Plan.base#Termine"];
   values.barLayoutMobileBar = { order: ["notes", "mail", "today"], visibleCount: 3 };
   values.bookmarks = ["Projekte/Plainva.md", "Journal/2026-09-04.md"];
+  values.bookmarkFolders = ["Projekte", "Journal"];
   values.mailAccounts = [];
   values.cloudAccounts = [];
   values.personalDesign = reviseCustomThemeProfile(null, "fixture-device", defaultCustomThemeDesign());
@@ -156,7 +158,7 @@ describe("mobile profile port round trip (2026-09-04)", () => {
     for (const field of storeBackedFields("mobile")) {
       expect(first[field.logical], field.logical).toEqual(canonical[field.logical]);
     }
-    for (const key of ["folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "bookmarks", "personalDesign"]) {
+    for (const key of ["folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar", "bookmarks", "bookmarkFolders", "personalDesign"]) {
       expect(first, key).toHaveProperty(key);
     }
   });

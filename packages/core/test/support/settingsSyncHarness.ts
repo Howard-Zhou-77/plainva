@@ -1,6 +1,7 @@
 import {
   PROFILE_SYNC_PATH,
   SettingsSyncStep,
+  VaultFileNotFoundError,
   type ISyncTarget,
   type IVaultAdapter,
   type ProfileSettingsPort,
@@ -70,7 +71,7 @@ export class MemoryProfileVault {
 
   async readTextFile(path: string): Promise<string> {
     const value = this.text.get(path);
-    if (value === undefined) throw new Error(`missing fixture file: ${path}`);
+    if (value === undefined) throw new VaultFileNotFoundError(path);
     return value;
   }
 
@@ -80,7 +81,7 @@ export class MemoryProfileVault {
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     const value = this.binary.get(path);
-    if (value === undefined) throw new Error(`missing fixture file: ${path}`);
+    if (value === undefined) throw new VaultFileNotFoundError(path);
     return value;
   }
 

@@ -1,3 +1,4 @@
+import { retargetDesktopBookmarks } from "./bookmarks";
 import { isTextFile, type VaultQueryService } from "@plainva/core";
 import { retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
@@ -112,6 +113,7 @@ export async function renameToName(opts: {
     !isFolder && oldPath.toLowerCase().endsWith(".base") && newPath.toLowerCase().endsWith(".base");
   if (queryService && ((wasNote && newPath.toLowerCase().endsWith(".md")) || isBaseRename)) {
     const result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath, newPath });
+    await retargetDesktopBookmarks(adapter, oldPath, newPath);
     let { renamedLinks, changedFiles, linkUpdateFailed } = result;
     const changedPaths = [...result.changedPaths];
     if (isBaseRename && opts.templateFolder) {
@@ -135,6 +137,7 @@ export async function renameToName(opts: {
     return { ok: true, newPath, renamedLinks, changedFiles, linkUpdateFailed, changedPaths };
   }
   await adapter.renameItem(oldPath, newPath);
+  await retargetDesktopBookmarks(adapter, oldPath, newPath);
   // Folder renames change every descendant path: retarget pinboard
   // arrangements (they store vault-relative paths, plan Pinboard P5).
   // Attachments sweep as an exact move — a no-op unless a board lists them.
@@ -335,6 +338,7 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
         continue;
       }
       await deps.adapter.renameItem(from, to);
+      await retargetDesktopBookmarks(deps.adapter, from, to);
       deps.onMoved?.(from, to);
       moved.push({ type: "move", from, to, isFolder: deps.isFolder(from) });
     } catch (err) {

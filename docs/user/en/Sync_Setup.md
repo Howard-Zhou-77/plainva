@@ -1,10 +1,18 @@
 # Sync Setup
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
 Which services work in general (also via WebDAV or the provider's desktop client) is covered in [Sync Compatibility](Sync_Compatibility.md).
+
+## Compare preserved revisions
+
+When a text conflict cannot be merged automatically, one local working copy stays open per original. Further edits are saved to that same copy, including after reopening the note or restarting the app. The banner explains: **You are editing your conflict copy. It will sync after you merge it.**
+
+In the comparison, **Compare preserved revisions** shows the saved starting version when available. If the working copy changes outside this editing session, that other version is also preserved and can be compared there. Adopting, keeping both and discarding check the current files again; reload a comparison that is out of date. Resolve the conflict before moving or deleting the affected file or its folder. Older conflict copies remain listed separately.
+
+The diagnostics export also includes recent conflict events: storage type, writer, hash comparison and differences in line endings, BOM or final newline. These conflict records contain no note content or file names.
 
 ## Basics
 

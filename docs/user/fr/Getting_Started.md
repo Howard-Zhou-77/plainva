@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-16
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -201,3 +201,9 @@ La barre latérale droite ne peut pas descendre en dessous de **200 px** — auc
 ## Renvoyer un onglet
 
 Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic droit sur l’onglet et choisissez **Revenir à la fenêtre principale**. Le texte, la sélection, la vue, le défilement, l’historique et l’épinglage sont conservés. L’onglet source ne se ferme qu’après confirmation. Sans confirmation, l’onglet et le brouillon restent disponibles. Les favoris sont actualisés dans toutes les fenêtres.
+
+## Favoris de dossiers
+
+Ajoutez un favori depuis le menu contextuel d’un fichier ou d’un dossier. Les favoris de dossiers portent une icône de dossier : le mobile ouvre le dossier et le bureau le déplie dans l’arborescence. Déplacer ou renommer un élément dans Plainva met aussi à jour les favoris des sous-dossiers et fichiers. Les cibles introuvables restent indiquées ; supprimez ces favoris explicitement.
+
+À l’ouverture d’un coffre, Plainva importe automatiquement les favoris de fichiers et dossiers d’Obsidian, groupes compris. Le type et le chemin évitent les doublons. Le fichier Obsidian reste intact. Les profils transportent les dossiers séparément ; un ancien profil sans ce champ conserve les favoris de dossiers existants.

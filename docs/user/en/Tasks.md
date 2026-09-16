@@ -142,3 +142,7 @@ Automatic recurrence supports only English `every [N] day/week/month/year[s] [wh
 Checking a task with metadata adds its completion date. Supported recurrence adds an ID if needed and gives the successor a distinct `pv-…` ID. Checkbox and successor form one Markdown edit. Reopening the original keeps the successor; checking again preserves its edits. Editor Undo reverses the entire edit.
 
 Native database tasks still skip missed periods. A saved destination plan prevents duplicate successors on rechecking. If a successor is unconfirmed, inspect the task folder. After a write failure, reopening and checking again can resume the plan. A changed source will not produce a different copy; inspect the notes and create the intended successor manually if needed. A confirmed successor deleted later is not restored.
+
+## Restore task filters
+
+Status, search text, folder, tag, “Only with due date” and hidden-task visibility are remembered per vault on this device, including after opening a note or restarting. “Reset filters” returns to open tasks without additional filters. Unavailable folders and tags remain visible and can be removed through the folder/tag selector. Forgetting the vault removes this view state. The standard task database remains the existing vault setting; filters are not synced.

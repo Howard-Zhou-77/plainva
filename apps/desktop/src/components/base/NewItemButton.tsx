@@ -149,6 +149,7 @@ export function NewItemButton({
       <button
         type="button"
         className="pv-btn pv-btn--primary pv-btn--sm"
+        data-testid="base-new-entry"
         onClick={() => onCreate(defaultTemplate)}
         disabled={disabled || busy}
         aria-label={t("database.newItem", { defaultValue: "Eintrag" })}

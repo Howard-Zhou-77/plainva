@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-16
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -150,7 +150,7 @@ Le bouton **Entrée** en haut à gauche (auparavant **Nouveau** ; clairement dis
 
 Le type de vue **Tableau d'affichage** montre les notes de la base de données sous forme de cartes avec leur contenu rendu — un tableau plein de notes autocollantes. Les cartes affichent le texte, les listes et des cases à cocher cliquables (un clic coche la tâche directement dans la note), les images et la mise en forme ; les tableaux, formules et éléments intégrés apparaissent comme de discrets espaces réservés. Cliquer sur une carte ouvre la note dans la fenêtre d'aperçu.
 
-- **Capture rapide** : le champ **Écrire une note…** au-dessus du tableau se déploie en une petite fenêtre pop-up avec un champ **Titre** et un texte de note multiligne — comme Google Keep. Un titre saisi devient le nom du fichier ET le premier titre de la note ; sans titre, le fichier reçoit un nom horodaté et la note n'a pas de titre. Le texte est le contenu dans les deux cas — pas de modèle, pas de détour (Ctrl/Cmd+Entrée enregistre).
+- **Capture rapide** : **Entrée** ouvre une fenêtre pour le titre et le texte. Le titre devient le nom du fichier et le premier titre de la note. Sans titre, le nom est horodaté. Ctrl/Cmd+Entrée enregistre.
 - **Épingler** : le bouton d'épingle (en haut à droite au survol d'une carte) fait passer une carte dans la section **Épinglées**.
 - **Organiser** : faites glisser les cartes pour les réordonner ; l'ordre vit dans le fichier `.base` et se synchronise avec lui. Les cartes pas encore organisées (capturées récemment ou créées en dehors de Plainva) apparaissent en haut, les plus récentes en premier. Si une règle de tri est définie sous **Configurer**, elle prend le dessus — le glisser-déposer est alors désactivé.
 - **Libellés** : la barre de puces au-dessus du tableau filtre les cartes — par tags par défaut, commutable vers une propriété à sélection multiple (**Configurer** → **Source des libellés**). Plusieurs puces se combinent avec un ET logique ; la sélection est éphémère et n'est jamais écrite dans le fichier. Modifiez les libellés d'une carte via **Libellés** dans le menu contextuel de la carte.
@@ -295,3 +295,11 @@ Ouvrez **Exporter le tableau** dans le menu de la base sur ordinateur ou via l�
 **Formules (.base)** crée un tableau contenant une sélection fixe des lignes actuelles. Ces calculs via des relations enregistrées restent des formules : **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Ouvrez le fichier dans le même coffre avec les notes liées. Les calculs non pris en charge et les relations inverses sont indiqués dans le dialogue ; utilisez l’export des valeurs pour ces colonnes.
 
 **Valeurs (.csv)** contient les valeurs calculées actuelles et les chemins des fichiers. Les valeurs ne seront pas actualisées ; les listes restent au format JSON. Les textes ressemblant à des formules sont protégés comme texte pour les tableurs. Aucune des options n’écrit de propriétés calculées dans les notes d’origine.
+
+## Propriétés vides
+
+Une valeur YAML vide, `~` ou `null` sans guillemets apparaît comme une propriété vide et correspond aux filtres de valeurs vides. Le texte explicitement entre guillemets `"null"` reste du texte. Cela vaut pour les tableaux, listes, tableaux Kanban, galeries et tableaux de notes. La mise à jour reconstruit uniquement l’index de recherche dérivé ; les fichiers de notes restent inchangés.
+
+## Rechercher dans le tableau et revenir
+
+La recherche du tableau porte sur les titres, le texte, les tags et les propriétés visibles. Elle se combine avec les filtres de vue et les étiquettes sélectionnées. Effacer ou Échap retire la recherche. Les tableaux intégrés disposent du même champ. Ouvrir une carte puis revenir conserve la recherche, les étiquettes et la position pendant la session. Les aperçus conservés apparaissent immédiatement et les changements sont rechargés. Les images se chargent lorsqu’elles sont visibles. Les entrées non indexées sont signalées ; un échec de chargement permet de réessayer.

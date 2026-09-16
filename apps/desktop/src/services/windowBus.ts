@@ -1,3 +1,4 @@
+import type { BookmarkEntry } from "@plainva/ui";
 /**
  * The window bus (multi-window P0).
  *
@@ -53,7 +54,7 @@ export interface BroadcastMap {
   "index-changed": { paths: string[]; structural: boolean };
   /** A file on disk changed — feeds the aux editor's external-update logic. */
   "file-changed": { path: string };
-  "bookmarks-changed": { paths: string[] };
+  "bookmarks-changed": { entries: BookmarkEntry[] };
   /**
    * A note's BODY was saved. Separate from index-changed on purpose: a pure
    * prose edit deliberately skips the tree bump (fix C, 2026-07-08), so a
@@ -148,6 +149,12 @@ export interface RpcMap {
   "tab-transfer-status": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   "tab-transfer-cancel": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   write: { args: { path: string; content: string }; result: void };
+  "editor-write": { args: { path: string; content: string; baseText: string | null }; result: import("@plainva/core").EditorWriteResult };
+  "conflict-read": { args: { path: string }; result: import("@plainva/core").ConflictEditSession | null };
+  "conflict-list": { args: Record<string, never>; result: import("@plainva/core").ConflictEditSession[] };
+  "conflict-diagnostics": { args: Record<string, never>; result: import("@plainva/core").ConflictDiagnostic[] };
+  "conflict-preserve": { args: { path: string; content: string; writer: import("@plainva/core").ConflictWriter }; result: import("@plainva/core").ConflictEditSession };
+  "conflict-resolve": { args: { path: string; resolution: import("@plainva/core").ConflictResolution }; result: void };
   "write-binary": { args: { path: string; base64: string }; result: void };
   rename: { args: { from: string; to: string }; result: void };
   delete: { args: { path: string; recursive?: boolean; confirmation?: import("@plainva/core").DeletionConfirmation }; result: void };
@@ -238,9 +245,10 @@ export interface RpcMap {
    * an auxiliary window asks instead of writing `.plainva/bookmarks.json`
    * from a list it never loaded, which would drop every other entry.
    */
-  "toggle-bookmark": { args: { path: string }; result: string[] };
-  "bookmarks-list": { args: Record<string, never>; result: string[] };
-  "remove-bookmarks": { args: { paths: string[] }; result: string[] };
+  "toggle-bookmark": { args: { path: string; type?: BookmarkEntry["type"] }; result: BookmarkEntry[] };
+  "bookmarks-list": { args: Record<string, never>; result: BookmarkEntry[] };
+  "remove-bookmarks": { args: { paths: string[] }; result: BookmarkEntry[] };
+  "rename-bookmarks": { args: { from: string; to: string }; result: BookmarkEntry[] };
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
   "pim-refresh": { args: Record<string, never>; result: void };
   /**
@@ -422,6 +430,12 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "tab-transfer-status": "app",
   "tab-transfer-cancel": "app",
   write: "vault",
+  "editor-write": "vault",
+  "conflict-read": "vault",
+  "conflict-list": "vault",
+  "conflict-diagnostics": "vault",
+  "conflict-preserve": "vault",
+  "conflict-resolve": "vault",
   "write-binary": "vault",
   rename: "vault",
   delete: "vault",
@@ -434,6 +448,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "toggle-bookmark": "vault",
   "bookmarks-list": "vault",
   "remove-bookmarks": "vault",
+  "rename-bookmarks": "vault",
   // Remarks belong to one vault's workspace or sideband bundle (V7).
   "comment-capabilities": "vault",
   "comment-list": "vault",

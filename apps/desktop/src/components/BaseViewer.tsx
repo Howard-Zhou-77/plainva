@@ -1,3 +1,4 @@
+import { pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
@@ -121,9 +122,12 @@ export function BaseViewer({
 }) {
   const { t } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities } = useVault();
+  const cache = useMemo(() => queryService ? pinboardCache(queryService) : null, [queryService]);
+  const cacheKey = `${activePath}#${hostPath ?? ""}`;
+  const snapshot = useMemo(() => cache?.base<{ config: any; rows: any[]; viewIndex: number }>(cacheKey), [cache, cacheKey]);
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!snapshot);
 
   // Reload the config when THIS .base changes on disk (sync, watcher, or the
   // cross-file "Auf Ziel anzeigen" write from another viewer). The content
@@ -144,7 +148,7 @@ export function BaseViewer({
     return () => window.removeEventListener("plainva-external-update", onExternal);
   }, [activePath, vaultAdapter]);
 
-  const [dbData, setDbData] = useState<any[]>([]);
+  const [dbData, setDbData] = useState<any[]>(() => snapshot?.rows ?? []);
 
   // --- Embedded-base auto-scoping (embedScope) --------------------------------
   // When this base is embedded inside a database element (hostPath) and relates
@@ -158,12 +162,12 @@ export function BaseViewer({
   // live-preview embed lives in a detached React root whose VaultContext (and
   // thus fileTreeVersion) is frozen, so the usual re-query never reaches it.
   const [refreshTick, setRefreshTick] = useState(0);
-  const [dbConfig, setDbConfig] = useState<any>(null);
+  const [dbConfig, setDbConfig] = useState<any>(() => snapshot?.config ?? null);
   // Explicit "Diese Notiz" self-reference filters (plainva-side, base-global).
   const contextFilters = useMemo(() => getContextFilters(dbConfig), [dbConfig]);
 
   // Column management
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => snapshot?.config?.views?.[snapshot.viewIndex]?.order?.map((c: string) => c.replace(/^note\./, "")) ?? ["file.name"]);
 
   // Every property the views can offer: keys present in the query data, columns
   // declared in the .base schema (a fresh property may not exist in any file yet
@@ -226,14 +230,14 @@ export function BaseViewer({
   // index. The active view drives the rendered layout, visible columns, sort and
   // layout options. The component is remounted per file (key=activePath); the load
   // effect restores the last active view of this file (P6, app-side state).
-  const [activeViewIndex, setActiveViewIndex] = useState(0);
+  const [activeViewIndex, setActiveViewIndex] = useState(() => snapshot?.viewIndex ?? 0);
   // Set when the load effect restores a non-zero view index: it already applies
   // the view's layout and queries its data, so the index-sync effect must skip
   // that programmatic change once.
   const suppressViewSyncRef = useRef(false);
 
   // Views, Filters, Sorts UI
-  const [currentViewType, setCurrentViewType] = useState<string>("table");
+  const [currentViewType, setCurrentViewType] = useState<string>(() => snapshot?.config?.views?.[snapshot.viewIndex]?.type ?? "table");
   // On a pinboard "+ New item" opens the capture card instead of minting a
   // `{Base}_{n}` note (feedback round 2026-09-01, M2/E6) — same rule as the phone.
   const [captureSignal, setCaptureSignal] = useState(0);
@@ -464,9 +468,11 @@ export function BaseViewer({
     const views = Array.isArray(cfg?.views) ? cfg.views : [];
     const active = views[idx] || views[0] || {};
     const merged = { ...cfg, filters: combineFilters(cfg?.filters, active?.filters), views: [active] };
-    return import("../services/perfMetrics").then(({ perfMeasure }) =>
+    const data = await import("../services/perfMetrics").then(({ perfMeasure }) =>
       perfMeasure("base query", () => queryService.queryDatabaseFiles(merged))
     );
+    if (data.length <= 4000) cache?.rememberBase(cacheKey, { config: cfg, rows: data, viewIndex: idx });
+    return data;
   };
 
   // Re-query when the index changes (P9): counterpart edits — reverse-column
@@ -1178,7 +1184,7 @@ export function BaseViewer({
     if (!vaultAdapter || !activePath) return;
 
     let isMounted = true;
-    setIsLoading(true);
+    setIsLoading(!snapshot);
     setError(null);
 
     vaultAdapter.readTextFile(activePath)
@@ -2154,6 +2160,8 @@ export function BaseViewer({
     if (currentViewType === "pinboard")
       return (
         <BasePinboardView
+          key={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
+          viewKey={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
           captureSignal={captureSignal}
           dbData={scopedData}
           dbConfig={dbConfig}

@@ -1,3 +1,5 @@
+import type { ConflictDiagnostic, ConflictEditSession, ConflictResolution, ConflictWriter, EditorWriteResult } from "./conflictSession.js";
+
 export class VaultError extends Error {
   constructor(message: string, public readonly code: string) {
     super(message);
@@ -51,6 +53,13 @@ export interface DeletionConfirmation {
 }
 
 export interface IVaultAdapter {
+  /** Owned by the conflict-aware pipeline (or forwarded to that owner by another window). */
+  getConflictSession?(path: string): Promise<ConflictEditSession | null>;
+  listConflictSessions?(): Promise<ConflictEditSession[]>;
+  listConflictDiagnostics?(): Promise<ConflictDiagnostic[]>;
+  preserveConflict?(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession>;
+  writeEditorText?(path: string, text: string, baseText: string | null): Promise<EditorWriteResult>;
+  resolveConflict?(path: string, resolution: ConflictResolution): Promise<void>;
   /**
    * Initializes the vault adapter (e.g., connects to DB, authenticates).
    */

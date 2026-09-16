@@ -28,7 +28,8 @@ function asArray(value: unknown): string[] {
  * entries show as removable chips, new ones are added from the curated/discovered
  * options or typed freely. Commits the full array on every change.
  */
-export function InlineMultiSelect({ value, options, onCommit, onClose, t }: {
+export function InlineMultiSelect({ value, options, onCommit, onClose, t, scopeAction, neutral }: {
+  scopeAction?: React.ReactNode; neutral?: boolean;
   value: unknown;
   options: CuratedOption[];
   onCommit: (next: string[]) => void;
@@ -49,7 +50,7 @@ export function InlineMultiSelect({ value, options, onCommit, onClose, t }: {
         {selected.map((v) => {
           const o = options.find((x) => x.value === v);
           return (
-            <span key={v} className={chipClass(v, o?.color)} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span key={v} className={neutral ? "pv-chip pv-chip--neutral" : chipClass(v, o?.color)} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               {o?.label ?? v}
               <button type="button" onClick={() => remove(v)} aria-label={t("properties.removeItem", { defaultValue: "Entfernen" })} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, display: "flex" }}><X size={ICON.meta} /></button>
             </span>
@@ -68,6 +69,7 @@ export function InlineMultiSelect({ value, options, onCommit, onClose, t }: {
           onChange={(v) => { if (v) add(v); }}
         />
       )}
+      {scopeAction}
       <input
         className="base-inline-input"
         value={free}

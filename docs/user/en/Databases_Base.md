@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-09-16
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -150,7 +150,7 @@ The **Entry** button at the top left (formerly **New**; clearly separate from th
 
 The **Pinboard** view type shows the database's notes as cards with their rendered content — a board full of sticky notes. Cards render text, lists and clickable checkboxes (a click ticks the task right in the note), images and formatting; tables, formulas and embeds appear as subtle placeholders. Clicking a card opens the note in the preview window.
 
-- **Quick capture**: The **Write a note…** field above the board expands into a small popup with a **Title** field and multi-line note text — like Google Keep. A typed title becomes the file name AND the note's first heading; without one the file gets a timestamp name and the note has no heading. The text is the content either way — no template, no detours (Ctrl/Cmd+Enter saves).
+- **Quick capture**: **Entry** opens a title and note-text popup. The title becomes the file name and first heading. Without a title, the file gets a timestamp name. Ctrl/Cmd+Enter saves.
 - **Pinning**: The pin button (top right when hovering a card) lifts a card into the **Pinned** section.
 - **Arranging**: Drag cards to reorder them; the order lives in the `.base` file and syncs along. Cards not arranged yet (freshly captured or created externally) appear on top, newest first. If a sort rule is set under **Configure**, it wins — dragging is disabled then.
 - **Labels**: The chip bar above the board filters the cards — by tags by default, switchable to a multi-select property (**Configure** → **Label source**). Multiple chips filter AND-combined; the selection is ephemeral and never written to the file. Edit a card's labels via **Labels** in the card's context menu.
@@ -295,3 +295,11 @@ Open **Export table** in the desktop database menu or use the export icon in the
 **Formulas (.base)** creates a table with a fixed selection of the current rows. These calculations through stored relations remain formulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open the file in the same vault with the linked notes. Unsupported calculations or reverse relations are named in the dialog; use the values export for them.
 
 **Values (.csv)** contains current calculated values and file paths. Values will not update later; lists remain JSON. Formula-like text is protected as text for spreadsheet apps. Both options create an export without writing calculated properties into the original notes.
+
+## Empty properties
+
+An empty YAML value, `~` or unquoted `null` appears as an empty property and matches empty-value filters. The explicitly quoted text `"null"` remains a text value. This applies to tables, lists, boards, galleries and pinboards. Updating rebuilds only the derived search index; note files remain unchanged.
+
+## Searching a pinboard and returning
+
+**Search this pinboard…** searches titles, note bodies, tags and visible properties. View filters, selected labels and search text apply together. Clear or Escape removes the search. Embedded pinboards have the same search field. Opening a card and returning preserves search, labels and reading position during the session. Cached previews appear immediately; changed content reloads. Images load when visible. Missing index entries are identified; use **Try again** after a loading error.

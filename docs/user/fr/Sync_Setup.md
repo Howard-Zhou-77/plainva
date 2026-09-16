@@ -1,10 +1,18 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-16
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
 Quels services fonctionnent en général (aussi via WebDAV ou le client de bureau du fournisseur) est couvert dans [Compatibilité de synchronisation](Sync_Compatibility.md).
+
+## Comparer les versions conservées
+
+Lorsqu’un conflit de texte ne peut pas être fusionné automatiquement, une seule copie de travail locale reste ouverte par original. Les modifications suivantes sont enregistrées dans cette même copie, même après la réouverture de la note ou le redémarrage. Le bandeau indique : **Vous modifiez votre copie en conflit. Elle sera synchronisée après la fusion.**
+
+Dans la comparaison, **Comparer les versions conservées** affiche la version initiale enregistrée, si elle existe. Si la copie de travail est modifiée en dehors de cette session, cette autre version est aussi conservée et peut y être comparée. L’adoption, la conservation des deux versions et l’abandon vérifient à nouveau les fichiers ; rechargez une comparaison devenue obsolète. Résolvez le conflit avant de déplacer ou supprimer le fichier concerné ou son dossier. Les anciennes copies en conflit restent listées séparément.
+
+L’export de diagnostic inclut aussi les conflits récents : type de stockage, origine de l’écriture, comparaison des empreintes et différences de fins de ligne, de BOM ou de saut de ligne final. Ces données ne contiennent ni texte des notes ni noms de fichiers.
 
 ## Notions de base
 

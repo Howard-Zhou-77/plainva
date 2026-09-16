@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Database, FileText, Sun } from "lucide-react";
-import { Chip, DocIcon, ICON, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
+import { Bookmark, Database, FileText, Sun, Folder } from "lucide-react";
+import { Chip, DocIcon, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
@@ -76,7 +76,8 @@ export function NavigatorScreen({
     return () => window.removeEventListener("m-settings-changed", onChanged);
   }, []);
   const [recent, setRecent] = useState<Array<{ path: string; title: string; rel?: string }>>([]);
-  const [marks, setMarks] = useState<string[]>([]);
+  const [marks, setMarks] = useState<BookmarkEntry[]>([]);
+  const targets = useBookmarkTargets(vault.adapter, marks, bump);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const ptrRef = useRef<HTMLDivElement>(null);
   const syncSubtitle = useSyncSubtitle();
@@ -101,9 +102,10 @@ export function NavigatorScreen({
         );
       }
     });
-    void vaultOps.getBookmarks(vault).then((b) => {
-      if (!stale) setMarks(b.slice(0, 8));
-    });
+    const readMarks = () => void vaultOps.getBookmarks(vault).then((b) => {
+      if (!stale) setMarks(b);
+    }).catch(() => { if (!stale) toast.error(t("sidebar.bookmarkSaveFailed")); });
+    readMarks(); window.addEventListener("m-bookmarks-changed", readMarks);
     if (vault.queryService) {
       void vault.queryService
         .getDocumentIcons()
@@ -113,9 +115,9 @@ export function NavigatorScreen({
         .catch(() => {});
     }
     return () => {
-      stale = true;
+      stale = true; window.removeEventListener("m-bookmarks-changed", readMarks);
     };
-  }, [vault, bump]);
+  }, [vault, bump, t]);
 
   const caroIcon = (p: string) => {
     const custom = docIcons.get(p);
@@ -168,11 +170,14 @@ export function NavigatorScreen({
         <>
           <SectionLabel>{t("mobile.bookmarks")}</SectionLabel>
           <ScrollEdge axis="x" className="m-chiprow">
-            {marks.map((p) => (
-              <Chip key={p} icon={<Bookmark size={ICON.meta} />} onClick={() => onOpenNote(p)}>
-                {noteDisplayName(p)}
-              </Chip>
-            ))}
+            {marks.map((entry) => {
+              const missing = targets.get(bookmarkKey(entry)) === false;
+              return <Chip key={bookmarkKey(entry)} disabled={missing} title={entry.path} icon={entry.type === "folder" ? <Folder size={ICON.meta} /> : <Bookmark size={ICON.meta} />}
+                onClick={() => { if (!missing) (entry.type === "folder" ? onOpenFolder : onOpenNote)(entry.path); }}
+                removeLabel={t("mobile.bookmarkRemove")} onRemove={() => { void vaultOps.toggleBookmark(vault, entry.path, entry.type).catch(() => toast.error(t("sidebar.bookmarkSaveFailed"))); }}>
+                {entry.type === "folder" ? entry.path.split("/").pop() : noteDisplayName(entry.path)}{missing ? ` (${t("sidebar.bookmarkMissing")})` : ""}
+              </Chip>;
+            })}
           </ScrollEdge>
         </>
       )}

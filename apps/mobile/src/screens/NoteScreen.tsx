@@ -1,3 +1,5 @@
+import { getConflict, subscribeConflicts } from "../services/conflictState";
+import { useReaderChrome } from "../hooks/useReaderChrome";
 import { listMobilePublicationFeedback } from "../services/mobileComments";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
@@ -144,7 +146,7 @@ export function NoteScreen({
       if (!capabilities.includes("content.write")) setEditing(false);
     }).catch(() => { if (!stale) { setWorkspaceCapabilities([]); setEditing(false); } });
     return () => { stale = true; };
-  }, [vault, path]);
+  }, [vault, path, t]);
   const workspaceCanWrite = workspaceCapabilities === null || workspaceCapabilities.includes("content.write");
   /**
    * Comments and suggestions (D5).
@@ -441,7 +443,7 @@ export function NoteScreen({
   const managedIndex = /(^|\/)index\.md$/i.test(path) && doc !== null && isPlainvaManagedIndex(doc);
   useEffect(() => {
     let stale = false;
-    void noteSaver.flush(path, vault).catch(() => {}).then(() => vaultOps.read(vault, path))
+    void noteSaver.flush(path, vault).catch(() => {}).then(() => vaultOps.readEditor(vault, path))
       .then(async (text) => {
         if (stale) return;
         setLoadError(false);
@@ -459,12 +461,12 @@ export function NoteScreen({
         if (!stale) setLoadError(true);
       });
     void vaultOps.getBookmarks(vault).then((marks) => {
-      if (!stale) setMarked(marks.includes(path));
-    });
+      if (!stale) setMarked(marks.some((m) => m.type === "file" && m.path === path));
+    }).catch(() => { if (!stale) toast.error(t("sidebar.bookmarkSaveFailed")); });
     return () => {
       stale = true;
     };
-  }, [vault, path]);
+  }, [vault, path, t]);
 
   /** Regenerates this overview from the folder it belongs to. */
   const refreshManagedIndex = () => {
@@ -769,11 +771,16 @@ export function NoteScreen({
     }));
   };
 
+  const [readerBlocked, setReaderBlocked] = useState(false);
+  const readerConflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
+  const readerOverlay = !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
+  const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
   const page = (
-    <div className="m-page m-page--note">
+    <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
       {!commentsOpen && <CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
       {decisionReview && decisionReview.path === path && decisionReview.vaultId === vault.vaultId && <CommentDecisionReview comment={decisionReview.comment} text={decisionReview.snapshot.text} onDecision={confirmCommentDecision} onClose={() => setDecisionReview(null)} />}
-      <AppBar onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
+      <div ref={chromeRef} className={`m-note-chrome${chromeAway ? " is-away" : ""}`} onFocusCapture={focusChrome} onBlurCapture={blurChrome}>
+      <AppBar scrollState={chromeScroll} onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
             <IconButton
               label={t("mobile.toggleBookmark")}
               active={marked}
@@ -814,6 +821,7 @@ export function NoteScreen({
               <Check size={ICON.head} />
             </IconButton>
           )}</>} />
+      </div>
       {draft && (
         <div className="m-draftbanner">
           <span>
@@ -897,6 +905,7 @@ export function NoteScreen({
         )}
       {doc !== null && (
         <EditorHost
+          onReaderBlockedChange={setReaderBlocked}
           editable={(editing && workspaceCanWrite && !managedIndex) || suggesting}
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
@@ -952,8 +961,9 @@ export function NoteScreen({
       {!editing && workspaceCanWrite && !managedIndex && (
         <Fab
           aria-label={t("mobile.editNote")}
-          className="m-fab-float"
+          className={`m-fab-float m-note-pencil${chromeAway ? " is-away" : ""}`}
           data-testid="note-edit"
+          onFocus={focusChrome} onBlur={blurChrome}
           icon={<Pencil size={ICON.touch} />}
           onClick={() => setEditing(true)}
         />
@@ -1221,7 +1231,7 @@ export function NoteScreen({
           onClose={() => setInfo(null)}
           onCommentProperty={startPropertyComment}
           onMutated={() => {
-            void vaultOps.read(vault, path).then((text) => {
+            void vaultOps.readEditor(vault, path).then((text) => {
               setDoc(text);
               setReloadTick((n) => n + 1);
             });
@@ -1231,7 +1241,7 @@ export function NoteScreen({
           }
           onOpenNote={onOpenNote}
           onRestored={() => {
-            void vaultOps.read(vault, path).then((text) => {
+            void vaultOps.readEditor(vault, path).then((text) => {
               setDoc(text);
               setReloadTick((n) => n + 1);
             });
@@ -1260,7 +1270,7 @@ export function NoteScreen({
         onClose={() => setInfo(null)}
         onCommentProperty={startPropertyComment}
         onMutated={() => {
-          void vaultOps.read(vault, path).then((text) => {
+          void vaultOps.readEditor(vault, path).then((text) => {
             setDoc(text);
             setReloadTick((n) => n + 1);
           });
@@ -1270,7 +1280,7 @@ export function NoteScreen({
         }
         onOpenNote={onOpenNote}
         onRestored={() => {
-          void vaultOps.read(vault, path).then((text) => {
+          void vaultOps.readEditor(vault, path).then((text) => {
             setDoc(text);
             setReloadTick((n) => n + 1);
           });

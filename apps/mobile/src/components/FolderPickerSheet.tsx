@@ -15,11 +15,13 @@ export function FolderPickerSheet({
   title,
   onPick,
   onClose,
+  excludePrefix,
 }: {
   vault: MobileVault;
   title: string;
   onPick: (path: string) => void;
   onClose: () => void;
+  excludePrefix?: string;
 }) {
   const { t } = useTranslation();
   const [path, setPath] = useState("");
@@ -28,12 +30,12 @@ export function FolderPickerSheet({
   useEffect(() => {
     let stale = false;
     void vaultOps.listFolder(vault, path).then((l) => {
-      if (!stale) setFolders(l.folders.map((x) => x.name));
+      if (!stale) setFolders(l.folders.filter((x) => { const next = path ? `${path}/${x.name}` : x.name; return next !== excludePrefix && !next.startsWith(`${excludePrefix}/`); }).map((x) => x.name));
     });
     return () => {
       stale = true;
     };
-  }, [vault, path]);
+  }, [vault, path, excludePrefix]);
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>

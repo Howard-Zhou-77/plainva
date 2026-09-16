@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { PimConflictError, VaultFileNotFoundError, type DeletionConfirmation, type IVaultAdapter } from "@plainva/core";
+import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
+import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
+import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 /**
  * What happens to a mutation an auxiliary window hands over (multi-window P0/P1).
@@ -151,6 +154,7 @@ function createFileAdapter(files: Map<string, string>): IVaultAdapter {
     writeTextFile: async (path: string, content: string) => {
       files.set(path, content);
     },
+    deleteItem: async (path: string) => { files.delete(path); },
     exists: async (path: string) => files.has(path),
     listDir: async () => [],
     createDir: async () => {},
@@ -337,6 +341,32 @@ beforeEach(() => {
 });
 
 describe("delegated mutations", () => {
+  it("keeps the same conflict session across auxiliary windows and resolves on its vault owner", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/owner-vault");
+    const aux = createWindowBus(wire("aux-conflict"), undefined, () => "/owner-vault");
+    busForTest = owner;
+    const content = new Map([["Note.md", "foreign text"]]);
+    const db = await realSqlite();
+    const raw = createFileAdapter(content), actual = new ConflictAwareVaultAdapter(raw, new SyncStateRepository(db));
+    const stop = await installOwnerBus({ vaultPath: "/owner-vault", vaultAdapter: actual, indexer: null, pimRuntime: null,
+      refresh: () => {}, refreshVault: async () => {}, rebuildIndex: async () => {}, syncWorker: null });
+    try {
+      const remote = new RemoteVaultAdapter(raw, aux, "/owner-vault");
+      const first = await remote.writeEditorText("Note.md", "local text", "base text");
+      expect(first.session).not.toBeNull();
+      const transferred = new RemoteVaultAdapter(raw, aux, "/owner-vault");
+      expect((await transferred.getConflictSession("Note.md"))?.workingCopyPath).toBe(first.session!.workingCopyPath);
+      for (let i = 0; i < 100; i++) await transferred.writeEditorText("Note.md", `local ${i}`, i ? `local ${i - 1}` : "local text");
+      expect(await transferred.listConflictSessions()).toHaveLength(1);
+      expect(content.get("Note.md")).toBe("foreign text");
+      expect(content.get(first.session!.workingCopyPath)).toBe("local 99");
+      await transferred.resolveConflict("Note.md", { originalText: "foreign text", copyText: "local 99", content: "merged text" });
+      expect(await transferred.getConflictSession("Note.md")).toBeNull();
+      expect(content.get("Note.md")).toBe("merged text");
+      expect(content.has(first.session!.workingCopyPath)).toBe(false);
+    } finally { stop(); await db.close(); }
+  });
   it("waits for a comment operation holding the same physical note's write lane", async () => {
     const { aux, calls, dispose } = await setup();
     let release!: () => void;
@@ -793,7 +823,7 @@ describe("owner bus with two vaults open", () => {
       expect(filesA.has(".plainva/bookmarks.json")).toBe(false);
       // And the news carries its address, so a window drawing another vault can
       // tell that it is not meant.
-      expect(announced).toEqual([{ vaultPath: "/B", bookmarks: ["Deep/Note.md"] }]);
+      expect(announced).toEqual([{ vaultPath: "/B", bookmarks: [{ type: "file", path: "Deep/Note.md" }] }]);
     } finally {
       window.removeEventListener("plainva-bookmarks-changed", onChanged);
       stopA();

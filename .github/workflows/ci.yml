@@ -103,6 +103,22 @@ jobs:
       - name: Mobile production build smoke
         run: xvfb-run pnpm --filter mobile run smoke:prod
 
+  webkit:
+    name: WebKit editor regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter desktop exec playwright install --with-deps webkit
+      - run: pnpm --filter desktop exec playwright test --config playwright.webkit.config.ts
+
   rust:
     name: Rust checks
     runs-on: ubuntu-latest

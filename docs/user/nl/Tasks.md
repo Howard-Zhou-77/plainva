@@ -142,3 +142,7 @@ Alleen de Engelse regels `every [N] day/week/month/year[s] [when done]` (N: 1–
 Afvinken voegt bij taken met metagegevens de voltooiingsdatum toe. Ondersteunde herhaling voegt zo nodig een ID toe en geeft de opvolger een eigen `pv-…`-ID. Het geheel is één Markdown-bewerking; Ongedaan maken herstelt die volledig. Heropenen en opnieuw afvinken behoudt de opvolger en zijn wijzigingen.
 
 Native databasetaken slaan verlopen perioden nog steeds over. Een opgeslagen doelplan voorkomt dubbele opvolgers. Controleer bij een onbevestigde opvolger de takenmap; heropenen en afvinken kan een schrijffout hervatten. Bij een gewijzigde bron wordt geen afwijkende kopie geschreven: controleer de notities en maak de opvolger zo nodig handmatig. Een bevestigde en later verwijderde opvolger wordt niet hersteld.
+
+## Taakfilters herstellen
+
+Status, zoektekst, map, tag, vervaldatumfilter en zichtbaarheid van verborgen taken blijven per kluis op dit apparaat bewaard, ook na het openen van een notitie of opnieuw starten. “Filters herstellen” toont weer open taken zonder extra filters. Niet-beschikbare mappen en tags blijven zichtbaar en kunnen via hun keuzelijst worden verwijderd. De kluis vergeten wist deze weergavestatus. De standaard taakdatabase blijft de bestaande kluisinstelling; filters worden niet gesynchroniseerd.

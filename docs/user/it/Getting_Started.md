@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-09-16
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -201,3 +201,9 @@ La barra laterale destra non può scendere sotto i **200 px** — nessuna sezion
 ## Riportare una scheda
 
 In una finestra separata o in una seconda finestra completa, fai clic destro sulla scheda e scegli **Torna alla finestra principale**. Testo, selezione, vista, scorrimento, cronologia e fissaggio vengono conservati. La scheda di origine si chiude solo dopo la conferma. Senza conferma, scheda e bozza rimangono disponibili. I segnalibri si aggiornano in tutte le finestre.
+
+## Segnalibri di cartelle
+
+Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri.
+
+All’apertura di un vault, Plainva importa automaticamente i segnalibri di file e cartelle da Obsidian, gruppi compresi. Tipo e percorso evitano duplicati. Il file di Obsidian resta invariato. I profili trasportano le cartelle separatamente; un vecchio profilo senza questo campo conserva i segnalibri di cartelle esistenti.

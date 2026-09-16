@@ -13,11 +13,11 @@ import {
 describe("bookmarksFile", () => {
   it("parses the canonical desktop object shape", () => {
     const raw = JSON.stringify({ items: [{ type: "file", path: "A.md" }, { type: "file", path: "B/C.md" }] });
-    expect(parseBookmarksFile(raw)).toEqual({ paths: ["A.md", "B/C.md"], existed: true });
+    expect(parseBookmarksFile(raw)).toMatchObject({ paths: ["A.md", "B/C.md"], existed: true });
   });
 
   it("parses the legacy mobile bare-array shape", () => {
-    expect(parseBookmarksFile('["A.md", "B.md"]')).toEqual({ paths: ["A.md", "B.md"], existed: true });
+    expect(parseBookmarksFile('["A.md", "B.md"]')).toMatchObject({ paths: ["A.md", "B.md"], existed: true });
   });
 
   it("tolerates string items inside the object shape and drops junk entries", () => {
@@ -30,15 +30,15 @@ describe("bookmarksFile", () => {
   });
 
   it("reports foreign or broken JSON as not existed", () => {
-    expect(parseBookmarksFile("not json")).toEqual({ paths: [], existed: false });
-    expect(parseBookmarksFile('{"foo": 1}')).toEqual({ paths: [], existed: false });
-    expect(parseBookmarksFile('{"items": "nope"}')).toEqual({ paths: [], existed: false });
+    expect(parseBookmarksFile("not json")).toMatchObject({ paths: [], existed: false });
+    expect(parseBookmarksFile('{"foo": 1}')).toMatchObject({ paths: [], existed: false });
+    expect(parseBookmarksFile('{"items": "nope"}')).toMatchObject({ paths: [], existed: false });
   });
 
   it("serializes to the canonical object shape and round-trips", () => {
     const out = serializeBookmarksFile(["A.md", "B/C.md"]);
     expect(JSON.parse(out)).toEqual({ items: [{ type: "file", path: "A.md" }, { type: "file", path: "B/C.md" }] });
-    expect(parseBookmarksFile(out)).toEqual({ paths: ["A.md", "B/C.md"], existed: true });
+    expect(parseBookmarksFile(out)).toMatchObject({ paths: ["A.md", "B/C.md"], existed: true });
     // The legacy mobile shape round-trips into the canonical one.
     expect(parseBookmarksFile(serializeBookmarksFile(parseBookmarksFile('["A.md"]').paths)).paths).toEqual(["A.md"]);
   });
@@ -80,7 +80,7 @@ describe("changing bookmarks with two windows open (multi-window C1)", () => {
     // Window 2 stars C. It must read first: writing its own snapshot would drop B.
     const after = await toggleBookmarkOnDisk(disk.io, "C.md");
 
-    expect(after).toEqual(["A.md", "B.md", "C.md"]);
+    expect(after.map((e) => e.path)).toEqual(["A.md", "B.md", "C.md"]);
     expect(disk.read()).toEqual(["A.md", "B.md", "C.md"]);
   });
 
@@ -91,13 +91,13 @@ describe("changing bookmarks with two windows open (multi-window C1)", () => {
     const after = await toggleBookmarkOnDisk(disk.io, "C.md"); // window 2 stars C
 
     // A stays gone: the second write must not resurrect it from a stale list.
-    expect(after).toEqual(["B.md", "C.md"]);
+    expect(after.map((e) => e.path)).toEqual(["B.md", "C.md"]);
   });
 
-  it("drops only the deleted files on a cascade delete", async () => {
+  it("removes only explicitly requested bookmark paths", async () => {
     const disk = createDisk(["A.md", "B.md", "C.md"]);
     const after = await removeBookmarksOnDisk(disk.io, ["B.md", "Missing.md"]);
-    expect(after).toEqual(["A.md", "C.md"]);
+    expect(after.map((e) => e.path)).toEqual(["A.md", "C.md"]);
   });
 
   it("creates the file on the first bookmark", async () => {
@@ -111,7 +111,7 @@ describe("changing bookmarks with two windows open (multi-window C1)", () => {
         text = content;
       },
     };
-    expect(await toggleBookmarkOnDisk(io, "A.md")).toEqual(["A.md"]);
-    expect(parseBookmarksFile(text ?? "")).toEqual({ paths: ["A.md"], existed: true });
+    expect(await toggleBookmarkOnDisk(io, "A.md")).toEqual([{ type: "file", path: "A.md" }]);
+    expect(parseBookmarksFile(text ?? "")).toMatchObject({ paths: ["A.md"], existed: true });
   });
 });

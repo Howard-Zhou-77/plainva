@@ -200,6 +200,7 @@ textarea {
 }
 
 .m-page--note {
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -4414,6 +4415,9 @@ textarea {
    is judged on itself rather than against the page. */
 .m-page--viewer {
   background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .m-viewerimg {
   display: block;
@@ -4608,6 +4612,8 @@ textarea {
   font-size: var(--text-ui);
   font-weight: 500;
 }
+.pv-seltoolbar[data-compact] .m-selverb { width: var(--touch-sm); padding: 0; justify-content: center; }
+.pv-seltoolbar[data-compact] .m-selverb > span { display: none; }
 
 /* The period under the app bar's title is a BUTTON (plan Kalender 2026-09-10,
    P3): the same look as .m-appbar-sub, plus a chevron, and the accent pair
@@ -4691,3 +4697,16 @@ textarea {
 .m-conflict-sheet { max-height: calc(100dvh - env(safe-area-inset-top) - var(--space-4)); overflow: hidden; }
 .m-conflict-sheet .pv-comparison-context { max-height: 38dvh; overflow: auto; }
 .m-conflict-sheet .m-conflict-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+/* Reader controls float above a constant inset INSIDE the editor's scrolling
+   content. Retreat changes only paint; the scroll viewport never resizes. */
+.m-note-chrome { flex: none; z-index: var(--z-m-bar); transition: transform var(--dur-2) var(--ease-effects); }
+.m-page--note[data-reader-overlay] > .m-note-chrome { position: absolute; top: 0; left: 0; right: 0; }
+.m-page--note[data-reader-overlay] .m-editor .cm-content { padding-top: calc(var(--m-reader-chrome-height, var(--m-docked-h)) + var(--space-3)); }
+.m-note-chrome.is-away { transform: translateY(-100%); pointer-events: none; }
+.m-note-pencil { transition: transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects); }
+.m-note-pencil.is-away { transform: translateY(calc(100% + 32px)); opacity: 0; pointer-events: none; }
+
+.m-image-stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
+.m-image-stage img { max-width: 100%; max-height: 100%; object-fit: contain; flex: none; user-select: none; }
+.m-image-tools { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-2); }

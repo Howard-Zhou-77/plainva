@@ -1,10 +1,18 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-09-15
+Stan na: 2026-09-16
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
 To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopowego dostawcy), opisuje strona [Zgodność synchronizacji](Sync_Compatibility.md).
+
+## Porównaj zachowane wersje
+
+Gdy konfliktu tekstu nie można scalić automatycznie, dla każdego oryginału pozostaje otwarta jedna lokalna kopia robocza. Kolejne zmiany są zapisywane w tej samej kopii, również po ponownym otwarciu notatki lub uruchomieniu aplikacji. Baner wyjaśnia: **Edytujesz swoją kopię konfliktową. Zostanie zsynchronizowana po scaleniu.**
+
+W widoku porównania **Porównaj zachowane wersje** pokazuje zapisaną wersję początkową, jeśli jest dostępna. Jeśli kopia robocza zmieni się poza tą sesją, druga wersja również zostanie zachowana i będzie można ją porównać. Przyjęcie, zachowanie obu i odrzucenie ponownie sprawdzają bieżące pliki; nieaktualne porównanie trzeba wczytać ponownie. Rozwiąż konflikt przed przeniesieniem lub usunięciem pliku albo jego folderu. Starsze kopie konfliktowe nadal są wymieniane osobno.
+
+Eksport diagnostyczny zawiera także ostatnie konflikty: typ pamięci, komponent zapisujący, porównanie skrótów oraz różnice zakończeń wierszy, BOM i końcowego znaku nowego wiersza. Te rekordy nie zawierają treści notatek ani nazw plików.
 
 ## Podstawy
 

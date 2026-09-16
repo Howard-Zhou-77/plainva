@@ -1,87 +1,64 @@
-/**
- * Shared on-disk contract for `.plainva/bookmarks.json` (plan Mobile M3E 2026-07-12,
- * package A5). Historically the two shells wrote INCOMPATIBLE shapes into the same
- * device-local file: desktop `{ "items": [{ "type": "file", "path": "..." }] }`,
- * mobile a bare `["path", ...]` array. `.plainva/` never syncs, so no data was
- * lost — but any future export/import path would clash. Both shells now parse
- * BOTH shapes and write the single canonical desktop-compatible object form
- * (which also matches the Obsidian bookmarks plugin's `items` layout).
- */
-
+/** Typed, device-local bookmark file, shared by both shells. Historical mobile
+ * string arrays and Obsidian file/folder groups remain readable. */
 import { VaultFileNotFoundError } from "@plainva/core";
 
+export interface BookmarkEntry { type: "file" | "folder"; path: string }
 export interface BookmarksFile {
-  /** Bookmarked note paths in user order. */
+  entries: BookmarkEntry[];
+  /** File-only compatibility projection for older settings-profile clients. */
   paths: string[];
-  /** True when the raw text was a readable bookmarks document (either shape). */
   existed: boolean;
 }
-
-/** Parse either historical shape; unreadable/foreign JSON yields `existed: false`. */
+export const bookmarkKey = (entry: BookmarkEntry) => `${entry.type}:${entry.path.normalize("NFC")}`;
+export function validBookmarkPath(path: unknown): path is string {
+  return typeof path === "string" && path.length > 0 && path.length <= 4096
+    && !/^(?:[/\\]|[a-z]:)/i.test(path) && !Array.from(path).some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+    && !path.split(/[/\\]/).some((part) => part === ".." || part === "." || !part);
+}
+export function deduplicateBookmarks(entries: readonly (BookmarkEntry | string)[]): BookmarkEntry[] {
+  const seen = new Set<string>(), next: BookmarkEntry[] = [];
+  for (const raw of entries) {
+    const entry: BookmarkEntry = typeof raw === "string" ? { type: "file", path: raw } : raw;
+    if (!entry || (entry.type !== "file" && entry.type !== "folder") || !validBookmarkPath(entry.path)) continue;
+    const clean = { ...entry, path: entry.path.replace(/\\/g, "/") };
+    const key = bookmarkKey(clean); if (seen.has(key)) continue;
+    seen.add(key); next.push(clean);
+  }
+  return next;
+}
 export function parseBookmarksFile(raw: string): BookmarksFile {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      // Legacy mobile shape: a bare array of paths.
-      return { paths: parsed.filter((p): p is string => typeof p === "string"), existed: true };
-    }
-    if (parsed && typeof parsed === "object" && Array.isArray((parsed as { items?: unknown }).items)) {
-      const items = (parsed as { items: unknown[] }).items;
-      const paths: string[] = [];
-      for (const item of items) {
-        if (typeof item === "string") paths.push(item);
-        else if (item && typeof item === "object" && typeof (item as { path?: unknown }).path === "string") {
-          paths.push((item as { path: string }).path);
+    const items = Array.isArray(parsed) ? parsed : parsed && typeof parsed === "object" && "items" in parsed ? parsed.items : null;
+    if (Array.isArray(items)) {
+      const entries: (BookmarkEntry | string)[] = [];
+      const walk = (items: unknown[], depth: number) => {
+        if (depth > 32) return;
+        for (const item of items) {
+          if (typeof item === "string") entries.push(item);
+          else if (item && typeof item === "object") {
+            const value = item as { type?: unknown; path?: unknown; items?: unknown };
+            if (value.type === "group" && Array.isArray(value.items)) walk(value.items, depth + 1);
+            else if (typeof value.path === "string" && (value.type === "file" || value.type === "folder" || value.type === undefined))
+              entries.push({ type: value.type === "folder" ? "folder" : "file", path: value.path.replace(/\/$/, "") });
+          }
         }
-      }
-      return { paths, existed: true };
+      };
+      walk(Array.isArray(parsed) ? items.filter((item) => typeof item === "string") : items, 0);
+      const normalized = deduplicateBookmarks(entries);
+      return { entries: normalized, paths: normalized.filter((e) => e.type === "file").map((e) => e.path), existed: true };
     }
-  } catch {
-    /* fall through */
-  }
-  return { paths: [], existed: false };
+  } catch { /* Unreadable data never authorizes overwriting the file. */ }
+  return { entries: [], paths: [], existed: false };
 }
-
-/** Serialize to the canonical `{ items: [{ type: "file", path }] }` shape. */
-export function serializeBookmarksFile(paths: string[]): string {
-  return JSON.stringify({ items: paths.map((p) => ({ type: "file", path: p })) }, null, 2);
+export function serializeBookmarksFile(entries: readonly (BookmarkEntry | string)[]): string {
+  return JSON.stringify({ items: deduplicateBookmarks(entries) }, null, 2);
 }
-
-/**
- * Adds or removes one bookmark, reading the file first (multi-window C1).
- *
- * The list is read back from disk rather than taken from the caller's state
- * because that state can be stale: since stage C two windows draw the same
- * bookmark list, and writing a whole file from a snapshot means the second
- * window's toggle silently drops the first window's. It is the shape
- * `pushRecent` has always had, for the same reason — and it also stops an
- * external edit of the file from being clobbered by the next star click.
- *
- * Returns the new list so the caller can show it without a second read.
- */
-export async function toggleBookmarkOnDisk(io: BookmarksIO, path: string): Promise<string[]> {
-  return updateBookmarksOnDisk(io, (current) =>
-    current.includes(path) ? current.filter((p) => p !== path) : [...current, path],
-  );
-}
-
-/**
- * Drops bookmarks whose file is gone (cascade delete). Same read-modify-write
- * for the same reason: without it a deletion in one window puts back the
- * bookmarks another window had just removed.
- */
-export async function removeBookmarksOnDisk(io: BookmarksIO, paths: readonly string[]): Promise<string[]> {
-  const gone = new Set(paths);
-  return updateBookmarksOnDisk(io, (current) => current.filter((p) => !gone.has(p)));
-}
-
 export interface BookmarksIO {
   readTextFile: (path: string) => Promise<string>;
   writeTextFile: (path: string, content: string) => Promise<void>;
 }
-
-/** A failed read is not an empty list: never erase bookmarks on an I/O error. */
-export async function readBookmarksOnDisk(io: Pick<BookmarksIO, "readTextFile">): Promise<string[]> {
+export async function readBookmarksOnDisk(io: Pick<BookmarksIO, "readTextFile">): Promise<BookmarkEntry[]> {
   let raw: string;
   try { raw = await io.readTextFile(BOOKMARKS_FILE); }
   catch (error) {
@@ -90,27 +67,76 @@ export async function readBookmarksOnDisk(io: Pick<BookmarksIO, "readTextFile">)
   }
   const parsed = parseBookmarksFile(raw);
   if (!parsed.existed) throw new Error("Unreadable bookmarks document");
-  return parsed.paths;
+  return parsed.entries;
+}
+export function toggleBookmarkOnDisk(io: BookmarksIO, path: string, type: BookmarkEntry["type"] = "file"): Promise<BookmarkEntry[]> {
+  if (!validBookmarkPath(path) || (type !== "file" && type !== "folder")) return Promise.reject(new Error("Invalid bookmark path"));
+  const entry = { path, type }, key = bookmarkKey(entry);
+  return updateBookmarksOnDisk(io, (current) => current.some((e) => bookmarkKey(e) === key)
+    ? current.filter((e) => bookmarkKey(e) !== key) : [...current, entry]);
+}
+export function removeBookmarksOnDisk(io: BookmarksIO, paths: readonly string[]): Promise<BookmarkEntry[]> {
+  const gone = new Set(paths); return updateBookmarksOnDisk(io, (current) => current.filter((e) => !gone.has(e.path)));
+}
+export function mergeBookmarksOnDisk(io: BookmarksIO, entries: readonly (BookmarkEntry | string)[]): Promise<BookmarkEntry[]> {
+  return updateBookmarksOnDisk(io, (current) => [...current, ...deduplicateBookmarks(entries)]);
+}
+export function renameBookmarksOnDisk(io: BookmarksIO, from: string, to: string): Promise<BookmarkEntry[]> {
+  if (!validBookmarkPath(from) || !validBookmarkPath(to)) return Promise.reject(new Error("Invalid bookmark move"));
+  return updateBookmarksOnDisk(io, (current) => current.map((e) => e.path === from || e.path.startsWith(from + "/")
+    ? { ...e, path: to + e.path.slice(from.length) } : e));
+}
+/** Automatic import is additive and shares the mutation lane with star clicks.
+ * The source is always read-only; removing a bookmark does not edit Obsidian. */
+const imported = new WeakMap<BookmarksIO, Promise<void>>();
+export async function importObsidianBookmarks(io: BookmarksIO): Promise<BookmarkEntry[]> {
+  let pending = imported.get(io);
+  if (!pending) {
+    pending = importOnce(io); imported.set(io, pending);
+    void pending.catch(() => { if (imported.get(io) === pending) imported.delete(io); });
+  }
+  await pending; return readBookmarksOnDisk(io);
+}
+async function importOnce(io: BookmarksIO): Promise<void> {
+  let entries: BookmarkEntry[] = [];
+  try { entries = parseBookmarksFile(await io.readTextFile(".obsidian/bookmarks.json")).entries; } catch { /* no import source */ }
+  if (entries.length) await mergeBookmarksOnDisk(io, entries);
+}
+export function validBookmarkPaths(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(validBookmarkPath);
+}
+/** New clients retain folders when an old profile has no folder channel.
+ * An explicit empty folder array is a deletion; malformed channels are preserved. */
+export function applyBookmarkProfileOnDisk(io: BookmarksIO, values: Record<string, unknown>, preserve: ReadonlySet<string> = new Set()): Promise<BookmarkEntry[]> {
+  return updateBookmarksOnDisk(io, (current) => {
+    const next: BookmarkEntry[] = [];
+    for (const [field, type] of [["bookmarks", "file"], ["bookmarkFolders", "folder"]] as const) {
+      const raw = values[field];
+      if (preserve.has(field) || (raw !== undefined && !validBookmarkPaths(raw)) || (field === "bookmarkFolders" && raw === undefined))
+        next.push(...current.filter((e) => e.type === type));
+      else next.push(...(raw as string[] | undefined ?? []).map((path) => ({ path, type })));
+    }
+    return next;
+  });
 }
 
-export function mergeBookmarksOnDisk(io: BookmarksIO, paths: readonly string[]): Promise<string[]> {
-  return updateBookmarksOnDisk(io, current => [...new Set([...current, ...paths])]);
-}
-
-const lanes = new WeakMap<BookmarksIO, Promise<unknown>>();
-async function updateBookmarksOnDisk(io: BookmarksIO, change: (current: string[]) => string[]): Promise<string[]> {
+const laneScopes = new WeakMap<BookmarksIO, string>();
+export function setBookmarksLaneScope(io: BookmarksIO, scope: string) { laneScopes.set(io, scope); }
+const lanes = new Map<BookmarksIO | string, Promise<unknown>>();
+async function updateBookmarksOnDisk(io: BookmarksIO, change: (current: BookmarkEntry[]) => BookmarkEntry[]): Promise<BookmarkEntry[]> {
   // All desktop clients delegate mutations to the same owner adapter. The
   // whole read-modify-write must share a lane, not just the final file write.
-  const run = (lanes.get(io) ?? Promise.resolve()).catch(() => {}).then(async () => {
+  const lane = laneScopes.get(io) ?? io;
+  const run = (lanes.get(lane) ?? Promise.resolve()).catch(() => {}).then(async () => {
     const current = await readBookmarksOnDisk(io);
-    const next = change(current);
+    const next = deduplicateBookmarks(change(current));
     if (JSON.stringify(current) !== JSON.stringify(next)) await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
     return next;
   });
-  lanes.set(io, run);
-  void run.finally(() => { if (lanes.get(io) === run) lanes.delete(io); }).catch(() => {});
+  lanes.set(lane, run);
+  void run.finally(() => { if (lanes.get(lane) === run) lanes.delete(lane); }).catch(() => {});
   return run;
 }
 
-/** Where the list lives; device-local, never synced. */
+/** Where the list lives; carried by the settings profile, never note sync. */
 export const BOOKMARKS_FILE = ".plainva/bookmarks.json";

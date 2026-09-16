@@ -8,6 +8,7 @@ import { languages as codeLanguages } from "@codemirror/language-data";
 import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 
 import { editorTheme, markdownHighlightStyle, markdownTheme } from "./MarkdownTheme";
+import type { SelectionToolbarPosition } from "./SelectionToolbar";
 import {
   markdownDecorationPlugin,
   frontmatterHidePlugin,
@@ -120,7 +121,8 @@ export interface EditorSessionDeps {
   /** Reads a binary file for inline image previews (shell file access). */
   readBinaryFile: (absolutePath: string) => Promise<Uint8Array>;
   /** Right-click on an inline image → host opens its copy / save-as menu. */
-  onImageContext?: (e: MouseEvent, absolutePath: string) => void;
+  onImageContext?: (e: MouseEvent, absolutePath: string, fromAction?: boolean) => boolean | void;
+  onOpenImage?: (absolutePath: string) => void;
   /** Builds the app-shell extension rendering ![[...]] note/base embeds. */
   buildNoteEmbedExtension: (context: EmbedHostContext, isLive: boolean) => Extension;
   onOpenPath?: (path: string, newTab: boolean) => void;
@@ -138,7 +140,7 @@ export interface EditorSessionDeps {
   handleDrop: (event: DragEvent, view: EditorView) => boolean;
   /** A real (non-external) document edit happened. */
   onDocChanged: (view: EditorView) => void;
-  onSelectionToolbar: (state: { x: number; y: number; above: boolean } | null) => void;
+  onSelectionToolbar: (state: SelectionToolbarPosition | null) => void;
   /** Click inside a highlighted range → host selects that comment card. */
   onAnchorActivate?: (commentId: string) => void;
   /**
@@ -342,8 +344,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         cfg.vaultPath,
         isLive,
         (path) => deps.current.readBinaryFile(path),
-        (e, abs) => deps.current.onImageContext?.(e, abs),
+        (e, abs, action) => deps.current.onImageContext ? deps.current.onImageContext(e, abs, action) : false,
         () => deps.current.imageLookup?.() ?? { notePath: "" },
+        (abs) => deps.current.onOpenImage?.(abs),
       ),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
       wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive),
@@ -380,7 +383,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     }
     // Floating formatting toolbar over a non-empty selection (#5) — same
     // conditions as the previous inline listener in Editor.tsx.
-    if (!(update.selectionSet || update.docChanged || update.focusChanged)) return;
+    if (!(update.selectionSet || update.docChanged || update.focusChanged || update.geometryChanged || update.viewportChanged)) return;
     const v = update.view;
     // Selection-aware word/char counts (P3.9). Multi-cursor ranges sum up;
     // the common empty selection is a cheap null.
@@ -407,7 +410,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       return;
     }
     const above = coords.top > 56;
-    deps.current.onSelectionToolbar({ x: coords.left, y: above ? coords.top - 8 : coords.bottom + 8, above });
+    deps.current.onSelectionToolbar({ x: coords.left, y: above ? coords.top - 8 : coords.bottom + 8, above, getAnchor: () => {
+      if (destroyed || !v.hasFocus || v.state.selection.main.empty) return null;
+      const current = v.coordsAtPos(v.state.selection.main.from);
+      const scroller = v.scrollDOM.getBoundingClientRect();
+      if (!current || current.bottom < scroller.top || current.top > scroller.bottom) return null;
+      return { left: current.left, top: current.top, bottom: current.bottom };
+    } });
   });
 
   /**

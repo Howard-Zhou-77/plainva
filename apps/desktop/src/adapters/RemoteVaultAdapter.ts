@@ -64,6 +64,19 @@ export class RemoteVaultAdapter implements IVaultAdapter {
 
   // --- writes: delegated to the owner ------------------------------------
 
+  getConflictSession(path: string) { return this.bus.request("conflict-read", { path }, { vaultPath: this.vaultPath }); }
+  listConflictSessions() { return this.bus.request("conflict-list", {}, { vaultPath: this.vaultPath }); }
+  listConflictDiagnostics() { return this.bus.request("conflict-diagnostics", {}, { vaultPath: this.vaultPath }); }
+  preserveConflict(path: string, content: string, writer: import("@plainva/core").ConflictWriter) {
+    return this.bus.request("conflict-preserve", { path, content, writer }, { vaultPath: this.vaultPath });
+  }
+  writeEditorText(path: string, content: string, baseText: string | null) {
+    return this.bus.request("editor-write", { path, content, baseText }, { vaultPath: this.vaultPath });
+  }
+  resolveConflict(path: string, resolution: import("@plainva/core").ConflictResolution) {
+    return this.bus.request("conflict-resolve", { path, resolution }, { vaultPath: this.vaultPath });
+  }
+
   async writeTextFile(path: string, content: string): Promise<void> {
     await this.bus.request("write", { path, content }, { vaultPath: this.vaultPath });
   }
@@ -76,6 +89,10 @@ export class RemoteVaultAdapter implements IVaultAdapter {
 
   async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
     await this.bus.request("delete", { path, recursive, ...(confirmation ? { confirmation } : {}) }, { vaultPath: this.vaultPath });
+  }
+
+  async retargetBookmarks(from: string, to: string): Promise<void> {
+    await this.bus.request("rename-bookmarks", { from, to }, { vaultPath: this.vaultPath });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {

@@ -4,22 +4,27 @@ import { useTranslation } from "react-i18next";
 import type { EditorView } from "@codemirror/view";
 import { ICON } from "../lib/iconSizes";
 import { toggleInlineMark } from "./editorTouchCommands";
+import { placeFloatingPanel, visibleFloatingBounds, type FloatingAnchor } from "./ui/floatingPlacement";
 
 export type FormatAction = "bold" | "italic" | "strike" | "code" | "highlight" | "link";
 
-interface Props {
+export interface SelectionToolbarPosition {
   x: number;
   y: number;
   /** Render above the selection (true) or below it (near the top edge). */
   above: boolean;
+  /** Reads the current coordinates without a React update on every scroll. */
+  getAnchor?: () => FloatingAnchor | null;
+}
+interface Props extends SelectionToolbarPosition {
   onAction: (action: FormatAction) => void;
 }
 
 /** Both shells measure the real toolbar instead of assuming that its labels
  * fit to the right of a selected word. The visual viewport also accounts for
  * the phone's keyboard, zoom and changing orientation. */
-export function SelectionToolbarSurface({ x, y, above, className = "", children, ...props }: {
-  x: number; y: number; above: boolean;
+export function SelectionToolbarSurface({ x, y, above, getAnchor, compactLabels = false, className = "", children, ...props }: SelectionToolbarPosition & {
+  compactLabels?: boolean;
 } & Omit<HTMLAttributes<HTMLDivElement>, "style">) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -27,35 +32,46 @@ export function SelectionToolbarSurface({ x, y, above, className = "", children,
     if (!el) return;
     const viewport = window.visualViewport;
     const measure = () => {
-      const margin = 8;
-      const leftEdge = viewport?.offsetLeft ?? 0;
-      const topEdge = viewport?.offsetTop ?? 0;
-      const width = viewport?.width ?? window.innerWidth;
-      const height = viewport?.height ?? window.innerHeight;
+      const anchor = getAnchor ? getAnchor() : { left: x, top: y, bottom: y };
+      if (!anchor) { el.style.visibility = "hidden"; return; }
       const styles = getComputedStyle(el);
-      const inset = (edge: string) => Math.max(margin, parseFloat(styles.getPropertyValue(`--selection-safe-${edge}`)) || 0);
-      const minX = leftEdge + inset("left"), maxX = leftEdge + width - inset("right");
-      const minY = topEdge + inset("top"), maxY = topEdge + height - inset("bottom");
-      el.style.maxWidth = `${Math.max(0, maxX - minX)}px`;
-      el.style.maxHeight = `${Math.max(0, maxY - minY)}px`;
-      const left = Math.max(minX, Math.min(x, maxX - el.offsetWidth));
-      const top = Math.max(minY, Math.min(above ? y - el.offsetHeight : y, maxY - el.offsetHeight));
+      const inset = (edge: string) => parseFloat(styles.getPropertyValue(`--selection-safe-${edge}`)) || 0;
+      const bounds = visibleFloatingBounds(window, { left: inset("left"), right: inset("right"), top: inset("top"), bottom: inset("bottom") });
+      const available = Math.max(0, bounds.right - bounds.left);
+      el.style.maxWidth = `${available}px`;
+      el.style.maxHeight = `${Math.max(0, bounds.bottom - bounds.top)}px`;
+      if (compactLabels) {
+        // Measure the labelled state each time, so compacting cannot create a
+        // wide/narrow feedback loop through ResizeObserver.
+        el.removeAttribute("data-compact");
+        const childrenWidth = Array.from(el.children).reduce((sum, child) => sum + (child as HTMLElement).offsetWidth, 0);
+        const gap = parseFloat(styles.columnGap) || 0;
+        const padding = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0) + 2;
+        el.toggleAttribute("data-compact", childrenWidth + gap * Math.max(0, el.children.length - 1) + padding > available);
+      }
+      const { left, top } = placeFloatingPanel(anchor, { width: el.offsetWidth, height: el.offsetHeight }, bounds, above, getAnchor ? 8 : 0);
       el.style.left = `${left}px`;
       el.style.top = `${top}px`;
+      el.style.visibility = "visible";
     };
+    let frame = 0;
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); }); };
     measure();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
     observer?.observe(el);
-    window.addEventListener("resize", measure);
-    viewport?.addEventListener("resize", measure);
-    viewport?.addEventListener("scroll", measure);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
     return () => {
       observer?.disconnect();
-      window.removeEventListener("resize", measure);
-      viewport?.removeEventListener("resize", measure);
-      viewport?.removeEventListener("scroll", measure);
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
     };
-  }, [x, y, above]);
+  }, [x, y, above, getAnchor, compactLabels]);
   return <div {...props} ref={ref} className={`pv-popover--fixed pv-seltoolbar ${className}`}>{children}</div>;
 }
 
@@ -68,7 +84,7 @@ export function SelectionToolbarSurface({ x, y, above, className = "", children,
  * applies to the range the user actually marked. On touch that matters more,
  * not less — a tap that drops the selection would format nothing.
  */
-export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => {
+export const SelectionToolbar: React.FC<Props> = ({ x, y, above, getAnchor, onAction }) => {
   const { t } = useTranslation();
   const items: { a: FormatAction; icon: React.ReactNode; label: string }[] = [
     { a: "bold", icon: <Bold size={ICON.ui} />, label: t("editor.fmtBold", { defaultValue: "Fett" }) },
@@ -88,6 +104,7 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
       x={x}
       y={y}
       above={above}
+      getAnchor={getAnchor}
     >
       {items.map((it) => (
         <button

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMous
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
 import { resolveTaskOrdinal, tasksDescription, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { errorText, TaskMetadataDetails, TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -105,12 +105,7 @@ export function TasksView({ onOpenPath }: Props) {
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<StatusFilter>("open");
-  const [text, setText] = useState("");
-  const [folder, setFolder] = useState("");
-  const [tag, setTag] = useState("");
-  const [dueOnly, setDueOnly] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
+  const { status, text, folder, tag, dueOnly, showHidden, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, resetFilters } = useTaskViewState(vaultPath);
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
   // A listTasks() call reads the FTS snapshot asynchronously. A checkbox write
@@ -743,6 +738,7 @@ export function TasksView({ onOpenPath }: Props) {
           ariaLabel={t("tasks.allFolders", { defaultValue: "Alle Ordner" })}
           options={[
             { value: "", label: t("tasks.allFolders", { defaultValue: "Alle Ordner" }) },
+            ...(folder && !allFolders.includes(folder) ? [{ value: folder, label: loading ? folder : `${folder} (${t("tasks.filterUnavailable")})` }] : []),
             ...allFolders.map((f) => ({ value: f, label: f })),
           ]}
         />
@@ -755,6 +751,7 @@ export function TasksView({ onOpenPath }: Props) {
           ariaLabel={t("tasks.allTags", { defaultValue: "Alle Tags" })}
           options={[
             { value: "", label: t("tasks.allTags", { defaultValue: "Alle Tags" }) },
+            ...(tag && !allTags.includes(tag) ? [{ value: tag, label: loading ? `#${tag}` : `#${tag} (${t("tasks.filterUnavailable")})` }] : []),
             ...allTags.map((g) => ({ value: g, label: `#${g}` })),
           ]}
         />
@@ -767,6 +764,7 @@ export function TasksView({ onOpenPath }: Props) {
           <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
           {t("tasks.showHidden", { defaultValue: "Ausgeblendete anzeigen" })}
         </label>
+        <Button variant="ghost" size="sm" onClick={resetFilters} data-testid="tasks-reset-filters">{t("tasks.resetFilters")}</Button>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>

@@ -236,7 +236,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
-  const { bookmarks, toggleBookmark, removeBookmarks } = useWindowBookmarks(vaultAdapter, vaultPath);
+  const { bookmarks, toggleBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
   // The two sides need different floors (plan P3): on the left a narrow strip
   // still works — file names simply truncate — while on the right no section is
   // usable below 200 px. The calendar, the property rows and the graph all need
@@ -725,14 +725,11 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   };
 
   // Central after-delete cleanup for every cascade deletion (tree, editor ⋮,
-  // pinboard, graph…): close affected tabs and drop dangling bookmarks (the
-  // desktop previously left deleted paths in the bookmark list — mobile
-  // already cleans them in vaultOps.remove).
+  // pinboard, graph…): close affected tabs. Bookmarks remain as visibly missing targets until
+  // the user removes them; an external deletion follows the same rule.
   const handleCascadeDeleted = useStableHandler((paths: string[]) => {
     for (const p of paths) closeTabsByPrefix(p);
-    const gone = new Set(paths);
-    if (!bookmarks.some((b) => gone.has(b))) return;
-    removeBookmarks(paths);
+
   });
 
   // Drag the divider between the two panes to change their size ratio (the hook clamps
@@ -1276,7 +1273,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             query={leftQueryDebounced}
             onOpenNewTab={(p) => openInFocusedPane(p, true)}
             onOpenInSplit={openPathInSplit}
-            isBookmarked={(p) => bookmarks.includes(p)}
+            isBookmarked={(p, type = "file") => bookmarks.some((b) => b.type === type && b.path === p)}
             onToggleBookmarkPath={toggleBookmark}
             onForgetRecent={(p) => {
               setRecentPaths((prev) => prev.filter((x) => x !== p));
@@ -1330,7 +1327,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   externalQuery={leftQueryDebounced}
                   sort={treeSort}
                   onOpenInSplit={openPathInSplit}
-                  isBookmarked={(p) => bookmarks.includes(p)}
+                  isBookmarked={(p, type = "file") => bookmarks.some((b) => b.type === type && b.path === p)}
                   onToggleBookmarkPath={toggleBookmark}
                 />
               </div>
@@ -1453,7 +1450,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           key={path}
                           path={path}
                           onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)}
-                          isBookmarked={bookmarks.includes(path)}
+                          isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                           onToggleBookmark={() => toggleBookmark(path)}
                           onDelete={() => handleDeleteFile(path)}
                           onSplit={splitEditor}
@@ -1470,7 +1467,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                         onNavigateForward={() => navigateTab(i, 1)}
                         canGoBack={tab ? tab.historyIndex > 0 : false}
                         canGoForward={tab ? tab.historyIndex < tab.history.length - 1 : false}
-                        isBookmarked={bookmarks.includes(path)}
+                        isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                         onToggleBookmark={() => toggleBookmark(path)}
                         onDelete={() => handleDeleteFile(path)}
                         onSplit={splitEditor}
@@ -1487,7 +1484,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           onNavigateForward={() => navigateTab(i, 1)}
                           canGoBack={tab ? tab.historyIndex > 0 : false}
                           canGoForward={tab ? tab.historyIndex < tab.history.length - 1 : false}
-                          isBookmarked={bookmarks.includes(path)}
+                          isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                           onToggleBookmark={() => toggleBookmark(path)}
                           onDelete={() => handleDeleteFile(path)}
                           onRenamed={renameTabPrefix}
@@ -1778,7 +1775,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             onCopyPath={isFile ? () => { void navigator.clipboard.writeText(tabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
             onRename={isFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
             onToggleBookmark={isFile ? () => toggleBookmark(tabPath!) : undefined}
-            isBookmarked={isFile ? bookmarks.includes(tabPath!) : false}
+            isBookmarked={isFile ? bookmarks.some((b) => b.type === "file" && b.path === tabPath) : false}
             onReopenClosed={() => reopenClosedTab()}
             canReopenClosed={closedTabCount > 0}
             onCloseOthers={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "others")}

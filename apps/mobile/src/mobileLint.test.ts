@@ -621,7 +621,7 @@ describe("the retreating bar cannot move the page", () => {
   it("every retreat effect stays inside that bar", () => {
     expect(awayRules.length, "no .is-away rules found — did the state get renamed?").toBeGreaterThan(0);
     const escapes = awayRules
-      .filter((r) => !r.selector.split(",").every((s) => s.trim().startsWith(".m-tabbar")))
+      .filter((r) => !r.selector.split(",").every((s) => [".m-tabbar", ".m-note-chrome", ".m-note-pencil"].some((prefix) => s.trim().startsWith(prefix))))
       .map((r) => r.selector);
     expect(
       escapes,
@@ -640,7 +640,7 @@ describe("the retreating bar cannot move the page", () => {
   });
 
   it("the dead zone is wider than the shift the retreat used to cause", () => {
-    const src = readFileSync(join(SRC, "components/AppBar.tsx"), "utf8");
+    const src = readFileSync(join(SRC, "services/chromeScroll.ts"), "utf8");
     const m = /CHROME_SCROLL_DEAD_ZONE\s*=\s*(\d+)/.exec(src);
     expect(m, "dead zone constant not found").not.toBeNull();
     // ~21px was the measured collapse (6px padding + the label's 1.4em). The

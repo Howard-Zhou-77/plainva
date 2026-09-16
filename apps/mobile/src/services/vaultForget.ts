@@ -1,6 +1,6 @@
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { forgetProfileNotice } from "./profileNoticeStore";
-import { barLayoutKey, getPlatformServices } from "@plainva/ui";
+import { barLayoutKey, getPlatformServices, taskViewStateKey, forgetTaskViewState } from "@plainva/ui";
 import { mailAccountsKey, mailSecretKey } from "@plainva/ui/mail";
 
 import { accountSecretKey } from "./accountBroker";
@@ -103,6 +103,7 @@ export async function forgetVaultSecrets(secretKeys: string[]): Promise<void> {
  * life left them.
  */
 export function forgetVaultMemories(vaultId: string): void {
+  forgetTaskViewState(vaultId);
   // The profile-notice memory moved into the settings store (2026-09-04); the
   // localStorage key below is cleared for installations that still carry it.
   void forgetProfileNotice(vaultId);
@@ -114,6 +115,8 @@ export function forgetVaultMemories(vaultId: string): void {
     // The session, the database views and the conflict cards (Build-91 feedback, P1/P6).
     `plainva-nav-${vaultId}`,
     `plainva-base-active-view-${vaultId}`,
+    taskViewStateKey(vaultId),
+    `plainva-prop-types::${vaultId}`,
     `plainva-conflicts-${vaultId}`,
   ]) {
     try {

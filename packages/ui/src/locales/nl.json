@@ -115,7 +115,8 @@
     "pasteFailed": "Kon niet vanaf het klembord plakken.",
     "copyImage": "Afbeelding kopiëren",
     "saveImageAs": "Afbeelding opslaan als…",
-    "copyImageFailed": "Kon de afbeelding niet kopiëren."
+    "copyImageFailed": "Kon de afbeelding niet kopiëren.",
+    "openImage": "Afbeelding openen"
   },
   "common": {
     "on": "Aan",
@@ -654,7 +655,6 @@
     "missingFileRefresh": "Uit de index verwijderen",
     "notTextTitle": "Dit bestand is geen tekst",
     "notTextBody": "De extensie zegt tekst, de inhoud niet. Plainva toont het niet, omdat opslaan het bestand zou beschadigen.",
-    "key": "Sleutel",
     "value": "Waarde",
     "slashCheckbox": "Selectievakje",
     "slashBulletList": "Opsomming",
@@ -943,7 +943,8 @@
     "today": "vandaag",
     "viewSwitch": "Weergave",
     "bookmarkSaveFailed": "Bladwijzers konden niet worden opgeslagen.",
-    "search": "Zoeken"
+    "search": "Zoeken",
+    "bookmarkMissing": "Doel ontbreekt"
   },
   "database": {
     "graphNoColumns": "De graaf toont geen eigenschapskolommen.",
@@ -1338,7 +1339,8 @@
     "keepRatio": "Beeldverhouding behouden",
     "textPlaceholder": "Typ tekst…",
     "viewOnly": "Alleen bekijken – bewerkbare formaten zijn PNG, JPG en WebP.",
-    "loadError": "De afbeelding kon niet worden geladen."
+    "loadError": "De afbeelding kon niet worden geladen.",
+    "zoomReset": "Zoom herstellen"
   },
   "okfInfo": {
     "title": "Wat is OKF?",
@@ -1833,7 +1835,9 @@
     "rollupFn_unchecked": "Niet aangevinkt",
     "rollupFn_empty": "Zonder waarde",
     "rollupFn_filled": "Met waarde",
-    "rollupFn_unique": "Verschillende waarden"
+    "rollupFn_unique": "Verschillende waarden",
+    "existingNames": "Bekende eigenschappen",
+    "searchWholeVault": "In de hele kluis zoeken"
   },
   "docHeader": {
     "addIcon": "Icoon toevoegen",
@@ -2344,7 +2348,14 @@
   "conflict": {
     "resolveFailed": "Conflict kon niet worden opgelost: {{error}}",
     "resolveAction": "Conflict oplossen…",
-    "notAConflictFile": "Dit bestand is geen conflictkopie."
+    "notAConflictFile": "Dit bestand is geen conflictkopie.",
+    "workingCopy": "Je bewerkt je conflictkopie. Deze wordt na het samenvoegen gesynchroniseerd.",
+    "workingCopyChanged": "De werkkopie is buiten deze bewerksessie gewijzigd. De andere versie is bewaard.",
+    "savedRevisions": "Bewaarde versies vergelijken",
+    "savedBase": "Bewaarde beginversie",
+    "foreignCopy": "Andere versie van de werkkopie",
+    "noSavedBase": "Voor deze kopie is geen extra beginversie opgeslagen.",
+    "historyFailed": "De bewaarde versies konden niet worden geladen."
   },
   "mobile": {
     "tabSearch": "Zoeken",
@@ -2569,7 +2580,8 @@
     "swipeHint": "Veeg een rij naar links voor acties. Dezelfde acties staan in het menu van de rij.",
     "swipeHintAck": "Begrepen",
     "propertyWriteFailed": "Eigenschap kon niet worden opgeslagen: {{message}}",
-    "selectMany": "Meerdere selecteren"
+    "selectMany": "Meerdere selecteren",
+    "readerAutoHide": "Bediening tijdens het lezen automatisch verbergen"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",
@@ -2661,7 +2673,9 @@
       "taskId": "ID",
       "recurrence": "Herhaling",
       "unsupported": "Regel behouden; hier geen automatische voortzetting."
-    }
+    },
+    "resetFilters": "Filters herstellen",
+    "filterUnavailable": "Niet beschikbaar"
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",
@@ -2727,7 +2741,13 @@
     "labels": "Labels",
     "addLabel": "Labels zoeken…",
     "newLabel": "“{{name}}” aanmaken",
-    "inlineTag": "in de tekst"
+    "inlineTag": "in de tekst",
+    "loadingCards": "Kaarten laden…",
+    "indexMissing": "Nog niet geïndexeerd",
+    "loadFailed": "Kaarten konden niet worden geladen",
+    "searchPlaceholder": "Zoeken in dit prikbord…",
+    "noMatches": "Geen overeenkomende kaarten",
+    "retry": "Opnieuw proberen"
   },
   "compose": {
     "toolbar": "Opmaak",
@@ -4141,18 +4161,18 @@
     "title": "Wat is er nieuw in Plainva {{version}}",
     "lead": "Grootste vernieuwing",
     "experimental": "Experimenteel",
-    "highlight1Title": "Betrouwbaardere verbindingen en synchronisatie",
-    "highlight1": "Onderbroken handelingen worden gericht opnieuw geprobeerd. Aanmeldproblemen en onzekere gegevens worden duidelijker weergegeven, terwijl lokale wijzigingen behouden blijven.",
-    "highlight2Title": "Precieze resultaten, insluitingen en geschiedenis",
-    "highlight2": "Spring naar de juiste passage, sluit afzonderlijke secties of blokken in en vergelijk de werkelijke regelwijzigingen van een versie.",
-    "highlight3Title": "JEX-import en database-export",
-    "highlight3": "Importeer Joplin-archieven met bijlagen in een nieuwe map. Exporteer ondersteunde rollups als Obsidian-formules of uitdrukkelijk als waarden. Taken behouden hun metadata.",
-    "highlight4Title": "Duidelijke resultaten voor mailacties",
-    "highlight4": "Bulkacties tonen successen en fouten per bericht. Het bijlagenfilter verklaart onvolledige metadata; extra accountdiensten behouden bestaande aanmeldingen.",
-    "highlight5Title": "Je ontwerp en dagelijkse handelingen",
-    "highlight5": "Pas licht en donker afzonderlijk aan en synchroniseer desgewenst je persoonlijke ontwerp. Dagnotities, overdracht tussen vensters en wachtende gedeelde inhoud zijn betrouwbaarder.",
-    "highlight6Title": "Feedback op publicaties",
-    "highlight6": "Bevoegde ontvangers kunnen reageren en wijzigingen voorstellen. Eigenaren kunnen feedback beoordelen en behouden wanneer een ontvanger geen toegang meer heeft.",
+    "highlight1Title": "Doorwerken bij conflicten",
+    "highlight1": "Een werkkopie van een conflict bewaart verdere wijzigingen en blijft na een herstart beschikbaar. Vergelijk eerdere versies en kies wat je wilt behouden.",
+    "highlight2Title": "Stabielere editor, snellere prikborden",
+    "highlight2": "Lijsten blijven stabiel bij lastige lettertypematen. Selectieknoppen blijven in beeld. Prikborden laden de benodigde voorbeelden en onthouden inhoud en positie wanneer je terugkomt.",
+    "highlight3Title": "Suggesties en zoeken op prikborden",
+    "highlight3": "Krijg suggesties voor eigenschapsnamen, typen en afzonderlijke lijstwaarden. Vastgelegde databaseopties blijven exclusief. Zoek notitietekst samen met labels; lege eigenschappen worden correct gefilterd.",
+    "highlight4Title": "Taakfilters en mapbladwijzers",
+    "highlight4": "Taakfilters blijven per kluis op dit apparaat bewaard en kunnen worden hersteld. Open mappen vanuit bladwijzers; paden volgen naamswijzigingen en verplaatsingen.",
+    "highlight5Title": "Meer leesruimte",
+    "highlight5": "Op mobiel verdwijnen de kopbalk en het potlood bij omlaag scrollen en keren bij de eerste beweging omhoog terug. Dit staat standaard aan tijdens lezen en kan uit bij Editor en notities. De tabletrail blijft zichtbaar; desktop heeft focusmodus.",
+    "highlight6Title": "Afbeeldingen openen en vergroten",
+    "highlight6": "Afbeelding openen brengt je vanuit lezen of livevoorbeeld naar de viewer. Mobiel ondersteunt knijpen, dubbeltikken en herstellen. Lang drukken op ingesloten afbeeldingen behoudt de systeemacties.",
     "readBlog": "Lees het blogbericht",
     "understand": "Begrepen"
   },

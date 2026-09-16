@@ -11,7 +11,7 @@ import {
   getPlatformServices,
   type Heading,
   ICON,
-  inferType,
+  inferType, baseInputToType, coerceForType, defaultValueForType, loadPropertyTypes, setPropertyType, isPropertyType,
   parseHeadings,
   Segmented,
   toast,
@@ -25,10 +25,11 @@ import {
 } from "@plainva/ui";
 import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst, parseOkfTrustSignals } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
-import { commitCellValue } from "../services/baseOps";
+import { commitCellValue, resolveGoverningBaseOf } from "../services/baseOps";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
+import { AddPropertySheet } from "./AddPropertySheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { useLongPress } from "../lib/useLongPress";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
@@ -42,22 +43,6 @@ const LOCKED = new Set(["type", "okf_version"]);
 
 /** plainva:-namespace fields (icon, stripe color) are edited from the note ⋮
  * menu — they are presentation, not user properties. */
-/** Authoring vocabulary for new note properties (base sheet parity). */
-const PROP_TYPES = [
-  "text",
-  "number",
-  "checkbox",
-  "date",
-  "datetime",
-  "select",
-  "multiselect",
-  "list",
-  "tags",
-  "url",
-  "email",
-  "phone",
-] as const;
-
 const isHiddenProp = (key: string) => key === "plainva" || key.startsWith("plainva.") || key.startsWith("plainva:");
 
 /**
@@ -121,6 +106,8 @@ export function NoteContextSheet({
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   const [backlinks, setBacklinks] = useState<Array<{ path: string; title: string; count: number; places: BacklinkContext[] }>>([]);
   const [headings, setHeadings] = useState<Heading[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [governing, setGoverning] = useState<Awaited<ReturnType<typeof resolveGoverningBaseOf>>>(null);
   const [edit, setEdit] = useState<CellEditTarget | null>(null);
   const [tick, setTick] = useState(0);
   /* Row actions on touch (E2). A comment dot the way the desktop has it needs
@@ -131,6 +118,13 @@ export function NoteContextSheet({
      a plain span that both shapes can carry. */
   const [propSheet, setPropSheet] = useState<{ key: string; value: unknown; editable: boolean } | null>(null);
   const propPress = useLongPress<{ key: string; value: unknown; editable: boolean }>((row) => setPropSheet(row));
+
+  useEffect(() => {
+    setEdit(null); setAdding(false); setGoverning(null); setProps([]);
+    let alive = true;
+    void resolveGoverningBaseOf(vault, path).then((g) => { if (alive) setGoverning(g); }).catch(() => {});
+    return () => { alive = false; };
+  }, [vault, path]);
 
   useEffect(() => {
     let stale = false;
@@ -251,31 +245,20 @@ export function NoteContextSheet({
   };
 
   const editProp = (key: string, value: unknown) => {
+    const schema = governing?.columns?.[key];
+    const input = baseInputToType(schema?.input) ?? loadPropertyTypes(vault.vaultId)[key] ?? inferType(value, key);
     setEdit({
       notePath: path,
       col: key,
-      input: inferType(value, key),
+      input,
       value,
-      options: [],
+      options: schema?.options ?? [],
+      curated: schema?.options !== undefined,
+      relationBase: schema?.relationBase, relationLimit: schema?.relationLimit,
     });
   };
 
-  const addProp = () => {
-    void (async () => {
-      const { value, cancelled } = await mPrompt({ title: t("editor.addProperty"), message: t("editor.key") });
-      const key = value?.trim();
-      if (cancelled || !key || LOCKED.has(key)) return;
-      // Field type first (maintainer feedback) — the cell editor then opens
-      // with the matching input (date picker, checkbox, list, …).
-      const type = await mSelect({
-        title: t("properties.fieldType"),
-        options: PROP_TYPES.map((x) => ({ value: x, label: t(`properties.type_${x}`, { defaultValue: x }) })),
-        value: "text",
-      });
-      if (type === null) return;
-      setEdit({ notePath: path, col: key, input: type, value: "", options: [] });
-    })();
-  };
+  const addProp = () => setAdding(true);
 
   return (
     <>
@@ -523,8 +506,16 @@ export function NoteContextSheet({
           )}
         </div>
       </div>
+      {adding && <AddPropertySheet key={`${vault.vaultId}:${path}`} source={vault.queryService} columns={governing?.columns}
+        registry={loadPropertyTypes(vault.vaultId)} existing={props.map(([key]) => key)} onClose={() => setAdding(false)}
+        onAdd={(name, type) => {
+          const schema = governing?.columns?.[name];
+          setAdding(false);
+          setEdit({ notePath: path, col: name, input: type, value: defaultValueForType(type), options: schema?.options ?? [],
+            curated: schema?.options !== undefined, relationBase: schema?.relationBase, relationLimit: schema?.relationLimit });
+        }} />}
       {edit && (
-        <CellEditSheet
+        <CellEditSheet key={`${vault.vaultId}:${edit.notePath}:${edit.col}`}
           onClose={() => setEdit(null)}
           onCommit={(value) => {
             const target = edit;
@@ -532,8 +523,9 @@ export function NoteContextSheet({
             // S20: this had no `.catch`. A failed write (read-only membership,
             // a locked file, a full disk) closed the sheet and left the old
             // value on screen — the user believed the change had landed.
-            void commitCellValue(vault, target.notePath, target.col, value)
+            void commitCellValue(vault, target.notePath, target.col, isPropertyType(target.input) ? coerceForType(value, target.input) : value)
               .then(() => {
+                if (isPropertyType(target.input)) setPropertyType(vault.vaultId, target.col, target.input);
                 setTick((n) => n + 1);
                 onMutated();
               })

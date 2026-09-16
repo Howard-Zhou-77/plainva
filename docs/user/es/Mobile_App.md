@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-16
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -276,3 +276,9 @@ Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el
 ### Más espacio en la navegación móvil
 
 El icono seleccionado mantiene su separación del borde en la barra compacta. Las zonas táctiles siguen siendo amplias y el espacio reservado se adapta al tamaño del texto.
+
+## Espacio de lectura e imágenes
+
+En **Editor y notas** puedes desactivar **Ocultar controles automáticamente al leer**. De forma predeterminada, la cabecera y el lápiz se ocultan al bajar. Vuelven al subir, al principio de la nota, al seleccionar texto, abrir un control o el teclado, o mostrar un aviso de conflicto. El área desplazable mantiene su tamaño y se respeta la preferencia de movimiento. La barra de la tableta sigue visible; en el escritorio puedes usar el modo de concentración.
+
+**Abrir imagen** está disponible para imágenes locales en lectura, vista previa y el menú contextual. En el visor móvil, amplía con dos dedos, un doble toque o los botones; **Restablecer zoom** muestra la imagen completa. Atrás vuelve a la nota. La pulsación larga conserva las acciones del sistema y sigue siendo posible seleccionar una región para comentarla.

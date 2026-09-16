@@ -81,15 +81,15 @@ export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
     version: "0.8.2",
-    contentRevision: "restpunkte-2026-09-15",
-    releaseDate: "2026-09-15",
+    contentRevision: "feedback-2026-09-16",
+    releaseDate: "2026-09-16",
     highlights: [
-      { icon: "sync" },
-      { icon: "link" },
-      { icon: "import" },
-      { icon: "mail" },
-      { icon: "palette" },
-      { icon: "message", experimental: true },
+      { icon: "shield" },
+      { icon: "layout" },
+      { icon: "database" },
+      { icon: "tasks" },
+      { icon: "phone" },
+      { icon: "paperclip" },
     ],
   },
   {

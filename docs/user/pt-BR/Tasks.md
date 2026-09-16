@@ -142,3 +142,7 @@ Somente as regras em inglês `every [N] day/week/month/year[s] [when done]` (N: 
 Marcar adiciona a data de conclusão às tarefas com metadados. A repetição compatível adiciona um ID se faltar e dá à próxima um ID `pv-…` próprio. É uma única edição Markdown, totalmente reversível por Desfazer. Reabrir e marcar novamente preserva a próxima tarefa e suas alterações.
 
 Tarefas nativas de banco de dados continuam pulando períodos perdidos. Um plano de destino salvo evita duplicatas. Se a próxima tarefa não for confirmada, verifique a pasta; reabrir e marcar pode retomar após falha de gravação. Uma fonte alterada não gera uma cópia diferente: confira as notas e crie a próxima manualmente se necessário. Uma próxima tarefa confirmada e depois excluída não é restaurada.
+
+## Restaurar filtros de tarefas
+
+Status, texto de pesquisa, pasta, tag, filtro de prazo e visibilidade de tarefas ocultas são lembrados por cofre neste dispositivo, inclusive após abrir uma nota ou reiniciar. “Redefinir filtros” volta às tarefas abertas sem outros filtros. Pastas e tags indisponíveis continuam visíveis e podem ser removidas nos respectivos seletores. Esquecer o cofre remove esse estado de visualização. A base de tarefas padrão continua sendo a configuração do cofre; os filtros não são sincronizados.

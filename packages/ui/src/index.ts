@@ -335,6 +335,7 @@ export * from "./lib/accountLoginGrant";
 export * from "./lib/fileBrokerBinding";
 export * from "./lib/serviceConnection";
 export * from "./components/FileComparisonDetails";
+export * from "./components/ConflictHistory";
 
 export * from "./lib/accountPasswordChange";
 export * from "./lib/passwordChangeJournal";
@@ -342,3 +343,14 @@ export * from "./lib/passwordCredentialTarget";
 export * from "./lib/protectedCredentialUpdate";
 export * from "./lib/passwordServices";
 export * from "./components/accounts/AccountPasswordChangePanel";
+
+export * from "./base/pinboardCache";
+export * from "./base/propertySuggestions";
+export * from "./base/propertyTypeStore";
+export * from "./base/usePropertySuggestions";
+export * from "./base/PropertyNameInput";
+export * from "./lib/taskViewState";
+export * from "./lib/useBookmarkTargets";
+export * from "./base/usePinboardCards";
+
+export * from "./base/PinboardSearch";

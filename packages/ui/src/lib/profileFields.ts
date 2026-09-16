@@ -281,6 +281,9 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // (E1, finding 2026-08-19).
   { logical: "removedAccounts", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   { logical: "bookmarks", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
+  // No canonical empty default: explicit [] clears folders; an absent field
+  // means a profile from an older client and must preserve them.
+  { logical: "bookmarkFolders", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
 ];
 
 const BY_LOGICAL = new Map(PROFILE_FIELDS.map((f) => [f.logical, f]));

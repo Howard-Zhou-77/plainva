@@ -1,10 +1,18 @@
 # Sync einrichten
 
-Stand: 2026-09-15
+Stand: 2026-09-16
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
 Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-Client des Anbieters), steht in der [Sync-Kompatibilität](Sync_Compatibility.md).
+
+## Gesicherte Stände vergleichen
+
+Bei einem nicht automatisch lösbaren Textkonflikt bleibt eine lokale Arbeitskopie pro Original offen. Weitere Eingaben werden in derselben Kopie gespeichert, auch nach erneutem Öffnen oder einem Neustart. Das Banner erklärt: **Du bearbeitest Deine Konfliktkopie. Sie wird erst nach dem Zusammenführen synchronisiert.**
+
+Im Vergleich findest Du unter **Gesicherte Stände vergleichen** den gesicherten Ausgangsstand, sofern vorhanden. Wird die Arbeitskopie außerhalb dieser Bearbeitung geändert, bleibt auch diese andere Fassung erhalten und lässt sich dort vergleichen. Übernehmen, beide Fassungen behalten und Verwerfen prüfen den aktuellen Stand erneut; ist die Ansicht veraltet, lade den Vergleich neu. Löse den Konflikt vor dem Verschieben oder Löschen der betroffenen Datei beziehungsweise ihres Ordners. Ältere Konfliktkopien bleiben einzeln sichtbar.
+
+Der Diagnoseexport enthält zusätzlich die letzten Konfliktereignisse mit Speicherart, Schreiber, Hash-Vergleich und Unterschieden bei Zeilenenden, BOM oder abschließendem Umbruch. Diese Konfliktdaten enthalten keine Notizinhalte oder Dateinamen.
 
 ## Grundlagen
 

@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-16
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -150,7 +150,7 @@ El botón **Entrada** de arriba a la izquierda (antes **Nuevo**; claramente sepa
 
 El tipo de vista **Tablón** muestra las notas de la base de datos como tarjetas con su contenido renderizado — un tablón lleno de notas adhesivas. Las tarjetas renderizan texto, listas y casillas de verificación en las que se puede hacer clic (un clic marca la tarea directamente en la nota), imágenes y formato; las tablas, fórmulas e inclusiones aparecen como marcadores de posición discretos. Al hacer clic en una tarjeta se abre la nota en la ventana de vista previa.
 
-- **Captura rápida**: el campo **Escribe una nota…** encima del tablón se despliega en una pequeña ventana emergente con un campo **Título** y el texto de la nota en varias líneas — al estilo Google Keep. Un título escrito se convierte en el nombre del archivo Y en el primer encabezado de la nota; sin título, el archivo recibe un nombre con marca de tiempo y la nota no tiene encabezado. En ambos casos el texto es el contenido — sin plantilla, sin rodeos (`Ctrl`/`Cmd`+Intro guarda).
+- **Captura rápida**: **Entrada** abre una ventana para el título y el texto. El título se convierte en el nombre del archivo y el primer encabezado. Sin título, se usa una marca de tiempo. Ctrl/Cmd+Enter guarda.
 - **Fijar**: El botón de fijar (arriba a la derecha al pasar el cursor sobre una tarjeta) eleva una tarjeta a la sección **Fijadas**.
 - **Organizar**: Arrastra las tarjetas para reordenarlas; el orden vive en el archivo `.base` y se sincroniza con él. Las tarjetas aún no organizadas (recién capturadas o creadas fuera de la app) aparecen arriba del todo, las más nuevas primero. Si hay una regla de orden establecida en **Configurar**, esta prevalece — entonces el arrastre queda desactivado.
 - **Etiquetas**: La barra de chips encima del tablón filtra las tarjetas — por defecto por etiquetas, y se puede cambiar a una propiedad de selección múltiple (**Configurar** → **Origen de las etiquetas**). Varios chips filtran combinados con Y; la selección es efímera y nunca se escribe en el archivo. Edita las etiquetas de una tarjeta mediante **Etiquetas** en el menú contextual de la tarjeta.
@@ -295,3 +295,11 @@ Abre **Exportar tabla** en el menú de la base de datos de escritorio o usa el i
 **Fórmulas (.base)** crea una tabla con una selección fija de las filas actuales. Estos cálculos mediante relaciones guardadas siguen siendo fórmulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Abre el archivo en la misma bóveda con las notas enlazadas. El diálogo indica los cálculos no compatibles y las relaciones inversas; usa la exportación de valores para esas columnas.
 
 **Valores (.csv)** contiene los valores calculados actuales y las rutas de los archivos. Los valores no se actualizarán; las listas permanecen como JSON. Los textos similares a fórmulas se protegen como texto para las hojas de cálculo. Ninguna opción escribe propiedades calculadas en las notas originales.
+
+## Propiedades vacías
+
+Un valor YAML vacío, `~` o `null` sin comillas aparece como una propiedad vacía y coincide con los filtros de valores vacíos. El texto entre comillas `"null"` sigue siendo texto. Esto se aplica a tablas, listas, tableros, galerías y paneles de notas. La actualización reconstruye solo el índice de búsqueda derivado; los archivos de notas no cambian.
+
+## Buscar en el panel y volver
+
+La búsqueda del panel incluye títulos, texto, etiquetas y propiedades visibles. Se combina con los filtros de vista y las etiquetas seleccionadas. Borrar o Escape elimina la búsqueda. Los paneles incrustados ofrecen el mismo campo. Al abrir una tarjeta y volver se conservan la búsqueda, las etiquetas y la posición durante la sesión. Las vistas previas guardadas aparecen de inmediato y se actualizan los cambios. Las imágenes se cargan cuando son visibles. Se indican las entradas sin indexar y los errores de carga permiten reintentar.

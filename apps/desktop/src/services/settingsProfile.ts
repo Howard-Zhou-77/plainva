@@ -50,7 +50,7 @@ import {
   removedAccountsForProfile,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
-  serializeBookmarksFile,
+  applyBookmarkProfileOnDisk, validBookmarkPaths, setBookmarksLaneScope,
   forgetReportedOnce,
   shouldReportOnce,
   shouldReportWaitingAccounts,
@@ -466,9 +466,9 @@ export async function exportProfileValues(
   if (context.rawVault) {
     try {
       const parsed = parseBookmarksFile(await context.rawVault.readTextFile(".plainva/bookmarks.json"));
-      if (parsed.existed) values.bookmarks = parsed.paths;
+      if (parsed.existed) { values.bookmarks = parsed.paths; values.bookmarkFolders = parsed.entries.filter((e) => e.type === "folder").map((e) => e.path); }
     } catch {
-      delete values.bookmarks;
+      delete values.bookmarks; delete values.bookmarkFolders;
     }
   }
   const designProfile = await (await desktopPersonalDesign(vaultPath, context.memberId ?? null, store)).export();
@@ -518,7 +518,7 @@ export async function applyProfileValues(
       }
     }
 
-    const known = new Set([...profileFields().map((f) => f.logical), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "personalDesign"]);
+    const known = new Set([...profileFields().map((f) => f.logical), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "personalDesign"]);
     await store.set(
       profileUnknownKey(vaultPath),
       Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)))
@@ -526,12 +526,9 @@ export async function applyProfileValues(
 
     await importAccountMetadata(store, vaultPath, values, context.pimRuntime ?? null);
     await repairDesktopAccounts(store, vaultPath, profileAccountMapKey(vaultPath));
-    if (context.rawVault && !sanitized.preserve.has("bookmarks")) {
-      if (Array.isArray(values.bookmarks)) {
-        await context.rawVault.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(values.bookmarks as string[]));
-      } else if (await context.rawVault.exists(".plainva/bookmarks.json")) {
-        await context.rawVault.deleteItem(".plainva/bookmarks.json");
-      }
+    if (context.rawVault) {
+      setBookmarksLaneScope(context.rawVault, `desktop:${vaultPath}`);
+      await applyBookmarkProfileOnDisk(context.rawVault, values, sanitized.preserve);
     }
     await store.delete(profileImportJournalKey(vaultPath));
     await store.save();
@@ -739,8 +736,8 @@ export function sanitizeProfileValues(values: Record<string, unknown>): Sanitize
     }
   }
 
-  if (out.bookmarks !== undefined && (!Array.isArray(out.bookmarks) || out.bookmarks.some((p) => typeof p !== "string" || !p || !validVaultPath(p)))) {
-    drop("bookmarks", "invalid bookmarks in settings profile");
+  for (const field of ["bookmarks", "bookmarkFolders"]) {
+    if (out[field] !== undefined && !validBookmarkPaths(out[field])) drop(field, `invalid ${field} in settings profile`);
   }
 
   // Account lists: keep the usable rows, name the ones that were left out.

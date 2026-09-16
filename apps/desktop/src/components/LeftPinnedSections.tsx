@@ -1,3 +1,4 @@
+import type { BookmarkEntry } from "@plainva/ui";
 import { useId, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Clock, Bookmark, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -68,7 +69,7 @@ function readOpen(id: SectionId, vaultPath: string): boolean {
 interface Props {
   vaultPath: string;
   recentPaths: string[];
-  bookmarks: string[];
+  bookmarks: BookmarkEntry[];
   activePath: string | null;
   onOpen: (path: string) => void;
   /** Debounced sidebar filter — narrows the bookmarks list (as the old tab did). */
@@ -76,8 +77,8 @@ interface Props {
   /* Row actions — the same callbacks the file tree already gets (plan P4). */
   onOpenNewTab?: (path: string) => void;
   onOpenInSplit?: (path: string, direction: "vertical" | "horizontal") => void;
-  isBookmarked?: (path: string) => boolean;
-  onToggleBookmarkPath?: (path: string) => void;
+  isBookmarked?: (path: string, type?: "file" | "folder") => boolean;
+  onToggleBookmarkPath?: (path: string, type?: "file" | "folder") => void;
   /** Drops a path from "Recently opened" (the file itself stays). */
   onForgetRecent?: (path: string) => void;
 }
@@ -97,7 +98,7 @@ export function LeftPinnedSections({
   const [menuAt, setMenuAt] = useState<{ id: SectionId; x: number; y: number } | null>(null);
   // Right-click on an entry (not the header) — which list it came from decides
   // what "remove from list" means.
-  const [rowMenu, setRowMenu] = useState<{ id: SectionId; path: string; x: number; y: number } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ id: SectionId; path: string; type: "file" | "folder"; x: number; y: number } | null>(null);
   const sectionEls = useRef<Partial<Record<SectionId, HTMLElement>>>({});
 
   // Identifies this surface in the change event, so it does not re-read the
@@ -178,9 +179,9 @@ export function LeftPinnedSections({
   const title = (id: SectionId) =>
     id === "recents" ? t("sidebar.recent") : t("sidebar.bookmarks", { defaultValue: "Lesezeichen" });
 
-  const openRowMenu = useCallback((id: SectionId) => (path: string, e: React.MouseEvent<HTMLElement>) => {
+  const openRowMenu = useCallback((id: SectionId) => (path: string, e: React.MouseEvent<HTMLElement>, type: "file" | "folder" = "file") => {
     setMenuAt(null); // never two menus at once
-    setRowMenu({ id, path, x: e.clientX, y: e.clientY });
+    setRowMenu({ id, path, type, x: e.clientX, y: e.clientY });
   }, []);
 
   const renameRow = useCallback(async (path: string) => {
@@ -292,15 +293,15 @@ export function LeftPinnedSections({
           x={rowMenu.x}
           y={rowMenu.y}
           path={rowMenu.path}
-          isFolder={false}
+          isFolder={rowMenu.type === "folder"}
           onClose={() => setRowMenu(null)}
-          onOpenNewTab={onOpenNewTab}
-          onOpenInSplit={onOpenInSplit}
-          onRename={(p) => void renameRow(p)}
-          onDuplicate={(paths) => void duplicateRow(paths[0])}
+          onOpenNewTab={rowMenu.type === "file" ? onOpenNewTab : undefined}
+          onOpenInSplit={rowMenu.type === "file" ? onOpenInSplit : undefined}
+          onRename={rowMenu.type === "file" ? (p) => void renameRow(p) : undefined}
+          onDuplicate={rowMenu.type === "file" ? (paths) => void duplicateRow(paths[0]) : undefined}
           isBookmarked={isBookmarked}
           onToggleBookmark={onToggleBookmarkPath}
-          onVersionHistory={(p) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: p } }))}
+          onVersionHistory={rowMenu.type === "file" ? (p) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: p } })) : undefined}
           onRevealInTree={(p) => {
             parkTreeReveal(p);
             window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: p } }));
@@ -309,7 +310,7 @@ export function LeftPinnedSections({
           onRemoveFromList={
             rowMenu.id === "recents"
               ? onForgetRecent
-              : onToggleBookmarkPath /* a bookmark row is bookmarked, so the toggle removes it */
+              : (p) => onToggleBookmarkPath?.(p, rowMenu.type) /* a bookmark row is bookmarked, so the toggle removes it */
           }
           onDelete={(p) => void requestCascadeDelete({ paths: [p] })}
         />

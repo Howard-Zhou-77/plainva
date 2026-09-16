@@ -474,7 +474,7 @@ export function AuxApp() {
                       onOpenPath={(p) => openPath(i, p)}
                       onOpenInSplit={(p) => openInOtherPane(i, p)}
                       onToggleBookmark={toggleBookmark}
-                      isBookmarked={bookmarks.includes(path)}
+                      isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                       activeSplitDirection={activeSplitDirection}
                     />
                   </div>
@@ -555,7 +555,7 @@ export function AuxApp() {
           onRevealInTree={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: menuTabPath } })) : undefined}
           onCopyPath={menuIsFile ? () => { void navigator.clipboard.writeText(menuTabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
           onRename={menuIsFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
-          isBookmarked={bookmarks.includes(menuTabPath ?? "")}
+          isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === menuTabPath)}
           onToggleBookmark={menuIsFile ? () => toggleBookmark(menuTabPath!) : undefined}
           onReopenClosed={reopenClosedTab}
           canReopenClosed={closedTabCount > 0}

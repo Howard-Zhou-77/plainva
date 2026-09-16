@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-09-15
+Stand: 2026-09-16
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -150,7 +150,7 @@ Der **Eintrag**-Knopf oben links (vormals **Neu**; klar getrennt vom globalen **
 
 Der Ansichtstyp **Pinnwand** zeigt die Notizen der Datenbank als Karten mit ihrem gerenderten Inhalt — ein Brett voller Notizzettel. Karten rendern Text, Listen und anklickbare Kontrollkästchen (ein Klick hakt die Aufgabe direkt in der Notiz ab), Bilder und Formatierung; Tabellen, Formeln und Einbettungen erscheinen als dezente Platzhalter. Ein Klick auf eine Karte öffnet die Notiz im Vorschaufenster.
 
-- **Schnell erfassen**: Das Feld **Notiz schreiben…** über dem Brett klappt zu einem kleinen Eingabefenster mit **Titel**-Feld und mehrzeiligem Notiztext auf — wie in Google Keep. Ein eingegebener Titel wird Dateiname UND erste Überschrift der Notiz; ohne Titel bekommt die Datei einen Zeitstempel-Namen und die Notiz keine Überschrift. Der Text ist in beiden Fällen der Inhalt — ohne Vorlage, ganz ohne Umwege (Strg/Cmd+Eingabe speichert).
+- **Schnell erfassen**: **Eintrag** öffnet ein Fenster für Titel und Notiztext. Der Titel wird Dateiname und erste Überschrift. Ohne Titel erhält die Datei einen Zeitstempel-Namen. Strg/Cmd+Enter speichert.
 - **Anpinnen**: Der Pin-Knopf (beim Überfahren der Karte oben rechts) hebt eine Karte in die Sektion **Angepinnt**.
 - **Anordnen**: Karten lassen sich per Ziehen umsortieren; die Reihenfolge liegt in der `.base`-Datei und synchronisiert mit. Noch nicht angeordnete Karten (frisch erfasst oder extern angelegt) erscheinen oben, neueste zuerst. Ist unter **Konfigurieren** eine Sortierregel gesetzt, gewinnt sie — Ziehen ist dann deaktiviert.
 - **Labels**: Die Chip-Leiste über dem Brett filtert die Karten — standardmäßig nach Tags, umschaltbar auf eine Mehrfachauswahl-Eigenschaft (**Konfigurieren** → **Label-Quelle**). Mehrere Chips filtern UND-verknüpft; die Auswahl ist flüchtig und wird nicht gespeichert. Die Labels einer Karte bearbeitest Du über **Labels** im Kontextmenü der Karte.
@@ -295,3 +295,11 @@ Ein Filter verändert die sichtbare Auswahl, nicht die Dateien. Die angebotenen 
 **Formeln (.base)** erstellt eine Tabelle mit einer festen Auswahl der aktuellen Zeilen. Diese Berechnungen über gespeicherte Relationen bleiben Formeln: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Öffne die Datei im selben Vault mit den verknüpften Notizen. Nicht unterstützte Berechnungen oder Rückbeziehungen werden im Dialog benannt; dann steht der Werteexport zur Verfügung.
 
 **Werte (.csv)** enthält die aktuellen berechneten Werte und Dateipfade. Sie aktualisieren sich später nicht; Listen bleiben als JSON erhalten. Formelähnliche Texte werden für Tabellenprogramme als Text geschützt. Beide Optionen erzeugen einen Export, ohne Berechnungen in die Originalnotizen zu schreiben.
+
+## Leere Eigenschaften
+
+Ein leerer YAML-Wert, `~` oder unmarkiertes `null` erscheint als leere Eigenschaft und wird von Leerfiltern gefunden. Der ausdrücklich in Anführungszeichen geschriebene Text `"null"` bleibt ein Textwert. Das gilt für Tabelle, Liste, Board, Galerie und Pinnwand. Beim Aktualisieren wird nur der abgeleitete Suchindex erneuert; die Notizdateien bleiben unverändert.
+
+## Pinnwand durchsuchen und zurückkehren
+
+**In dieser Pinnwand suchen…** durchsucht Titel, Notiztext, Tags und sichtbare Eigenschaften. Ansichtsfilter, gewählte Etiketten und Suchtext gelten gemeinsam. Das Löschsymbol oder Escape entfernt die Suche. Auch eingebettete Pinnwände bieten das Suchfeld. Beim Öffnen einer Karte und Zurückkehren bleiben Suche, Etiketten und Leseposition während der Sitzung erhalten. Vorhandene Vorschauen erscheinen sofort; geänderte Inhalte werden nachgeladen. Bilder laden erst im sichtbaren Bereich. Fehlende Indexeinträge werden angezeigt; bei einem Ladefehler hilft **Erneut versuchen**.

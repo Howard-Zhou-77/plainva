@@ -17,6 +17,7 @@ export interface ImageContextTarget {
   filename: string;
   /** Image MIME type. */
   mime: string;
+  open?: () => void;
 }
 
 export interface ContextMenuState {

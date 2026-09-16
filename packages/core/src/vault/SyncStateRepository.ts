@@ -1,4 +1,7 @@
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { conflictSessionKey, decodeConflictSession, type ConflictDiagnostic, type ConflictEditSession } from "./conflictSession.js";
+import { ConflictFileStore } from "./ConflictFileStore.js";
+import type { IVaultAdapter } from "./IVaultAdapter.js";
 
 export interface SyncState {
   path: string;
@@ -21,7 +24,46 @@ export interface SyncState {
 }
 
 export class SyncStateRepository {
-  constructor(private readonly db: IDatabaseAdapter) {}
+  private readonly conflictFiles: ConflictFileStore | null;
+  constructor(private readonly db: IDatabaseAdapter, files?: IVaultAdapter, deviceId?: string) {
+    this.conflictFiles = files ? new ConflictFileStore(files, deviceId ?? "") : null;
+  }
+
+  async getConflictSession(path: string): Promise<ConflictEditSession | null> {
+    if (this.conflictFiles) return this.conflictFiles.getConflictSession(path);
+    const row = await this.db.queryOne<{ value: string }>("SELECT value FROM meta WHERE key = ?", ["conflict-session:v1:" + conflictSessionKey(path)]);
+    const session = row ? decodeConflictSession(row.value) : null;
+    if (session && conflictSessionKey(session.originalPath) !== conflictSessionKey(path)) throw new Error("Conflict session path does not match its key");
+    return session;
+  }
+
+  async listConflictSessions(): Promise<ConflictEditSession[]> {
+    if (this.conflictFiles) return this.conflictFiles.listConflictSessions();
+    const rows = await this.db.query<{ value: string }>("SELECT value FROM meta WHERE key LIKE 'conflict-session:v1:%'");
+    return rows.map(row => decodeConflictSession(row.value));
+  }
+
+  async saveConflictSession(session: ConflictEditSession): Promise<void> {
+    if (this.conflictFiles) return this.conflictFiles.saveConflictSession(session);
+    await this.db.execute("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", ["conflict-session:v1:" + conflictSessionKey(session.originalPath), JSON.stringify(session)]);
+  }
+
+  async removeConflictSession(path: string): Promise<void> {
+    if (this.conflictFiles) return this.conflictFiles.removeConflictSession(path);
+    await this.db.execute("DELETE FROM meta WHERE key = ?", ["conflict-session:v1:" + conflictSessionKey(path)]);
+  }
+
+  async recordConflictDiagnostic(diagnostic: ConflictDiagnostic): Promise<void> {
+    if (this.conflictFiles) return this.conflictFiles.recordConflictDiagnostic(diagnostic);
+    await this.db.execute("INSERT INTO meta (key, value) VALUES (?, ?)", ["conflict-diagnostic:v1:" + diagnostic.at + ":" + crypto.randomUUID(), JSON.stringify(diagnostic)]);
+    await this.db.execute("DELETE FROM meta WHERE key LIKE 'conflict-diagnostic:v1:%' AND key NOT IN (SELECT key FROM meta WHERE key LIKE 'conflict-diagnostic:v1:%' ORDER BY key DESC LIMIT 100)");
+  }
+
+  async listConflictDiagnostics(): Promise<ConflictDiagnostic[]> {
+    if (this.conflictFiles) return this.conflictFiles.listConflictDiagnostics();
+    const rows = await this.db.query<{ value: string }>("SELECT value FROM meta WHERE key LIKE 'conflict-diagnostic:v1:%' ORDER BY key DESC LIMIT 100");
+    return rows.map(row => JSON.parse(row.value) as ConflictDiagnostic);
+  }
 
   async getSyncState(path: string): Promise<SyncState | null> {
     const rows = await this.db.query<SyncState>(

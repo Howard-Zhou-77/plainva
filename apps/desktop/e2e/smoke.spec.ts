@@ -174,7 +174,7 @@ test.beforeEach(async ({ page }) => {
           const file = fs[p];
           if (!file) throw new Error("File not found");
           const times = (window as any).mockFileTimes[p.replace('/test-vault/', '')];
-          return { isDir: !!file.isDir, isFile: !file.isDir, mtime: times?.mtime_local ?? 1750000000000, size: typeof file === 'string' ? file.length : 0 };
+          return { isDirectory: !!file.isDir, isFile: !file.isDir, mtime: times?.mtime_local ?? 1750000000000, size: typeof file === 'string' ? file.length : 0 };
         }
         if (cmd === 'plugin:fs|read_dir') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
@@ -405,6 +405,36 @@ test('Lists: nested items get a stepped hanging indent in the editor', async ({ 
   // is far narrower than either, so the em step wins the `max()`.
   await expect(topLine).toHaveCSS('padding-left', '36px');
   await expect(nestedLine).toHaveCSS('padding-left', '60px');
+});
+
+test('Selection formatting stays visible and follows the editor scroller', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 740 });
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Selection.md'] = '# Selection\n\nI select the final word called EdgeTarget.\n\n' + 'A following paragraph.\n\n'.repeat(60);
+  });
+  await page.goto('/');
+  await page.getByTestId('file-tree').getByText('Selection', { exact: true }).click();
+  const line = page.locator('.cm-line').filter({ hasText: 'I select the final word' }).first();
+  await expect(line).toBeVisible();
+  const point = await line.evaluate(el => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode, from = node.textContent?.indexOf('EdgeTarget') ?? -1;
+      if (from < 0) continue;
+      const range = document.createRange(); range.setStart(node, from); range.setEnd(node, from + 10);
+      const rect = range.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    }
+    throw new Error('The editor did not render the selection target');
+  });
+  await page.mouse.dblclick(point.x, point.y);
+  const toolbar = page.locator('.pv-seltoolbar');
+  await expect(toolbar).toBeVisible();
+  expect(await toolbar.evaluate(el => { const rect = el.getBoundingClientRect(); return rect.left >= 8 && rect.right <= innerWidth - 8; })).toBe(true);
+  const before = (await toolbar.boundingBox())!.y;
+  await page.locator('.cm-scroller').first().evaluate(el => { el.scrollTop = 20; });
+  await expect.poll(async () => Math.round((await toolbar.boundingBox())!.y)).toBe(Math.round(before - 20));
+  await toolbar.getByRole('button', { name: /^(Bold|Fett)$/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Selection.md'])).toContain('**EdgeTarget**');
 });
 
 test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ page }) => {
@@ -3061,4 +3091,49 @@ test('Appearance settings: the code font slot offers monospace only (issue #82, 
   const rows = list.locator('[data-testid^="font-field-"]');
   expect(await rows.count()).toBeGreaterThan(0);
   for (const kind of await rows.locator('.pv-popover-count').allInnerTexts()) expect(kind).toMatch(/Monospace/);
+});
+
+
+test('Folder bookmarks: import, reveal, rename descendants and remove a missing target', async ({ page }) => {
+  const source = JSON.stringify({ items: [{ type: 'group', items: [{ type: 'folder', path: 'Projects/Sub' }, { type: 'file', path: 'Projects/Sub/Note.md' }, { type: 'folder', path: 'Gone' }] }] });
+  await page.addInitScript(source => Object.assign((window as any).mockFs, {
+    '/test-vault/Projects': { isDir: true }, '/test-vault/Projects/Sub': { isDir: true },
+    '/test-vault/Projects/Sub/Note.md': '# Note', '/test-vault/.obsidian/bookmarks.json': source,
+  }), source);
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  const marks = aside.getByTestId('bookmarks-section');
+  await expect(marks.getByRole('button', { name: 'Sub', exact: true })).toBeVisible();
+  await expect(marks.getByRole('button', { name: /Gone.*Target missing/ })).toHaveAttribute('aria-disabled', 'true');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('bookmarks-desktop.png') });
+  await marks.getByRole('button', { name: 'Sub', exact: true }).click();
+  await expect(aside.locator('[data-tree-path="Projects/Sub/Note.md"]')).toBeVisible();
+  await aside.locator('[data-tree-path="Projects/Sub"]').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /^Rename/ }).click();
+  const rename = aside.locator('[data-tree-path="Projects/Sub"] input');
+  await rename.fill('Renamed'); await rename.press('Enter');
+  await expect(marks.getByRole('button', { name: 'Renamed', exact: true })).toBeVisible();
+  const saved = await page.evaluate(() => JSON.parse((window as any).mockFs['/test-vault/.plainva/bookmarks.json']).items);
+  expect(saved).toContainEqual({ type: 'file', path: 'Projects/Renamed/Note.md' });
+  await marks.getByRole('button', { name: /Gone.*Target missing/ }).click({ button: 'right', force: true });
+  await page.getByRole('menuitem', { name: /Remove from list/ }).click();
+  await expect(marks.getByRole('button', { name: /Gone/ })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/.obsidian/bookmarks.json'])).toBe(source);
+});
+
+
+test('Images: reader and live preview open the image viewer with keyboard and context menu', async ({ page }) => {
+  await page.addInitScript(() => Object.assign((window as any).mockFs, {
+    '/test-vault/Picture.md': '# Picture\n\n![[Zoom.svg|300]]\n\nAfter image.\n',
+    '/test-vault/Zoom.svg': '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200"><rect width="1600" height="1200" fill="cornflowerblue"/></svg>',
+  }));
+  await page.goto('/'); await page.locator('[data-tree-path="Picture.md"]').click();
+  await expect(page.locator('.pv-image-embed img')).toBeVisible();
+  const open = page.getByRole('button', { name: 'Open image', exact: true }); await open.focus(); await open.press('Enter');
+  await expect(page.getByTestId('image-viewer')).toBeVisible();
+  await page.locator('[data-tree-path="Picture.md"]').click();
+  await page.locator('[data-tip="Read Mode"]').first().click();
+  const picture = page.locator('.markdown-reader .pv-image-embed img'); await expect(picture).toBeVisible();
+  await picture.click({ button: 'right' }); await page.getByRole('menuitem', { name: 'Open image', exact: true }).click();
+  await expect(page.getByTestId('image-viewer')).toBeVisible();
 });

@@ -1,6 +1,7 @@
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { RangeSetBuilder, RangeSet, EditorState, Extension, StateEffect } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { ListPrefixMeasurer } from "./listPrefixMeasurement";
 
 /**
  * List indentation for live + source mode (#2).
@@ -17,15 +18,15 @@ import { syntaxTree } from "@codemirror/language";
  * space"), but the rendered prefix of a marker line is anything but constant:
  * a bullet, a checkbox or `10.`, in whatever font the user picked. The error
  * grew with every level until a wrapped line sat LEFT of the bullet at level
- * three. Now the plugin asks the view where the text actually starts on each
- * list line and pulls that line's first row back by exactly its own prefix,
+ * three. The plugin measures the actual rendered prefix in a separate box,
+ * without the line's own padding or hanging indent,
  * while every line of an item is padded to the edge of the marker line's text.
  * The constant survives only as the fallback for the instant before the first
  * measurement.
  *
  * Leading whitespace is the one thing a measurement cannot tame: a tab's width
  * depends on where the row starts, and the hanging indent moves the row — the
- * two chase each other. In live mode the leading whitespace of a list line is
+ * two used to chase each other. In live mode the leading whitespace of a list line is
  * therefore not rendered at all (the depth padding already shows the level, as
  * the read view does; the source keeps every space and tab, and Tab/Shift-Tab
  * still change it). Source mode shows the raw text, so there a line indented
@@ -228,19 +229,16 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
       hidden: DecorationSet;
       private widths: Widths = { lines: new Map(), items: new Map() };
       private toMeasure: LineToMeasure[] = [];
+      private readonly prefixes: ListPrefixMeasurer;
+      private readonly fonts: FontFaceSet | undefined;
+      private destroyed = false;
+      private readonly fontLoaded: () => void;
       private readonly measure = {
-        read: (view: EditorView): Widths => {
+        read: (): Widths => {
           const next: Widths = { lines: new Map(), items: new Map() };
           for (const { lineFrom, lineNumber, textStart, itemLine } of this.toMeasure) {
-            // Both rects sit on the line's first row (the text-indent moves them
-            // together), so their distance is the rendered prefix — whatever
-            // font or marker produced it.
-            const start = view.coordsAtPos(lineFrom, 1);
-            const text = textStart === lineFrom ? start : view.coordsAtPos(textStart, -1);
-            if (!start || !text) continue;
-            if (Math.abs(text.top - start.top) > 1) continue; // wrapped inside the prefix: leave it
-            const w = text.left - start.left;
-            if (!Number.isFinite(w) || w < 0) continue;
+            const w = this.prefixes.width(lineFrom, textStart);
+            if (w === null) continue;
             next.lines.set(lineNumber, w);
             if (itemLine !== null) next.items.set(itemLine, w);
           }
@@ -252,6 +250,7 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
           // A decoration change needs an update; an empty transaction carrying
           // the effect is that update. Deferred so it never nests in the write phase.
           queueMicrotask(() => {
+            if (this.destroyed) return;
             try {
               view.dispatch({ effects: prefixMeasured.of(null) });
             } catch {
@@ -261,6 +260,10 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
         },
       };
       constructor(view: EditorView) {
+        this.prefixes = new ListPrefixMeasurer(view, hideWs ? "live" : "source");
+        this.fonts = view.dom.ownerDocument.fonts;
+        this.fontLoaded = () => { this.prefixes.invalidate(); view.requestMeasure(this.measure); };
+        this.fonts?.addEventListener("loadingdone", this.fontLoaded);
         const built = buildDecorations(view, this.widths, (this.toMeasure = []), hideWs);
         this.decorations = built.lines;
         this.hidden = built.hidden;
@@ -278,12 +281,18 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
           this.decorations = built.lines;
           this.hidden = built.hidden;
         }
-        // Anything that can move glyphs re-measures: text, viewport, geometry
-        // (font size, zoom, pane width), parse progress — a re-measure that
-        // finds the same widths dispatches nothing, so this cannot loop.
-        if (u.docChanged || u.viewportChanged || u.geometryChanged || remeasured || treeMoved) {
+        // Our own decoration transaction never requests another measurement.
+        // External geometry/font changes invalidate metrics; the unindented
+        // probe and dead band make their result independent of our padding.
+        if (!remeasured && (u.docChanged || u.viewportChanged || u.geometryChanged || treeMoved)) {
+          if (u.geometryChanged) this.prefixes.invalidate();
           u.view.requestMeasure(this.measure);
         }
+      }
+      destroy() {
+        this.destroyed = true;
+        this.fonts?.removeEventListener("loadingdone", this.fontLoaded);
+        this.prefixes.destroy();
       }
     },
     {
@@ -293,5 +302,8 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
       provide: (p) => EditorView.atomicRanges.of((view) => view.plugin(p)?.hidden ?? Decoration.none),
     }
   );
-  return plugin;
+  return [plugin, EditorView.baseTheme({
+    ".cm-list-prefix-measure": { position: "absolute", top: "0", left: "0", height: "0", minHeight: "0", width: "max-content", maxWidth: "none", visibility: "hidden", pointerEvents: "none", padding: "0", overflow: "visible" },
+    ".cm-list-prefix-measure > .cm-line": { width: "max-content", minHeight: "0", margin: "0", padding: "0", border: "0", textIndent: "0", whiteSpace: "pre" },
+  })];
 }

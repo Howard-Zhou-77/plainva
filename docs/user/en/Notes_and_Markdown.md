@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -193,3 +193,19 @@ An ATX heading and a GFM task are alternative block types, so Plainva does not w
 `![[Note#Heading]]` displays the section and its subheadings up to the next heading of the same or higher level. `![[Note#^block-id]]` displays the addressed paragraph, list item or the block preceding a standalone block ID. A regular `[[Note#^block-id]]` link also jumps there in read mode.
 
 For repeated headings, use a unique heading chain (`#Project#Result`) or a numbered anchor (`#result-1`). Missing or ambiguous targets show a message. The source stays accessible from the embed. Nesting is bounded; code examples do not execute embeds. On a phone, the card displays the selected section or block without the four-line truncation of the general note preview. Existing files are not changed.
+
+## Using lists
+
+A list item folds only after a completed tap or click on its bullet. Dragging, scrolling, a cancelled contact or a multi-finger gesture does not fold it. Indentation stays stable when changing fonts or using narrow windows; source text, tabs and cursor position are preserved.
+
+## Selection toolbars stay in view
+
+The formatting toolbar follows your selection while scrolling and stays inset from the screen edges. When space is limited it moves to the other side of the selection or wraps its buttons. In mobile read mode, long action labels become icons with accessible names when needed; Copy, Select all and available editing or comment actions remain reachable.
+
+## Complete property names and values
+
+When adding a property, known names show their type and usage count. Existing and reserved names are excluded. The governing database type takes precedence, followed by the indexed type and the local type registry. Text and list suggestions come from the note’s folder; “Search the entire vault” widens the scope. Lists offer individual values. Defined database options remain exclusive, even when the list is empty. Free input remains available; only a confirmed edit changes the note. Text and lists keep their type. This applies to note properties and database cells on desktop and mobile.
+
+### Open image
+
+**Open image** is available for local images in reading mode, live preview and the image context menu. In the mobile viewer, use two fingers, a double-tap or the zoom buttons; **Reset zoom** shows the whole image. Back returns to the note. Long-pressing an embedded image keeps the operating system’s image actions, and selecting a region for a comment still works.

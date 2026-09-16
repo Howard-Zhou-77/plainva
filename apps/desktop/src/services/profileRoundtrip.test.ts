@@ -1,3 +1,4 @@
+import { VaultFileNotFoundError } from "@plainva/core";
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { stableStringify } from "@plainva/core";
@@ -100,7 +101,7 @@ function fakeVault(initial?: string) {
     adapter: {
       async readTextFile(path: string) {
         const text = files.get(path);
-        if (text === undefined) throw new Error(`not found: ${path}`);
+        if (text === undefined) throw new VaultFileNotFoundError(path);
         return text;
       },
       async writeTextFile(path: string, text: string) {
@@ -361,7 +362,7 @@ describe("settings profile roundtrip", () => {
 
     await applyProfileValues(store, V, {}, { rawVault: vault.adapter });
 
-    expect(vault.files.has(".plainva/bookmarks.json")).toBe(false);
+    expect(JSON.parse(vault.files.get(".plainva/bookmarks.json")!).items).toEqual([]);
     expect(await exportProfileValues(store, V, { rawVault: vault.adapter })).not.toHaveProperty("bookmarks");
   });
 });

@@ -142,3 +142,7 @@ Sono automatiche solo le regole inglesi `every [N] day/week/month/year[s] [when 
 Spuntare aggiunge la data di completamento alle attività con metadati. La ripetizione supportata aggiunge un ID se manca e assegna alla successiva un ID `pv-…` distinto. È un’unica modifica Markdown, annullabile nell’editor. Riaprire e rispuntare conserva la successiva e le sue modifiche.
 
 Le attività native del database saltano ancora i periodi scaduti. Un piano di destinazione salvato evita duplicati. Se la successiva non è confermata, controlla la cartella; riaprire e spuntare può riprendere dopo un errore di scrittura. Se la fonte è cambiata non viene scritta una copia diversa: controlla le note e crea manualmente la successiva se necessario. Una successiva confermata e poi eliminata non viene ricreata.
+
+## Ripristinare i filtri delle attività
+
+Stato, ricerca, cartella, tag, filtro di scadenza e visibilità delle attività nascoste vengono ricordati per vault su questo dispositivo, anche dopo aver aperto una nota o riavviato. « Reimposta filtri » torna alle attività aperte senza altri filtri. Cartelle e tag non disponibili restano visibili e possono essere rimossi dai relativi selettori. Dimenticare il vault elimina questo stato. Il database predefinito delle attività rimane nelle impostazioni del vault; i filtri non vengono sincronizzati.

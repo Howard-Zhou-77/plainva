@@ -18,6 +18,7 @@ export interface ChipProps {
    */
   selected?: boolean;
   onClick?: () => void;
+  disabled?: boolean;
   /**
    * A hold gesture on a chip that acts. The app already uses hold to mean
    * "give me the other options" (promote-into-which-database, S31); a chip
@@ -62,6 +63,7 @@ export function Chip({
   icon,
   selected,
   onClick,
+  disabled = false,
   onPointerDown,
   onPointerUp,
   onPointerLeave,
@@ -100,6 +102,14 @@ export function Chip({
     </button>
   ) : null;
 
+  if (onClick && onRemove) return (
+    <span className={cls} style={style} title={title} data-testid={testId}>
+      <button type="button" className="pv-chip-open" aria-disabled={disabled} aria-pressed={selected}
+        onClick={() => { if (!disabled) onClick(); }} onPointerDown={onPointerDown} onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave} onPointerCancel={onPointerCancel}>{glyph}{label}</button>
+      {remove}
+    </span>
+  );
   if (onClick) {
     return (
       <button
@@ -109,7 +119,8 @@ export function Chip({
         aria-pressed={selected}
         title={title}
         data-testid={testId}
-        onClick={onClick}
+        aria-disabled={disabled}
+        onClick={() => { if (!disabled) onClick(); }}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}

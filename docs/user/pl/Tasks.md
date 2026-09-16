@@ -142,3 +142,7 @@ Automatyczne są tylko angielskie reguły `every [N] day/week/month/year[s] [whe
 Zaznaczenie dodaje datę ukończenia do zadania z metadanymi. Obsługiwane powtarzanie dodaje brakujące ID i osobne ID `pv-…` następnego zadania. To jedna zmiana Markdown, w całości odwracalna przez Cofnij. Ponowne otwarcie i zaznaczenie zachowuje następne zadanie oraz jego zmiany.
 
 Natywne zadania bazy nadal pomijają zaległe okresy. Zapisany plan docelowy zapobiega duplikatom. Przy niepotwierdzonym następniku sprawdź folder; ponowne otwarcie i zaznaczenie może wznowić zapis po błędzie. Zmienione źródło nie tworzy innej kopii: sprawdź notatki i w razie potrzeby utwórz następnik ręcznie. Potwierdzony, później usunięty następnik nie zostaje odtworzony.
+
+## Przywracanie filtrów zadań
+
+Status, wyszukiwany tekst, folder, tag, filtr terminu i widoczność ukrytych zadań są zapamiętywane dla każdego sejfu na tym urządzeniu, także po otwarciu notatki lub ponownym uruchomieniu. „Resetuj filtry” przywraca otwarte zadania bez innych filtrów. Niedostępne foldery i tagi pozostają widoczne i można je usunąć w ich selektorach. Zapomnienie sejfu usuwa ten stan widoku. Domyślna baza zadań pozostaje ustawieniem sejfu; filtry nie są synchronizowane.

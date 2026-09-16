@@ -89,8 +89,10 @@ const VaultImage: React.FC<{
   regions?: string;
   commentId?: string;
   onActivate?: (commentId: string) => void;
-}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate }) => {
+  onOpenPath?: (path: string, newTab: boolean) => void;
+}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate, onOpenPath }) => {
   const { vaultAdapter, queryService } = useVault();
+  const { t } = useTranslation();
   const [url, setUrl] = React.useState<string | null>(null);
   const [loadedPath, setLoadedPath] = React.useState(path);
   const [failed, setFailed] = React.useState(false);
@@ -146,19 +148,19 @@ const VaultImage: React.FC<{
           y: e.clientY,
           selection: "",
           editable: null,
-          image: { loadBytes: () => vaultAdapter.readBinaryFile(loadedPath), filename: loadedPath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(loadedPath) },
+          image: { open: () => onOpenPath?.(loadedPath, false), loadBytes: () => vaultAdapter.readBinaryFile(loadedPath), filename: loadedPath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(loadedPath) },
         });
       }}
       style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)', ...(width ? { width: `${width}px` } : {}) }}
     />
   );
-  // Only a commented picture gets the positioned host: the regions are laid
-  // over the image in fractions of it, so the host has to be exactly its box.
-  if (!frameClass) return img;
   return (
-    <span className="pv-read-anchor-host">
-      {img}
-      <AnchorRegions regions={regions} onActivate={onActivate} />
+    <span className="pv-image-embed">
+      <span className="pv-read-anchor-host pv-image-frame">
+        {img}
+        {frameClass && <AnchorRegions regions={regions} onActivate={onActivate} />}
+      </span>
+      {onOpenPath && <Button variant="ghost" size="sm" className="pv-image-open" onClick={() => onOpenPath(loadedPath, false)}>{t("contextMenu.openImage")}</Button>}
     </span>
   );
 };
@@ -472,7 +474,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               if (candidates.length === 0) {
                 return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || embed.target}</span>;
               }
-              return <VaultImage path={candidates[0]} fallbacks={candidates.slice(1)} basename={imageBasename(embed.target)} width={embed.width} alt={embed.alt || alt || embed.target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
+              return <VaultImage onOpenPath={onOpenPath} path={candidates[0]} fallbacks={candidates.slice(1)} basename={imageBasename(embed.target)} width={embed.width} alt={embed.alt || alt || embed.target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             if (src && !/^(https?:|data:|blob:)/.test(src)) {
               // Plain markdown image with a FILE-relative path (standard MD:
@@ -483,7 +485,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               if (!rel) {
                 return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || src}</span>;
               }
-              return <VaultImage path={rel} alt={alt || rel} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
+              return <VaultImage onOpenPath={onOpenPath} path={rel} alt={alt || rel} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: "var(--radius-xs)" }} {...props} />;
           },

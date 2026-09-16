@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-16
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -193,3 +193,19 @@ Een ATX-kop en een GFM-taak zijn alternatieve bloktypen. Plainva schrijft daarom
 `![[Notitie#Kop]]` toont de sectie en onderliggende koppen tot de volgende kop van hetzelfde of een hoger niveau. `![[Notitie#^block-id]]` toont de alinea, het lijstitem of het blok vóór een blok-ID op een afzonderlijke regel. Een gewone link `[[Notitie#^block-id]]` springt ook in de leesmodus naar die plek.
 
 Gebruik bij herhaalde koppen een unieke koppenreeks (`#Project#Resultaat`) of een genummerd anker (`#resultaat-1`). Ontbrekende of dubbelzinnige doelen geven een melding; de bron blijft bereikbaar. De nestdiepte is begrensd en codevoorbeelden voeren geen insluitingen uit. Op de telefoon worden secties en blokken niet tot vier regels ingekort zoals de algemene notitievoorvertoning. Bestaande bestanden blijven ongewijzigd.
+
+## Lijsten gebruiken
+
+Een lijstitem klapt pas in na een voltooide tik of klik op het opsommingsteken. Slepen, scrollen, een afgebroken aanraking of een gebaar met meerdere vingers klapt het niet in. De inspringing blijft stabiel bij andere lettertypen en smalle vensters; brontekst, tabs en cursorpositie blijven behouden.
+
+## Selectiewerkbalken blijven zichtbaar
+
+De opmaakwerkbalk volgt je selectie tijdens het scrollen en houdt afstand van de schermranden. Bij weinig ruimte wisselt hij van kant of verdeelt hij de knoppen over meerdere regels. In de mobiele leesmodus worden lange actielabels zo nodig pictogrammen met toegankelijke namen; Kopiëren, Alles selecteren en beschikbare bewerkings- of commentaaracties blijven bereikbaar.
+
+## Eigenschappen aanvullen
+
+Bij het toevoegen verschijnen bekende namen met type en gebruiksaantal. Bestaande en gereserveerde namen worden uitgesloten. Het type van de bijbehorende database gaat voor, daarna het indextype en het lokale typeregister. Suggesties voor tekst en lijsten komen uit de map van de notitie; “In de hele kluis zoeken” vergroot het bereik. Lijsten bieden afzonderlijke waarden. Ingestelde databaseopties blijven exclusief, ook bij een lege lijst. Vrije invoer blijft mogelijk; alleen een bevestigde bewerking verandert de notitie. Tekst en lijsten behouden hun type, in eigenschappen en databasecellen op desktop en mobiel.
+
+### Afbeelding openen
+
+**Afbeelding openen** is beschikbaar voor lokale afbeeldingen in leesmodus, livevoorbeeld en het contextmenu. Gebruik in de mobiele viewer twee vingers, dubbeltikken of de zoomknoppen; **Zoom herstellen** toont de hele afbeelding. Terug brengt je naar de notitie. Lang drukken behoudt de systeemacties en je kunt nog steeds een gebied selecteren voor een opmerking.

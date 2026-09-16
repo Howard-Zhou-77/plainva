@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Scissors, Copy, ClipboardPaste, Download, TextSelect } from "lucide-react";
+import { Scissors, Copy, ClipboardPaste, Download, TextSelect, ExternalLink } from "lucide-react";
 import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { useContextMenu, closeContextMenu, type ImageContextTarget } from "../services/contextMenuStore";
 import { insertIntoEditable, deleteEditableSelection, selectAllInEditable } from "@plainva/ui";
@@ -55,6 +55,7 @@ export function ContextMenuHost() {
     >
       {image ? (
         <>
+          {image.open && <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={image.open}>{t("contextMenu.openImage")}</MenuItem>}
           <MenuItem icon={<Copy size={ICON.ui} />} onSelect={onCopyImage}>
             {t("contextMenu.copyImage", { defaultValue: "Bild kopieren" })}
           </MenuItem>

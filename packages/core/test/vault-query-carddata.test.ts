@@ -37,7 +37,7 @@ describe("VaultQueryService.getCardData", () => {
     const db = new MockDatabaseAdapter();
     db.mockedResults = [[], [{ path: "New.md", ctime: 42 }], []];
     const out = await new VaultQueryService(db).getCardData(["New.md"]);
-    expect(out["New.md"]).toEqual({ content: "", tags: [], ctime: 42 });
+    expect(out["New.md"]).toEqual({ content: "", tags: [], ctime: 42, indexStatus: "missing" });
   });
 
   it("chunks large path sets to respect the SQLite variable limit", async () => {

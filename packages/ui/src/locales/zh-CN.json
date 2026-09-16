@@ -113,7 +113,8 @@
     "pasteFailed": "无法从剪贴板粘贴。",
     "copyImage": "复制图片",
     "saveImageAs": "图片另存为…",
-    "copyImageFailed": "无法复制图片。"
+    "copyImageFailed": "无法复制图片。",
+    "openImage": "打开图片"
   },
   "common": {
     "on": "开启",
@@ -652,7 +653,6 @@
     "missingFileRefresh": "从索引中移除",
     "notTextTitle": "此文件不是文本",
     "notTextBody": "扩展名说它是文本，内容却不是。Plainva 不会显示它，因为保存会损坏该文件。",
-    "key": "键",
     "value": "值",
     "slashCheckbox": "复选框",
     "slashBulletList": "无序列表",
@@ -941,7 +941,8 @@
     "today": "今天",
     "viewSwitch": "视图",
     "bookmarkSaveFailed": "无法保存书签。",
-    "search": "搜索"
+    "search": "搜索",
+    "bookmarkMissing": "目标不存在"
   },
   "database": {
     "graphNoColumns": "关系图未显示任何属性列。",
@@ -1332,7 +1333,8 @@
     "keepRatio": "保持宽高比",
     "textPlaceholder": "输入文字…",
     "viewOnly": "仅查看——可编辑的格式为PNG、JPG和WebP。",
-    "loadError": "无法加载图片。"
+    "loadError": "无法加载图片。",
+    "zoomReset": "重置缩放"
   },
   "okfInfo": {
     "title": "什么是OKF？",
@@ -1827,7 +1829,9 @@
     "rollupFn_unchecked": "未勾选",
     "rollupFn_empty": "无值",
     "rollupFn_filled": "有值",
-    "rollupFn_unique": "不同值"
+    "rollupFn_unique": "不同值",
+    "existingNames": "已有属性",
+    "searchWholeVault": "搜索整个仓库"
   },
   "docHeader": {
     "addIcon": "添加图标",
@@ -2333,7 +2337,14 @@
   "conflict": {
     "resolveFailed": "无法解决冲突：{{error}}",
     "resolveAction": "解决冲突…",
-    "notAConflictFile": "此文件不是冲突副本。"
+    "notAConflictFile": "此文件不是冲突副本。",
+    "workingCopy": "你正在编辑冲突副本。合并后才会同步。",
+    "workingCopyChanged": "工作副本在本次编辑会话之外被修改。另一个版本已保存。",
+    "savedRevisions": "比较已保存的版本",
+    "savedBase": "已保存的初始版本",
+    "foreignCopy": "工作副本的另一个版本",
+    "noSavedBase": "此副本没有额外保存的初始版本。",
+    "historyFailed": "无法加载已保存的版本。"
   },
   "mobile": {
     "tabSearch": "搜索",
@@ -2551,7 +2562,8 @@
     "swipeHint": "向左滑动行可显示操作。相同的操作也在该行的菜单中。",
     "swipeHintAck": "知道了",
     "propertyWriteFailed": "无法保存属性：{{message}}",
-    "selectMany": "选择多项"
+    "selectMany": "选择多项",
+    "readerAutoHide": "阅读时自动隐藏操作栏"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",
@@ -2639,7 +2651,9 @@
       "taskId": "ID",
       "recurrence": "重复",
       "unsupported": "保留规则，此处不自动生成下一次任务。"
-    }
+    },
+    "resetFilters": "重置筛选",
+    "filterUnavailable": "不可用"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",
@@ -2702,7 +2716,13 @@
     "labels": "标签",
     "addLabel": "搜索标签…",
     "newLabel": "创建“{{name}}”",
-    "inlineTag": "在正文中"
+    "inlineTag": "在正文中",
+    "loadingCards": "正在加载卡片…",
+    "indexMissing": "尚未建立索引",
+    "loadFailed": "无法加载卡片",
+    "searchPlaceholder": "搜索此便笺板…",
+    "noMatches": "没有匹配的卡片",
+    "retry": "重试"
   },
   "compose": {
     "toolbar": "格式",
@@ -4093,18 +4113,18 @@
     "title": "Plainva {{version}} 新功能",
     "lead": "最大更新",
     "experimental": "实验性",
-    "highlight1Title": "更可靠的连接与同步",
-    "highlight1": "中断的操作会按情况重试。登录问题和不确定的数据状态会得到更清晰的说明，同时保留本地更改。",
-    "highlight2Title": "精确搜索、嵌入与历史记录",
-    "highlight2": "跳转到匹配的文本，嵌入指定章节或块，并比较版本之间实际的行更改。",
-    "highlight3Title": "JEX 导入与数据库导出",
-    "highlight3": "将带附件的 Joplin 归档导入新文件夹。将支持的汇总导出为 Obsidian 公式，或明确选择导出为数值。任务元数据会予以保留。",
-    "highlight4Title": "清晰的邮件操作结果",
-    "highlight4": "批量操作会逐封显示成功与失败。附件筛选器会说明元数据不完整的情况；为账户添加服务时保留现有登录。",
-    "highlight5Title": "你的外观与日常操作",
-    "highlight5": "分别设置浅色和深色外观，也可选择同步个人设计。日记、窗口间交接以及待处理的分享内容更加可靠。",
-    "highlight6Title": "发布内容的反馈",
-    "highlight6": "有权限的接收者可以发表评论和修改建议。所有者可以审阅反馈，并在撤销接收者的访问权限后继续保留这些反馈。",
+    "highlight1Title": "冲突后继续编辑",
+    "highlight1": "冲突的工作副本会保留后续修改，重启后仍然可用。比较之前的状态，并选择要保留的版本。",
+    "highlight2Title": "更稳定的编辑器，更快的看板",
+    "highlight2": "特殊字体尺寸下的列表显示更加稳定。选区工具栏保持在可见区域内。看板按需加载预览，并在返回时恢复内容和位置。",
+    "highlight3Title": "属性建议与看板搜索",
+    "highlight3": "为属性名称、类型及列表中的单个值提供建议。数据库预设选项仍保持独占。可以结合标签搜索笔记正文，空属性也能正确筛选。",
+    "highlight4Title": "任务筛选与文件夹书签",
+    "highlight4": "任务筛选条件按本设备上的每个库保存，并可重置。通过书签打开文件夹；重命名和移动后路径会随之更新。",
+    "highlight5Title": "更多阅读空间",
+    "highlight5": "移动端向下滚动时，顶部栏和铅笔按钮会隐藏，首次向上移动时恢复。阅读时默认启用，可在编辑器与笔记设置中关闭。平板导航栏保持可见，桌面端可使用专注模式。",
+    "highlight6Title": "打开并缩放图片",
+    "highlight6": "通过“打开图片”可从阅读模式或实时预览进入图片查看器。移动端支持双指缩放、双击和重置。长按嵌入图片仍保留系统图片操作。",
     "readBlog": "阅读博客文章",
     "understand": "知道了"
   },

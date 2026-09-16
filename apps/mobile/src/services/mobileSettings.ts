@@ -65,6 +65,8 @@ export interface MobileSettings extends VaultScopedSettings {
   /** The user's own theme (plan 2026-09-04, P2), applied while themeName is "custom". */
   customTheme: CustomThemeDesign;
   defaultView: DefaultView;
+  /** Device-local touch reading preference. Desktop uses its explicit focus mode. */
+  readerAutoHide: boolean;
   /** Empty = follow the system language. */
   language: string;
   /** First-start onboarding shown and answered. */
@@ -178,6 +180,7 @@ function defaults(): MobileSettings {
     codeFontFamily: "theme",
     codeFontCustom: "",
     motion: "system",
+    readerAutoHide: true,
     contextPanelDocked: false,
     navSidebarCollapsed: false,
     ...vaultDefaults(),

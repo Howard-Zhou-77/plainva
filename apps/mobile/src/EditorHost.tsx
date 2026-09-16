@@ -1,3 +1,4 @@
+import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll } from "./services/chromeScroll";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
@@ -45,7 +46,7 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { Banner, conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
+import { Banner, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { syncSoon } from "./services/syncService";
@@ -57,7 +58,7 @@ import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
-import { readSelectionVerbs, selectAll, SelectionToolbarSurface } from "@plainva/ui";
+import { readSelectionVerbs, selectAll, SelectionToolbarSurface, type SelectionToolbarPosition } from "@plainva/ui";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -83,6 +84,7 @@ export function EditorHost({
   onAnchorActivate,
   onSuggestionApply,
   onSuggestionDecline,
+  onReaderBlockedChange,
 }: {
   vault: MobileVault;
   path: string;
@@ -123,6 +125,7 @@ export function EditorHost({
    */
   onSuggestionApply?: (commentId: string) => void;
   onSuggestionDecline?: (commentId: string) => void;
+  onReaderBlockedChange?: (blocked: boolean) => void;
 }) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -180,9 +183,13 @@ export function EditorHost({
   const [selectionStats, setSelectionStats] = useState<{ chars: number; words: number } | null>(null);
   // Where the selection sits, so the formatting toolbar can stand over it
   // (S18). The same component the desktop uses — six actions, one definition.
-  const [selectionAt, setSelectionAt] = useState<{ x: number; y: number; above: boolean } | null>(null);
+  const [selectionAt, setSelectionAt] = useState<SelectionToolbarPosition | null>(null);
   /** The main selection as document offsets — what a passage comment is anchored to (C26). */
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
+  useEffect(() => {
+    onReaderBlockedChange?.(!!conflict || conflictDiff || blockMenuFrom !== null || !!selectionRange && selectionRange.from !== selectionRange.to);
+    return () => onReaderBlockedChange?.(false);
+  }, [conflict, conflictDiff, blockMenuFrom, selectionRange, onReaderBlockedChange]);
   /**
    * The unsent copy outlives the app (C34): written to the vault database,
    * debounced, while the mode is on; cleared on send and discard. The note's
@@ -430,6 +437,16 @@ export function EditorHost({
       // C3: the header widget's icon/stripe buttons open the mobile sheets.
       onPickIcon: () => setEmojiPick("icon"),
       onPickColor: () => setColorPick(true),
+      onOpenImage: (absolutePath) => onOpenNote(absolutePath.replace(/^\/+/, "")),
+      onImageContext: (_event, absolutePath, fromAction) => {
+        // A long press on the picture stays native (including iOS Live Text).
+        // The explicit action has its own menu, also usable with a mouse.
+        if (!fromAction) return false;
+        void mSelect({ title: t("contextMenu.openImage"), options: [{ value: "open", label: t("contextMenu.openImage") }] }).then((choice) => {
+          if (choice === "open") onOpenNote(absolutePath.replace(/^\/+/, ""));
+        });
+        return true;
+      },
       readBinaryFile: (absolutePath) =>
         vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
       // Where an embed may point (P3, Build-91 feedback): beside the note, in
@@ -581,11 +598,15 @@ export function EditorHost({
     const remembered = recallScrollTop(vault.vaultId, path);
     if (remembered !== null) {
       requestAnimationFrame(() => {
-        if (sessionRef.current === session) session.view.scrollDOM.scrollTop = remembered;
+        if (sessionRef.current === session) { session.view.scrollDOM.scrollTop = remembered; publishScroll(remembered, true); }
       });
     }
+    const chromeSource = readerScrollSource(vault.vaultId, path);
+    const publishScroll = chromeScrollPublisher(chromeSource);
+    publishScroll(session.view.scrollDOM.scrollTop);
     let scrollTimer: number | null = null;
     const onScroll = () => {
+      publishScroll(session.view.scrollDOM.scrollTop);
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
       scrollTimer = window.setTimeout(() => {
         scrollTimer = null;
@@ -661,13 +682,12 @@ export function EditorHost({
       if (sessionRef.current !== s) return;
       let disk: string;
       try {
-        disk = await vaultOps.read(vault, path);
+        disk = await vaultOps.readEditor(vault, path);
       } catch {
         return; // deleted/renamed under us; the tree refresh handles that
       }
       if (sessionRef.current !== s) return;
       const draft = s.view.state.doc.toString();
-      const revision = noteSaver.getRevision(path, vault);
       const lastPersisted = getLastPersistedText(vault, path);
       const dirty =
         noteSaver.hasPending(path, vault) || (lastPersisted !== null && draft !== lastPersisted);
@@ -686,27 +706,18 @@ export function EditorHost({
         return;
       }
       if (action === "own-echo") return; // our own save came back; keep typing
-      // preserve-conflict: a genuinely different version is on disk. Preserve
-      // the draft as a .CONFLICT sibling, adopt the disk version and drop the
-      // queued save (it would overwrite the foreign version right back).
-      const copyPath = conflictCopyPath(path);
+      // Keep editing the durable local copy. A delayed observer must neither
+      // replace newer typing nor cancel the queued save that carries it.
       try {
-        await vault.files.writeTextFile(copyPath, draft);
+        if (!vault.files.preserveConflict) throw new Error("Conflict-safe editing is unavailable");
+        const conflictSession = await vault.files.preserveConflict(path, draft, "editor-external");
+        noteConflict(path, conflictSession.workingCopyPath, vault.vaultId, conflictSession);
       } catch (e) {
         console.error("[EditorHost] preserving conflict copy failed", e);
         // Nothing was preserved, so a banner pointing at a copy would lie.
         toast.error(t("mobile.conflictPreserveFailed"));
         return;
       }
-      noteConflict(path, copyPath, vault.vaultId);
-      if (sessionRef.current !== s || s.view.state.doc.toString() !== draft ||
-          noteSaver.getRevision(path, vault) !== revision) return;
-      noteSaver.discard(path, vault, revision);
-      s.applyExternalText(disk);
-          window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: disk } }));
-      rememberPersistedText(vault, path, disk);
-      // S5: the same end state as a failed save — the user's text is beside
-      // the note and they need a way to it. A toast said so and then left.
     });
     const onExternalUpdate = (ev: Event) => {
       if ((ev as CustomEvent).detail?.path !== path || ((ev as CustomEvent).detail?.vaultId && (ev as CustomEvent).detail.vaultId !== vault.vaultId)) return;
@@ -767,6 +778,7 @@ export function EditorHost({
       void noteSaver.flush(path, vault).catch(() => {});
       setEditorSelectionReader(null);
       session.view.scrollDOM.removeEventListener("scroll", onScroll);
+      if (getChromeScroll().source === chromeSource) resetChromeScroll();
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
       rememberScrollTop(vault.vaultId, path, session.view.scrollDOM.scrollTop);
       sessionRef.current = null;
@@ -1378,7 +1390,8 @@ export function EditorHost({
         >
           <b>{t("mobile.conflictTitle")}</b>
           <br />
-          {t("mobile.conflictBody")}
+          {t(conflict.working ? "conflict.workingCopy" : "mobile.conflictBody")}
+          {conflict.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
           <br />
           <code>{conflict.copyPath}</code>
         </Banner>
@@ -1420,11 +1433,15 @@ export function EditorHost({
           x={selectionAt.x}
           y={selectionAt.y}
           above={selectionAt.above}
+          getAnchor={selectionAt.getAnchor}
+          compactLabels
         >
           <button
             type="button"
             className="pv-iconbtn m-selverb"
             data-testid="read-selection-copy"
+            aria-label={t("contextMenu.copy")}
+            data-tip={t("contextMenu.copy")}
             onClick={() => {
               const view = sessionRef.current?.view;
               if (!view || view.state.selection.main.empty) return;
@@ -1443,6 +1460,8 @@ export function EditorHost({
             type="button"
             className="pv-iconbtn m-selverb"
             data-testid="read-selection-all"
+            aria-label={t("shortcuts.selectAll")}
+            data-tip={t("shortcuts.selectAll")}
             onClick={() => {
               const view = sessionRef.current?.view;
               if (!view) return;
@@ -1458,6 +1477,8 @@ export function EditorHost({
               type="button"
               className="pv-iconbtn m-selverb"
               data-testid="read-selection-comment"
+              aria-label={t("comments.comment")}
+              data-tip={t("comments.comment")}
               onClick={() => {
                 const range = selectionRange;
                 setSelectionAt(null);
@@ -1473,6 +1494,8 @@ export function EditorHost({
               type="button"
               className="pv-iconbtn m-selverb"
               data-testid="read-selection-edit"
+              aria-label={t("common.edit")}
+              data-tip={t("common.edit")}
               onClick={() => {
                 const range = selectionRange;
                 setSelectionAt(null);
@@ -1488,6 +1511,8 @@ export function EditorHost({
               type="button"
               className="pv-iconbtn m-selverb"
               data-testid="read-selection-suggest"
+              aria-label={t("comments.suggestMode")}
+              data-tip={t("comments.suggestMode")}
               onClick={() => {
                 setSelectionAt(null);
                 onPassageSuggest();
@@ -1502,6 +1527,7 @@ export function EditorHost({
       {editable && selectionAt && (
         <SelectionToolbar
           above={selectionAt.above}
+          getAnchor={selectionAt.getAnchor}
           onAction={(action) => {
             const view = sessionRef.current?.view;
             if (!view) return;

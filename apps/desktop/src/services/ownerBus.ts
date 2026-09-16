@@ -1,4 +1,4 @@
-import { loadDesktopBookmarks, publishBookmarks } from "./bookmarks";
+import { loadDesktopBookmarks, publishBookmarks, bindBookmarkVault, retargetDesktopBookmarks } from "./bookmarks";
 import { CommentOperationError, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
@@ -6,7 +6,7 @@ import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
-import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk } from "@plainva/ui";
+import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,
@@ -243,6 +243,7 @@ export function installSyncStatusMirror(vaultPath: string): () => void {
  * they belong to the process, so N runtimes must not answer them N times.
  */
 export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
+  const unbindBookmarks = bindBookmarkVault(deps.vaultAdapter, deps.vaultPath);
   const bus = await getWindowBus();
   const offs: Array<() => void> = [installEventBridges(deps.vaultPath)];
 
@@ -265,6 +266,32 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   };
 
   offs.push(
+    await bus.handle("editor-write", ({ path, content, baseText }) => withPendingWrite(deps.vaultPath, path, async () => {
+      if (!deps.vaultAdapter.writeEditorText) throw new Error("Conflict-safe editing is unavailable");
+      const result = await deps.vaultAdapter.writeEditorText(path, content, baseText);
+      await indexAfterWrite(result.session?.workingCopyPath ?? path);
+      return result;
+    }), { vaultPath: deps.vaultPath }),
+    await bus.handle("conflict-read", ({ path }) => deps.vaultAdapter.getConflictSession?.(path) ?? Promise.resolve(null), { vaultPath: deps.vaultPath }),
+    await bus.handle("conflict-list", () => deps.vaultAdapter.listConflictSessions?.() ?? Promise.resolve([]), { vaultPath: deps.vaultPath }),
+    await bus.handle("conflict-diagnostics", () => deps.vaultAdapter.listConflictDiagnostics?.() ?? Promise.resolve([]), { vaultPath: deps.vaultPath }),
+    await bus.handle("conflict-preserve", ({ path, content, writer }) => withPendingWrite(deps.vaultPath, path, async () => {
+      if (!deps.vaultAdapter.preserveConflict) throw new Error("Conflict-safe editing is unavailable");
+      const session = await deps.vaultAdapter.preserveConflict(path, content, writer);
+      await indexAfterWrite(session.workingCopyPath);
+      return session;
+    }), { vaultPath: deps.vaultPath }),
+    await bus.handle("conflict-resolve", ({ path, resolution }) => withPendingWrite(deps.vaultPath, path, async () => {
+      if (!deps.vaultAdapter.resolveConflict) throw new Error("Conflict-safe editing is unavailable");
+      const session = await deps.vaultAdapter.getConflictSession?.(path);
+      await deps.vaultAdapter.resolveConflict(path, resolution);
+      if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
+      deps.refresh();
+      await indexAfterWrite(path);
+    }), { vaultPath: deps.vaultPath }),
+  );
+
+  offs.push(
     await bus.handle("write", async ({ path, content }) => {
       await withPendingWrite(deps.vaultPath, path, async () => {
         await deps.vaultAdapter.writeTextFile(path, content);
@@ -285,6 +312,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(
     await bus.handle("rename", async ({ from, to }) => {
       await deps.vaultAdapter.renameItem(from, to);
+      await retargetDesktopBookmarks(deps.vaultAdapter, from, to);
       if (deps.indexer) await applyIndexChanges(deps.indexer, { removed: [from], added: [to] });
       deps.refresh();
     }, { vaultPath: deps.vaultPath }),
@@ -442,20 +470,25 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       publishBookmarks(deps.vaultPath, bookmarks);
       return bookmarks;
     }, { vaultPath: deps.vaultPath }),
-    await bus.handle("toggle-bookmark", async ({ path }) => {
+    await bus.handle("rename-bookmarks", async ({ from, to }) => {
+      const entries = await renameBookmarksOnDisk(deps.vaultAdapter, from, to);
+      publishBookmarks(deps.vaultPath, entries); return entries;
+    }, { vaultPath: deps.vaultPath }),
+    await bus.handle("toggle-bookmark", async ({ path, type }) => {
       // The write belongs to the vault this handler is bound to, never to the
       // vault the owner window happens to SHOW (multi-window D6). Since stage D
       // the two can differ: an auxiliary window on vault B addresses B's
       // handler while the owner draws A. Doing the read-modify-write here means
       // the star can never land in the wrong vault's list -- and a vault that
       // nobody is looking at still gets it.
-      const bookmarks = await toggleBookmarkOnDisk(deps.vaultAdapter, path);
+      const bookmarks = await toggleBookmarkOnDisk(deps.vaultAdapter, path, type);
       publishBookmarks(deps.vaultPath, bookmarks);
       return bookmarks;
     }, { vaultPath: deps.vaultPath }),
   );
 
   return () => {
+    unbindBookmarks();
     for (const off of offs.splice(0)) {
       try {
         off();

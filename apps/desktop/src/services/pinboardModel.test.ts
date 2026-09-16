@@ -7,6 +7,8 @@ import {
   distributeCards,
   dropSlotAt,
   filterCardPaths,
+  filterCardPathsByText,
+  pinboardTextMatches,
   orderCards,
   pinboardColumnCount,
   retargetPinboardPaths,
@@ -15,6 +17,15 @@ import {
 import { buildCaptureContent } from "./newItemFlow";
 
 const row = (path: string, ctime: number | null, mtime = 0) => ({ path, ctime, mtime });
+
+it("composes text and label filters without losing the hidden order during a drag", () => {
+  const sequence = ["a", "b", "c", "d"];
+  const labels = new Map(sequence.map(path => [path, [path === "b" ? "other" : "topic"]]));
+  expect(filterCardPathsByText(filterCardPaths(sequence, labels, ["topic"]), new Set(["b", "c"]))).toEqual(["c"]);
+  expect(filterCardPathsByText(sequence, null)).toBe(sequence);
+  expect(pinboardTextMatches(["Status: Offen", "#MÜLLER"], "müller")).toBe(true);
+  expect(spliceIntoSequence(sequence, ["d"], { kind: "before", path: "a" })).toEqual(["d", "a", "b", "c"]);
+});
 
 describe("orderCards (§3 order semantics)", () => {
   it("floats unarranged cards on top by ctime desc, then the listed order", () => {

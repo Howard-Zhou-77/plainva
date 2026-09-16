@@ -17,7 +17,7 @@ import {
   ArrowUpDown,
   Check,
 } from "lucide-react";
-import { Button, conflictOriginalPath, DocIcon, EmptyState, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
+import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
@@ -63,6 +63,13 @@ export function BrowseScreen({
   onOpenAttachment: (path: string, isImage: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const [bookmarked, setBookmarked] = useState(new Set<string>());
+  useEffect(() => {
+    let alive = true;
+    const read = () => void vaultOps.getBookmarks(vault).then((entries) => { if (alive) setBookmarked(new Set(entries.map(bookmarkKey))); }).catch(() => { if (alive) toast.error(t("sidebar.bookmarkSaveFailed")); });
+    read(); window.addEventListener("m-bookmarks-changed", read);
+    return () => { alive = false; window.removeEventListener("m-bookmarks-changed", read); };
+  }, [vault, bump, t]);
   const [listing, setListing] = useState<
     Omit<FolderListing, "notes"> & { notes: Array<{ path: string; title: string; rel?: string }> }
   >({ folders: [], notes: [], bases: [], attachments: [] });
@@ -77,7 +84,7 @@ export function BrowseScreen({
    * index.md is the user's own, where nothing is offered at all.
    */
   const [sheetIndex, setSheetIndex] = useState<FolderIndexState | null>(null);
-  const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
+  const [movePick, setMovePick] = useState<{ path: string; title: string; isFolder?: boolean } | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
   // Sorting and searching in the folder (feedback round 2026-09-01, P11/T5):
   // a real vault put 640 notes in one folder, hard-sorted by title with no
@@ -158,11 +165,11 @@ export function BrowseScreen({
     // React reuses the instance when the navigator pushes a folder — the
     // root-only banner must clear or it sticks on pushed screens.
     if (folder) setConflicts([]);
-    else if (vault.queryService) {
+    else {
       // Conflict badge (P5): vault-wide scan for .CONFLICT copies.
-      void vault.queryService.listNotes().then((rows) => {
-        if (!stale) setConflicts(rows.map((r) => r.path).filter(isConflictCopyPath));
-      });
+      void Promise.all([vault.queryService?.listNotes() ?? vault.files.listDir("", true), vault.files.listConflictSessions?.() ?? Promise.resolve([])]).then(([rows, sessions]) => {
+        if (!stale) setConflicts([...new Set([...sessions.map(s => s.workingCopyPath), ...rows.map((r) => r.path).filter(isConflictCopyPath)])]);
+      }).catch(() => { /* Keep the last known count if the provider cannot be read. */ });
     }
     return () => {
       stale = true;
@@ -285,8 +292,7 @@ export function BrowseScreen({
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed || trimmed === target.title) return;
-      const parent = target.path.split("/").slice(0, -1).join("/");
-      await vaultOps.renameFolder(vault, target.path, parent ? `${parent}/${trimmed}` : trimmed);
+      await vaultOps.renameFolder(vault, target.path, trimmed);
     })();
   };
 
@@ -333,7 +339,7 @@ export function BrowseScreen({
   // Browsable move target (2026-07-17): the FolderPickerSheet walks the live
   // file system, so freshly created EMPTY folders are valid destinations — the
   // old index-backed getAllFolders() list could never offer them.
-  const startMove = (target: { path: string; title: string }) => {
+  const startMove = (target: { path: string; title: string; isFolder?: boolean }) => {
     setSheet(null);
     setMovePick(target);
   };
@@ -347,7 +353,7 @@ export function BrowseScreen({
    * What a row can do — the one list both shells read (Design-Runde E2). The
    * sheet shows all of it, the swipe its `swipe` subset, the desktop's context
    * menu the same entries in the same order. A base is a file with fewer
-   * verbs; a folder has its overview note instead of a bookmark.
+   * verbs; folders also keep their overview action.
    */
   const rowActionsFor = (target: { path: string; title: string }, kind: "note" | "folder" | "base", index: FolderIndexState | null = null): RowActionSpec[] => {
     const closeThen = (fn: () => void) => () => {
@@ -359,7 +365,10 @@ export function BrowseScreen({
       // it opens); the swipe passes none and offers no overview.
       return fileRowActions(t, {
         isFolder: true,
+        bookmarked: bookmarked.has(bookmarkKey({ type: "folder", path: target.path })),
+        bookmark: () => bookmarkNote(target, "folder"),
         rename: () => renameFolder(target),
+        move: () => startMove({ ...target, isFolder: true }),
         overview: index !== null && index !== "manual" ? closeThen(() => void generateOverviewForFolder(vault, target.path)) : undefined,
         overviewExists: index === "managed",
         delete: () => deleteFolder(target),
@@ -372,6 +381,7 @@ export function BrowseScreen({
       rename: () => renameNote(target),
       duplicate: () => duplicateNote(target),
       move: () => startMove(target),
+      bookmarked: bookmarked.has(bookmarkKey({ type: "file", path: target.path })),
       bookmark: () => bookmarkNote(target),
       delete: () => deleteNote(target),
     });
@@ -380,9 +390,9 @@ export function BrowseScreen({
   const asSheet = (list: RowActionSpec[]) =>
     list.map((a) => ({ icon: <a.icon size={ICON.head} />, label: a.label, danger: a.danger, onClick: a.run }));
 
-  const bookmarkNote = (target: { path: string; title: string }) => {
+  const bookmarkNote = (target: { path: string; title: string }, type: "file" | "folder" = "file") => {
     setSheet(null);
-    void vaultOps.toggleBookmark(vault, target.path);
+    void vaultOps.toggleBookmark(vault, target.path, type).catch(() => toast.error(t("sidebar.bookmarkSaveFailed")));
   };
 
   const renameNote = (target: { path: string; title: string }) => {
@@ -676,10 +686,13 @@ export function BrowseScreen({
         <FolderPickerSheet
           vault={vault}
           title={t("mobile.moveNoteTo", { name: movePick.title })}
+          excludePrefix={movePick.isFolder ? movePick.path : undefined}
           onPick={(dest) => {
             const target = movePick;
             setMovePick(null);
-            void vaultOps.moveNote(vault, target.path, dest);
+            void (target.isFolder
+              ? vaultOps.moveFolder(vault, target.path, dest ? `${dest}/${target.path.split("/").pop()}` : target.path.split("/").pop()!)
+              : vaultOps.moveNote(vault, target.path, dest)).catch((error) => toast.error(t("dialogs.renameErrorMsg", { error: String(error) })));
           }}
           onClose={() => setMovePick(null)}
         />

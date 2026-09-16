@@ -234,7 +234,7 @@ describe("mobile saves through the actual adapter and lifecycle chain", () => {
     expect(h.drafts.size).toBe(0);
   });
 
-  it("preserves both actual conflict snapshots when typing continues during the first copy", async () => {
+  it("updates one actual conflict copy when typing continues during its first write and 100 subsequent saves", async () => {
     const a = await makeVault();
     await a.raw.writeTextFile("Note.md", "foreign");
     await a.repo.updateLocalHashAndBaseText("Note.md", createHash("sha256").update("base").digest("hex"), "base");
@@ -251,19 +251,25 @@ describe("mobile saves through the actual adapter and lifecycle chain", () => {
     });
     const h = harness(a.vault);
     h.noteSaver.schedule(a.vault, "Note.md", "first local");
-    const flushed = expect(h.noteSaver.flushAll()).rejects.toBeInstanceOf(ConflictError);
+    const flushed = h.noteSaver.flushAll();
     await entered.promise;
     h.noteSaver.schedule(a.vault, "Note.md", "newer local");
-    await new Promise((done) => setTimeout(done, 5)); // two distinct native copy timestamps
     release.resolve();
     await flushed;
     expect(h.conflicts).toHaveLength(2);
-    expect(await a.raw.readTextFile(h.conflicts[0].copy)).toBe("first local");
+    expect(h.conflicts[0].copy).toBe(h.conflicts[1].copy);
     expect(await a.raw.readTextFile(h.conflicts[1].copy)).toBe("newer local");
     expect(await a.raw.readTextFile("Note.md")).toBe("foreign");
     expect(h.conflicts.every((c) => c.vaultId === a.vault.vaultId)).toBe(true);
-    expect([...h.drafts.values()]).toEqual([{ text: "newer local", revision: 2 }]);
+    expect(h.drafts.size).toBe(0);
     expect(h.noteSaver.hasPending()).toBe(false);
+    for (let i = 0; i < 100; i++) {
+      h.noteSaver.schedule(a.vault, "Note.md", `continued ${i}`);
+      await h.noteSaver.flushAll();
+    }
+    expect(new Set(h.conflicts.map(c => c.copy)).size).toBe(1);
+    expect(await a.raw.readTextFile(h.conflicts[0].copy)).toBe("continued 99");
+    expect(await a.raw.readTextFile("Note.md")).toBe("foreign");
   });
 
   it("retains a pulled change when more typing is queued behind a delayed merged save", async () => {
@@ -291,10 +297,10 @@ describe("mobile saves through the actual adapter and lifecycle chain", () => {
     await a.raw.writeTextFile("Note.md", "foreign");
     await a.repo.updateLocalHashAndBaseText("Note.md", createHash("sha256").update("foreign").digest("hex"), "foreign");
     h.noteSaver.schedule(a.vault, "Note.md", "local");
-    await expect(h.noteSaver.flushAll()).rejects.toBeInstanceOf(ConflictError);
+    await h.noteSaver.flushAll();
     expect(await a.raw.readTextFile("Note.md")).toBe("foreign");
     expect(await a.raw.readTextFile(h.conflicts[0].copy)).toBe("local");
-    expect(h.drafts.size).toBe(1);
+    expect(h.drafts.size).toBe(0);
   });
 
   it("retains recovery when a successful native return has an incompatible read-back", async () => {

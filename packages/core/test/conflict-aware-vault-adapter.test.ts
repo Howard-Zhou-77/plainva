@@ -186,6 +186,7 @@ describe("ConflictAwareVaultAdapter", () => {
     };
     const states = new Map<string, any>([["x.base", { local_sha256: byteHash, base_text: null }]]);
     const repo = {
+      getConflictSession: syncRepo.getConflictSession.bind(syncRepo),
       async getSyncState(p: string) { return states.get(p) ?? null; },
       async getBaseText(p: string) { return states.get(p)?.base_text ?? null; },
       async updateLocalHash() {},
@@ -218,6 +219,7 @@ describe("ConflictAwareVaultAdapter", () => {
 
     const states = new Map<string, { local_sha256: string | null; base_text: string | null }>();
     const repo = {
+      getConflictSession: syncRepo.getConflictSession.bind(syncRepo),
       async getSyncState(p: string) { return states.get(p) ?? null; },
       async getBaseText(p: string) { return states.get(p)?.base_text ?? null; },
       async updateLocalHash(p: string, h: string) {

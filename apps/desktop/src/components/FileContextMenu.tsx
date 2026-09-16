@@ -56,8 +56,8 @@ export interface FileContextMenuProps {
   onDuplicate?: (paths: string[]) => void;
   /** Opens the folder picker for the given paths (Issue #77: a way without drag). */
   onMove?: (paths: string[]) => void;
-  isBookmarked?: (path: string) => boolean;
-  onToggleBookmark?: (path: string) => void;
+  isBookmarked?: (path: string, type?: "file" | "folder") => boolean;
+  onToggleBookmark?: (path: string, type?: "file" | "folder") => void;
   onVersionHistory?: (path: string) => void;
   onRevealInTree?: (path: string) => void;
   onCopyPath?: (path: string) => void;
@@ -148,13 +148,13 @@ export function FileContextMenu(props: FileContextMenuProps) {
         move: props.onMove ? () => props.onMove!([path]) : undefined,
         overview: isFolder && props.onGenerateIndex ? () => props.onGenerateIndex!(path) : undefined,
         overviewExists: isFolder ? props.hasOverview?.(path) === true : undefined,
-        bookmarked: !isFolder && props.onToggleBookmark ? props.isBookmarked?.(path) === true : undefined,
-        bookmark: !isFolder && props.onToggleBookmark ? () => props.onToggleBookmark!(path) : undefined,
+        bookmarked: props.onToggleBookmark ? props.isBookmarked?.(path, isFolder ? "folder" : "file") === true : undefined,
+        bookmark: props.onToggleBookmark ? () => props.onToggleBookmark!(path, isFolder ? "folder" : "file") : undefined,
         versionHistory: !isFolder && !conflict && props.onVersionHistory ? () => props.onVersionHistory!(path) : undefined,
         resolveConflict: !isFolder && conflict && props.onResolveConflict ? () => props.onResolveConflict!(path) : undefined,
-        reveal: !isFolder && props.onRevealInTree ? () => props.onRevealInTree!(path) : undefined,
+        reveal: props.onRevealInTree ? () => props.onRevealInTree!(path) : undefined,
         copyPath: props.onCopyPath ? () => props.onCopyPath!(path) : undefined,
-        removeFromList: !isFolder && props.onRemoveFromList ? () => props.onRemoveFromList!(path) : undefined,
+        removeFromList: props.onRemoveFromList ? () => props.onRemoveFromList!(path) : undefined,
         delete: props.onDelete ? () => props.onDelete!(path, isFolder) : undefined,
       });
 

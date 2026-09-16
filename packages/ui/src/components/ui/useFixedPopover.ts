@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
+import { placeFloatingPanel, visibleFloatingBounds } from "./floatingPlacement";
 
 /**
  * Viewport-clamped popover placement (plan Designsprache P12). The old
@@ -31,24 +32,39 @@ export function useFixedPopover(
       const anchor = anchorRef.current;
       if (!panel || !anchor) return;
       const a = anchor.getBoundingClientRect();
-      panel.style.minWidth = `${Math.max(minWidth, a.width)}px`;
-      const w = Math.max(panel.offsetWidth, minWidth, a.width);
-      const h = panel.offsetHeight;
-      const left = Math.min(Math.max(margin, a.left), Math.max(margin, window.innerWidth - w - margin));
-      let top = a.bottom + 4;
-      if (top + h > window.innerHeight - margin) top = Math.max(margin, a.top - h - 4);
+      const bounds = visibleFloatingBounds(window, {}, margin);
+      const available = Math.max(0, bounds.right - bounds.left);
+      panel.style.minWidth = `${Math.min(available, Math.max(minWidth, a.width))}px`;
+      panel.style.maxWidth = `${available}px`;
+      panel.style.maxHeight = `${Math.max(0, bounds.bottom - bounds.top)}px`;
+      const { left, top } = placeFloatingPanel(a, { width: panel.offsetWidth, height: panel.offsetHeight }, bounds);
       panel.style.left = `${left}px`;
       panel.style.top = `${top}px`;
       panel.style.visibility = "visible";
     };
+    let frame = 0;
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; measure(); }); };
     measure();
-    window.addEventListener("resize", measure);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
+    observer?.observe(el);
+    if (anchorRef.current) observer?.observe(anchorRef.current);
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
     return () => {
-      window.removeEventListener("resize", measure);
+      observer?.disconnect(); cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
       // Back to the hidden off-screen base state so a re-open re-measures.
       el.style.left = "";
       el.style.top = "";
       el.style.minWidth = "";
+      el.style.maxWidth = "";
+      el.style.maxHeight = "";
       el.style.visibility = "";
     };
   }, [open, anchorRef, minWidth, margin]);

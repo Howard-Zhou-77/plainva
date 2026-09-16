@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, FileComparisonDetails, conflictCopyStamp, toast, versionCopyPath } from "@plainva/ui";
+import { Banner, Button, ConflictHistory, FileComparisonDetails, conflictCopyStamp, toast, versionCopyPath } from "@plainva/ui";
 import { assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, separateTaskConflict } from "@plainva/core";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { CompareVersions } from "./CompareVersions";
@@ -121,9 +121,14 @@ export function ConflictCompareSheet({
       // S2: the note may be open with unsaved keystrokes — exactly the
       // situation that produced the conflict. Land them first, otherwise the
       // queued save settles after the promotion and puts the losing version back.
-      await vaultOps.save(vault, originalPath, copy);
-      if (await vault.files.readTextFile(conflictPath) !== copy) throw new Error("comparisonChanged");
-      await vaultOps.remove(vault, conflictPath);
+      const session = await vault.files.getConflictSession?.(originalPath);
+      if (session?.workingCopyPath === conflictPath && vault.files.resolveConflict) {
+        await vault.files.resolveConflict(originalPath, { originalText: originalSnapshot.current, copyText: copy, content: copy });
+      } else {
+        await vaultOps.save(vault, originalPath, copy);
+        if (await vault.files.readTextFile(conflictPath) !== copy) throw new Error("comparisonChanged");
+        await vaultOps.remove(vault, conflictPath);
+      }
       toast.success(t("compare.resolvedAdopted"));
       return [originalPath, conflictPath];
     });
@@ -139,7 +144,10 @@ export function ConflictCompareSheet({
     });
     if (!ok) return;
     await run(async () => {
-      if (differentTasks) await separateTaskConflict(vault.files, originalPath, inNote, conflictPath, copy, candidate);
+      const session = await vault.files.getConflictSession?.(originalPath);
+      if (session?.workingCopyPath === conflictPath && vault.files.resolveConflict) {
+        await vault.files.resolveConflict(originalPath, { originalText: originalSnapshot.current, copyText: copy, content: inNote, disposition: "discard", keepCopyAs: candidate });
+      } else if (differentTasks) await separateTaskConflict(vault.files, originalPath, inNote, conflictPath, copy, candidate);
       else {
         if (await vault.files.exists(candidate)) throw new Error("comparisonChanged");
         await vault.files.renameItem(conflictPath, candidate);
@@ -159,7 +167,10 @@ export function ConflictCompareSheet({
     });
     if (!ok) return;
     await run(async () => {
-      await vaultOps.remove(vault, conflictPath);
+      const session = await vault.files.getConflictSession?.(originalPath);
+      if (session?.workingCopyPath === conflictPath && vault.files.resolveConflict) {
+        await vault.files.resolveConflict(originalPath, { originalText: originalSnapshot.current, copyText: copy!, content: inNote ?? "", disposition: "discard" });
+      } else await vaultOps.remove(vault, conflictPath);
       toast.success(t("compare.resolvedDiscarded"));
       return [conflictPath];
     });
@@ -172,6 +183,7 @@ export function ConflictCompareSheet({
         <p className="m-sheet-title">{t("compare.title")}</p>
         <FileComparisonDetails compact vault={vaultName} originalPath={originalPath} copyPath={conflictPath} original={inNote} copy={copy} onReveal={path => { onClose(); window.dispatchEvent(new CustomEvent("m-reveal-file", { detail: { path, vaultId: vault.vaultId } })); }} />
         <div className="m-conflict-body">
+        <ConflictHistory files={vault.files} path={originalPath} copyPath={conflictPath} current={inNote} copy={copy} />
         <p className="m-hint">{t(differentTasks ? "compare.differentTasks" : "compare.conflictExplainer")}</p>
         {differentTasks && <Banner kind="info" rounded>{t("compare.differentTasksHint")}</Banner>}
         {failed ? (

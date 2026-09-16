@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { VaultFileNotFoundError } from "@plainva/core";
 import { applyIndexChanges, carryMirroredHeading, duplicateFile, moveItems, movableInto, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
@@ -14,6 +15,7 @@ function makeAdapter(initial: Record<string, string | Uint8Array>) {
     },
     readTextFile: async (p) => {
       const v = files.get(p);
+      if (v === undefined) throw new VaultFileNotFoundError(p);
       if (typeof v !== "string") throw new Error(`not a text file: ${p}`);
       return v;
     },

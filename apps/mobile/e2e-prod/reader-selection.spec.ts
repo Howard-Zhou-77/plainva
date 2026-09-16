@@ -7,6 +7,7 @@ const source = "---\ntype: Note\ntitle: Auswahl\n---\n# Auswahl\n\nEinleitung ðŸ
 const visibleText = "Auswahl\n\nEinleitung ðŸ˜€ mit Zielwort und einem Ende.\n\nZielwort in einem anderen Absatz bleibt erhalten.\n\n" + tail;
 
 for (const language of ["en", "de"]) test(`reader clipboard actions copy a long note and preserve source offsets at 320px (${language})`, async ({ page, context }) => {
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
   await page.setViewportSize({ width: 320, height: 740 });
   const sql = await installSqlBridge(context);
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -49,6 +50,30 @@ for (const language of ["en", "de"]) test(`reader clipboard actions copy a long 
           return rect.x >= box.x && rect.right <= box.right && button.scrollHeight <= button.clientHeight;
         });
     })).toBe(true);
+    // The selection remains anchored while its real editor scroller moves.
+    const initialTop = (await toolbar.boundingBox())!.y;
+    const scroller = page.locator(".m-editor .cm-scroller");
+    await scroller.evaluate(el => { el.scrollTop = 24; });
+    await expect.poll(async () => Math.round((await toolbar.boundingBox())!.y)).toBe(Math.round(initialTop - 24));
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe("Zielwort");
+    // Model an offset visual viewport; this is browser geometry, not a native
+    // keyboard or pinch-zoom claim. Every verb must still be reachable.
+    await page.evaluate(() => {
+      const original = window.visualViewport;
+      (window as Window & { restoreViewport?: () => void }).restoreViewport = () => Object.defineProperty(window, "visualViewport", { configurable: true, value: original });
+      Object.defineProperty(window, "visualViewport", { configurable: true,
+        value: Object.assign(new EventTarget(), { offsetLeft: 25, offsetTop: 35, width: 250, height: 480 }) });
+      window.dispatchEvent(new Event("resize"));
+    });
+    await expect.poll(() => toolbar.evaluate(el => {
+      const box = el.getBoundingClientRect(), viewport = window.visualViewport!;
+      return box.left >= viewport.offsetLeft + 8 && box.right <= viewport.offsetLeft + viewport.width - 8
+        && box.top >= viewport.offsetTop + 8 && box.bottom <= viewport.offsetTop + viewport.height - 8;
+    })).toBe(true);
+    await expect(toolbar).toHaveAttribute("data-compact", "");
+    await page.evaluate(() => { (window as Window & { restoreViewport?: () => void }).restoreViewport?.(); window.dispatchEvent(new Event("resize")); });
+    await scroller.evaluate(el => { el.scrollTop = 0; });
+    await expect.poll(async () => Math.round((await toolbar.boundingBox())!.y)).toBe(Math.round(initialTop));
     await page.getByTestId("read-selection-copy").click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("Zielwort");
     // The document exceeds CodeMirror's mounted viewport. The toolbar must

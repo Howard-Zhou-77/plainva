@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-15
+Stand: 2026-09-16
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -193,3 +193,19 @@ Eine ATX-Überschrift und eine GFM-Aufgabe sind alternative Blocktypen. Plainva 
 `![[Notiz#Überschrift]]` zeigt den Abschnitt einschließlich seiner Unterüberschriften bis zur nächsten gleich- oder höherstufigen Überschrift. `![[Notiz#^block-id]]` zeigt den adressierten Absatz, Listeneintrag oder den vor einer allein stehenden Block-ID liegenden Block. Ein normaler Link `[[Notiz#^block-id]]` springt auch im Lesemodus dorthin.
 
 Bei gleichen Überschriften kannst Du eine eindeutige Abschnittskette (`#Projekt#Ergebnis`) oder den nummerierten Anker (`#ergebnis-1`) verwenden. Fehlende oder mehrdeutige Ziele zeigen einen Hinweis. Die Quelle bleibt über die Einbettung erreichbar. Verschachtelungen sind begrenzt; Codebeispiele werden nicht als Einbettungen ausgeführt. Auf dem Telefon zeigt die Karte den gewählten Abschnitt oder Block ohne die vierzeilige Kürzung der allgemeinen Notizvorschau. Bestehende Dateien werden nicht verändert.
+
+## Listen sicher bedienen
+
+Ein Listeneintrag wird erst nach einem abgeschlossenen Tipp oder Klick auf seinen Punkt eingeklappt. Ziehen, Scrollen, ein abgebrochener Kontakt oder eine Mehrfinger-Geste klappen ihn nicht ein. Die Einrückung bleibt auch bei Schriftwechsel und schmalen Fenstern ruhig; Quelltext, Tabs und Cursorposition bleiben erhalten.
+
+## Auswahlleisten im sichtbaren Bereich
+
+Die Formatierungsleiste folgt Deiner Auswahl auch beim Scrollen und bleibt mit Abstand zum Bildschirmrand sichtbar. Bei wenig Platz wechselt sie die Seite der Auswahl oder bricht ihre Knöpfe um. Im mobilen Lesemodus werden lange Aktionsbeschriftungen bei Bedarf durch Symbole mit zugänglichen Namen ersetzt; Kopieren, Alles auswählen und die verfügbaren Bearbeitungs- oder Kommentaraktionen bleiben erreichbar.
+
+## Eigenschaften vervollständigen
+
+Beim Hinzufügen erscheinen bekannte Namen mit Typ und Häufigkeit. Bereits vorhandene und reservierte Namen werden nicht angeboten. Der Typ einer zuständigen Datenbank hat Vorrang, danach folgen der Indextyp und das lokale Typregister. Für Text und Listen werden passende Werte aus dem Notizordner vorgeschlagen; „Im ganzen Vault suchen“ erweitert den Bereich. Listen werden als einzelne Werte angeboten. Definierte Datenbank-Optionen bleiben exklusiv, auch bei einer leeren Liste. Freie Eingaben bleiben möglich; erst die bestätigte Bearbeitung ändert die Notiz. Text und Listen behalten ihren Typ. Dies gilt für die Notizeigenschaften und Datenbank-Zellen am Desktop und mobil.
+
+### Bild öffnen
+
+**Bild öffnen** steht bei lokalen Bildern in der Lesedarstellung und Live-Vorschau sowie im Bild-Kontextmenü bereit. Mobil vergrößerst Du im Bildbetrachter mit zwei Fingern, einem Doppeltipp oder den Zoomknöpfen; **Zoom zurücksetzen** zeigt das ganze Bild. Zurück führt zur Notiz. Langes Drücken auf das eingebettete Bild bleibt für die Bildaktionen des Betriebssystems erhalten, ebenso die Markierung einer Bildregion für Kommentare.

@@ -5,6 +5,10 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import ts from "typescript";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
+import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
+import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
+import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import type { IDatabaseAdapter } from "@plainva/core";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
 import type { MobileVault } from "./vaultService";
 
@@ -33,19 +37,22 @@ function editor(text: string) {
   };
 }
 let root: string, raw: LocalVaultAdapter, vault: MobileVault, saver: SaveCoordinator<MobileVault>;
+let db: IDatabaseAdapter;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "plainva-editor-recovery-"));
   raw = new LocalVaultAdapter(root);
   await raw.initialize();
   await raw.writeTextFile("Note.md", "foreign disk");
-  vault = { vaultId: root, files: raw } as unknown as MobileVault;
+  db = await realSqlite();
+  vault = { vaultId: root, files: new ConflictAwareVaultAdapter(raw, new SyncStateRepository(db)) } as unknown as MobileVault;
   saver = createSaveCoordinator({ contextKey: (v: MobileVault) => v.vaultId, debounceMs: 60_000,
-    write: (v, path, text) => v.files.writeTextFile(path, text) });
+    write: async (v, path, text) => { await v.files.writeEditorText!(path, text, "base"); } });
 });
 afterEach(async () => {
   saver.discard("Note.md", vault);
   await saver.flushAll();
   vi.restoreAllMocks();
+  await db.close();
   await rm(root, { recursive: true, force: true });
 });
 function createHandler() {
@@ -57,7 +64,7 @@ function createHandler() {
   events.addEventListener("m-editor-document", (event) => documents.push((event as CustomEvent).detail));
   const deps = {
     noteSaver: saver, path: "Note.md", vault, session, sessionRef,
-    vaultOps: { read: (v: MobileVault, path: string) => v.files.readTextFile(path) },
+    vaultOps: { readEditor: async (v: MobileVault, path: string) => v.files.readTextFile((await v.files.getConflictSession!(path))?.workingCopyPath ?? path) },
     getLastPersistedText: () => "base",
     rememberPersistedText: vi.fn(),
     decideDirtyExternalUpdate: () => "preserve-conflict",
@@ -82,14 +89,15 @@ describe("original mobile external-update callback with real recovery files", ()
     expect(h.conflicts).not.toHaveBeenCalled();
   });
 
-  it("adopts disk only after the captured draft is safely written", async () => {
+  it("keeps editing the durable copy and retains the pending save", async () => {
     const h = createHandler();
     await h.handle();
-    expect(await raw.readTextFile("Note.CONFLICT-test.md")).toBe("my draft");
-    expect(h.session.text).toBe("foreign disk");
-    expect(h.documents).toEqual([{ vaultId: vault.vaultId, path: "Note.md", text: "foreign disk" }]);
-    expect(saver.hasPending("Note.md", vault)).toBe(false);
-    expect(h.conflicts).toHaveBeenCalledWith("Note.md", "Note.CONFLICT-test.md", vault.vaultId);
+    const conflict = await vault.files.getConflictSession!("Note.md");
+    expect(await raw.readTextFile(conflict!.workingCopyPath)).toBe("my draft");
+    expect(h.session.text).toBe("my draft");
+    expect(h.documents).toEqual([]);
+    expect(saver.hasPending("Note.md", vault)).toBe(true);
+    expect(h.conflicts).toHaveBeenCalledWith("Note.md", conflict!.workingCopyPath, vault.vaultId, conflict);
   });
 
   it.each(["typing", "navigation"] as const)("does not replace %s that arrived while preserving a conflict", async (action) => {
@@ -113,7 +121,6 @@ describe("original mobile external-update callback with real recovery files", ()
     await run;
     expect(h.sessionRef.current.text).toBe(action === "typing" ? "newer typing" : "another note or vault");
     expect(saver.hasPending("Note.md", vault)).toBe(true);
-    expect(await raw.readTextFile("Note.CONFLICT-test.md")).toBe("my draft");
+    expect(await raw.readTextFile((await vault.files.getConflictSession!("Note.md"))!.workingCopyPath)).toBe("my draft");
   });
 });
-

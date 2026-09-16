@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-16
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -201,3 +201,9 @@ La barra lateral derecha no puede bajar de **200 px** — ninguna sección es ut
 ## Devolver una pestaña
 
 En una ventana separada o en una segunda ventana completa, haz clic derecho en la pestaña y elige **Volver a la ventana principal**. Se conservan texto, selección, vista, desplazamiento, historial y fijación. La pestaña de origen solo se cierra tras la confirmación. Sin ella, se conservan la pestaña y el borrador. Los marcadores se actualizan en todas las ventanas.
+
+## Marcadores de carpetas
+
+Añade un marcador desde el menú contextual de un archivo o una carpeta. Los marcadores de carpetas muestran un icono de carpeta: en el móvil abren la carpeta y en el escritorio la expanden en el árbol. Mover o renombrar elementos en Plainva actualiza también los marcadores de subcarpetas y archivos. Los destinos ausentes permanecen señalados; elimina esos marcadores expresamente.
+
+Al abrir una bóveda, Plainva importa automáticamente los marcadores de archivos y carpetas de Obsidian, incluidos los grupos. El tipo y la ruta evitan duplicados. El archivo de Obsidian no cambia. Los perfiles de configuración transportan las carpetas por separado; un perfil antiguo sin ese campo conserva los marcadores de carpetas existentes.

@@ -451,7 +451,10 @@ test.beforeEach(async ({ page }) => {
               'Zettel/Notiz.md': ['einkauf', 'ideen'],
             };
             const out: any[] = [];
-            for (const v of values) for (const tg of zettelTags[String(v)] ?? []) out.push({ path: v, tag: tg });
+            for (const v of values) {
+              const path = query.includes("t.file_id IN") ? dbFiles.find((f) => f.id === String(v))?.path : String(v);
+              if (path) for (const tg of zettelTags[path] ?? []) out.push({ path, tag: tg });
+            }
             return out;
           }
           if (query.includes('FROM tags')) {
@@ -1988,7 +1991,7 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
 
   // Quick capture via the Keep-style title popup (2026-07-17): a typed title
   // becomes the file name AND the H1; the text is the body.
-  await page.locator('[data-pinboard-capture]').click();
+  await page.getByTestId('base-new-entry').click();
   await page.locator('[data-pinboard-capture-title]').fill('Schnell notiert');
   await page.locator('[data-pinboard-capture-text]').fill('und mehr Text');
   await page.locator('[data-pinboard-capture-save]').click();
@@ -2002,7 +2005,7 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
 
   // WITHOUT a title the file gets a timestamp name ("YYYY-MM-DD HH.mm.ss")
   // and the note has no H1 — the text is the whole body.
-  await page.locator('[data-pinboard-capture]').click();
+  await page.getByTestId('base-new-entry').click();
   await page.locator('[data-pinboard-capture-text]').fill('Nur Body ohne Titel');
   await page.locator('[data-pinboard-capture-save]').click();
   await expect(cards).toHaveCount(5);

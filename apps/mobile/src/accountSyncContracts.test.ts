@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  VaultFileNotFoundError,
   canonicalSecretId,
   PROFILE_SYNC_PATH,
   serializeProfile,
@@ -101,7 +102,7 @@ function mobileVault(vaultId = "fixture-vault"): MobileVault {
     },
     async readTextFile(path: string) {
       const value = files.get(path);
-      if (value === undefined) throw new Error(`missing fixture file: ${path}`);
+      if (value === undefined) throw new VaultFileNotFoundError(path);
       return value;
     },
     async writeTextFile(path: string, value: string) {
@@ -315,7 +316,7 @@ describe("mobile account-sync regression contracts", () => {
 
     await port.applyValues({});
 
-    expect(await vault.adapter.exists(".plainva/bookmarks.json")).toBe(false);
+    expect(JSON.parse(await vault.adapter.readTextFile(".plainva/bookmarks.json")).items).toEqual([]);
     expect(await port.exportValues()).not.toHaveProperty("bookmarks");
   });
 

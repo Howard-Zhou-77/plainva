@@ -3,6 +3,7 @@ import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, classifySyncError,
 import { SyncProviderError } from "../../src/sync/errorKind.js";
 import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
 import { DeletionJournal, serializeDeletionJournal } from "../../src/sync/deletionJournal.js";
+import { addConflictFixture } from "../helpers/conflictFixture.js";
 
 describe("syncErrorMessage", () => {
   it("normalizes empty native/WebView rejections", () => {
@@ -127,6 +128,7 @@ describe("SyncWorker", () => {
       discardPendingDeletes: vi.fn().mockResolvedValue([])
     };
 
+    addConflictFixture(stateRepo, vault);
     worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100);
     worker["isRunning"] = true;
   });

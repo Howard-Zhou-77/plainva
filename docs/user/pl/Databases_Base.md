@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-09-15
+Stan na: 2026-09-16
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -150,7 +150,7 @@ Przycisk **Wpis** w lewym górnym rogu (dawniej **Nowy**; wyraźnie oddzielony o
 
 Typ widoku **Tablica korkowa** pokazuje notatki bazy danych jako karty z ich wyrenderowaną treścią — tablicę pełną karteczek samoprzylepnych. Karty renderują tekst, listy i klikalne pola wyboru (kliknięcie odhacza zadanie bezpośrednio w notatce), obrazy i formatowanie; tabele, formuły i osadzenia pojawiają się jako subtelne symbole zastępcze. Kliknięcie karty otwiera notatkę w oknie podglądu.
 
-- **Szybkie tworzenie**: pole **Napisz notatkę…** nad tablicą rozwija się w małe wyskakujące okienko z polem **Tytuł** i wielowierszowym tekstem notatki — jak w Google Keep. Wpisany tytuł staje się nazwą pliku ORAZ pierwszym nagłówkiem notatki; bez tytułu plik otrzymuje nazwę ze znacznikiem czasu, a notatka nie ma nagłówka. Tekst w obu przypadkach jest treścią — bez szablonu, bez okrężnych dróg (Ctrl/Cmd+Enter zapisuje).
+- **Szybkie tworzenie**: **Wpis** otwiera okno tytułu i tekstu. Tytuł staje się nazwą pliku i pierwszym nagłówkiem. Bez tytułu plik otrzymuje nazwę ze znacznikiem czasu. Ctrl/Cmd+Enter zapisuje.
 - **Przypinanie**: przycisk pinezki (w prawym górnym rogu po najechaniu na kartę) przenosi kartę do sekcji **Przypięte**.
 - **Układanie**: przeciągnij karty, aby zmienić ich kolejność; kolejność jest zapisywana w pliku `.base` i synchronizowana razem z nim. Karty jeszcze nieuporządkowane (świeżo utworzone lub dodane spoza aplikacji) pojawiają się na górze, od najnowszych. Jeśli w **Konfiguruj** ustawiona jest reguła sortowania, ma ona pierwszeństwo — wtedy przeciąganie jest wyłączone.
 - **Etykiety**: pasek chipów nad tablicą filtruje karty — domyślnie według tagów, z możliwością przełączenia na właściwość typu wielokrotny wybór (**Konfiguruj** → **Źródło etykiet**). Wiele chipów filtruje z logiką AND; wybór jest tymczasowy i nigdy nie jest zapisywany do pliku. Etykiety karty edytujesz przez **Etykiety** w menu kontekstowym karty.
@@ -295,3 +295,11 @@ Otwórz **Eksportuj tabelę** w menu bazy danych na komputerze lub użyj ikony e
 **Formuły (.base)** tworzy tabelę ze stałym wyborem bieżących wierszy. Te obliczenia przez zapisane relacje pozostają formułami: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Otwórz plik w tym samym sejfie z powiązanymi notatkami. Okno wskazuje nieobsługiwane obliczenia i relacje odwrotne; dla tych kolumn użyj eksportu wartości.
 
 **Wartości (.csv)** zawiera bieżące obliczone wartości i ścieżki plików. Wartości nie będą aktualizowane; listy pozostają w formacie JSON. Tekst przypominający formuły jest chroniony jako tekst w arkuszach kalkulacyjnych. Żadna opcja nie zapisuje obliczonych właściwości w oryginalnych notatkach.
+
+## Puste właściwości
+
+Pusta wartość YAML, `~` lub `null` bez cudzysłowu jest wyświetlana jako pusta właściwość i pasuje do filtrów pustych wartości. Tekst `"null"` zapisany w cudzysłowie pozostaje tekstem. Dotyczy to tabel, list, tablic, galerii i tablic notatek. Aktualizacja odbudowuje tylko pochodny indeks wyszukiwania; pliki notatek pozostają bez zmian.
+
+## Wyszukiwanie na tablicy i powrót
+
+Wyszukiwanie na tablicy obejmuje tytuły, treść, tagi i widoczne właściwości. Działa łącznie z filtrami widoku i wybranymi etykietami. Wyczyść lub Escape usuwa wyszukiwanie. Osadzone tablice mają to samo pole. Po otwarciu karty i powrocie wyszukiwanie, etykiety i pozycja pozostają zachowane w trakcie sesji. Zapisane podglądy pojawiają się od razu, a zmieniona treść jest ponownie wczytywana. Obrazy są ładowane dopiero, gdy są widoczne. Brak indeksu jest wskazywany, a po błędzie wczytywania można ponowić próbę.

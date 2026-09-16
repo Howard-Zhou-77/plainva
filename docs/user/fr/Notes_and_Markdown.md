@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-16
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -193,3 +193,19 @@ Un titre ATX et une tâche GFM sont deux types de blocs alternatifs. Plainva n�
 `![[Note#Titre]]` affiche la section et ses sous-titres jusqu’au prochain titre de niveau égal ou supérieur. `![[Note#^block-id]]` affiche le paragraphe, l’élément de liste ou le bloc précédant un identifiant placé seul sur une ligne. Le lien normal `[[Note#^block-id]]` y mène aussi en mode lecture.
 
 Pour les titres répétés, utilise une hiérarchie unique (`#Projet#Résultat`) ou une ancre numérotée (`#résultat-1`). Les cibles absentes ou ambiguës affichent un message et la source reste accessible. L’imbrication est limitée ; les exemples de code n’exécutent pas d’inclusions. Sur le téléphone, les sections et blocs ne sont pas tronqués aux quatre lignes de l’aperçu général. Les fichiers existants restent inchangés.
+
+## Utiliser les listes
+
+Un élément de liste se replie uniquement après un appui ou un clic terminé sur sa puce. Un glissement, un défilement, un contact annulé ou un geste à plusieurs doigts ne le replie pas. Le retrait reste stable lors des changements de police et dans les fenêtres étroites ; le texte source, les tabulations et la position du curseur sont conservés.
+
+## Barres de sélection visibles
+
+La barre de mise en forme suit la sélection pendant le défilement et garde une marge avec les bords de l’écran. Si l’espace manque, elle change de côté ou répartit ses boutons sur plusieurs lignes. En lecture mobile, les libellés longs deviennent si nécessaire des icônes avec des noms accessibles ; Copier, Tout sélectionner et les actions de modification ou de commentaire disponibles restent accessibles.
+
+## Compléter les propriétés
+
+À l’ajout, les noms connus affichent leur type et leur fréquence. Les noms déjà présents et réservés sont exclus. Le type de la base concernée est prioritaire, puis celui de l’index et du registre local. Les suggestions de texte et de listes viennent du dossier de la note ; « Rechercher dans tout le coffre » élargit la recherche. Les listes proposent chaque valeur séparément. Les options définies par la base restent exclusives, même si leur liste est vide. La saisie libre reste possible ; seule une modification confirmée change la note. Textes et listes conservent leur type, dans les propriétés et les cellules de base, sur ordinateur et mobile.
+
+### Ouvrir l’image
+
+**Ouvrir l’image** est disponible pour les images locales en lecture, en aperçu et dans le menu contextuel. Le visualiseur mobile propose le zoom à deux doigts, le double appui et les boutons ; **Réinitialiser le zoom** affiche toute l’image. Retour ramène à la note. L’appui long conserve les actions du système et les régions d’image restent commentables.

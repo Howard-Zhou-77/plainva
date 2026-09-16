@@ -730,3 +730,23 @@ test('Task rows: the trailing controls line up whether or not a row fills them',
     expect(spread, 'the rail is not on one line').toBeLessThanOrEqual(1);
   }
 });
+
+
+test('task filters survive note navigation and restart; missing selections can be cleared', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('plainva-task-view-/test-vault')) localStorage.setItem('plainva-task-view-/test-vault', JSON.stringify({ version: 1, status: 'all', text: 'old search', folder: 'Removed', tag: 'missing', dueOnly: true, showHidden: true }));
+  });
+  await openVault(page); await page.getByTestId('ribbon-tasks').click();
+  const search = page.getByPlaceholder(/Filter tasks|Aufgaben filtern/);
+  await expect(search).toHaveValue('old search');
+  await expect(page.getByRole('button', { name: /All folders|Alle Ordner/ })).toContainText(/Removed.*Unavailable|Removed.*Nicht verfügbar/);
+  await page.getByTestId('tasks-reset-filters').click();
+  await expect(search).toHaveValue('');
+  await page.getByTestId('tasks-filter-all').click(); await search.fill('milk');
+  await page.getByRole('button', { name: /buy milk/ }).click();
+  await page.getByTestId('ribbon-tasks').click(); await expect(search).toHaveValue('milk');
+  await page.reload(); await page.getByTestId('ribbon-tasks').click(); await expect(search).toHaveValue('milk');
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem('plainva-task-view-/test-vault')!));
+  expect(state).toEqual({ version: 1, status: 'all', text: 'milk', folder: '', tag: '', dueOnly: false, showHidden: false });
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [ ] buy milk');
+});

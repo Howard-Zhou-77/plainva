@@ -592,7 +592,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
  * bound BEFORE resetting mtime_local; the forced re-parse then upgrades rows
  * to the adapter's real birthtime where the platform provides one.
  */
-const INDEX_FORMAT_VERSION = 3;
+// Version 4 stores YAML null separately from literal strings and rebuilds
+// only the derived index. Note bytes and sync ancestry remain untouched.
+const INDEX_FORMAT_VERSION = 4;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;

@@ -115,7 +115,8 @@
     "pasteFailed": "Could not paste from the clipboard.",
     "copyImage": "Copy image",
     "saveImageAs": "Save image as…",
-    "copyImageFailed": "Could not copy the image."
+    "copyImageFailed": "Could not copy the image.",
+    "openImage": "Open image"
   },
   "common": {
     "on": "On",
@@ -654,7 +655,6 @@
     "missingFileRefresh": "Remove from index",
     "notTextTitle": "This file is not text",
     "notTextBody": "Its extension says text, its content does not. Plainva will not display it, because saving it would damage the file.",
-    "key": "Key",
     "value": "Value",
     "slashCheckbox": "Checkbox",
     "slashBulletList": "Bullet List",
@@ -943,7 +943,8 @@
     "today": "today",
     "viewSwitch": "View",
     "bookmarkSaveFailed": "Bookmarks could not be saved.",
-    "search": "Search"
+    "search": "Search",
+    "bookmarkMissing": "Target missing"
   },
   "database": {
     "graphNoColumns": "The graph shows no property columns.",
@@ -1338,7 +1339,8 @@
     "keepRatio": "Keep aspect ratio",
     "textPlaceholder": "Type text…",
     "viewOnly": "View only – editable formats are PNG, JPG and WebP.",
-    "loadError": "Could not load the image."
+    "loadError": "Could not load the image.",
+    "zoomReset": "Reset zoom"
   },
   "okfInfo": {
     "title": "What is OKF?",
@@ -1833,7 +1835,9 @@
     "rollupFn_unchecked": "Unchecked",
     "rollupFn_empty": "Without a value",
     "rollupFn_filled": "With a value",
-    "rollupFn_unique": "Distinct values"
+    "rollupFn_unique": "Distinct values",
+    "existingNames": "Known properties",
+    "searchWholeVault": "Search the entire vault"
   },
   "docHeader": {
     "addIcon": "Add icon",
@@ -2344,7 +2348,14 @@
   "conflict": {
     "resolveFailed": "Could not resolve the conflict: {{error}}",
     "resolveAction": "Resolve conflict…",
-    "notAConflictFile": "This file is not a conflict copy."
+    "notAConflictFile": "This file is not a conflict copy.",
+    "workingCopy": "You are editing your conflict copy. It will sync after you merge it.",
+    "workingCopyChanged": "The working copy was changed outside this editing session. The other version has been preserved.",
+    "savedRevisions": "Compare preserved revisions",
+    "savedBase": "Preserved starting version",
+    "foreignCopy": "Other working-copy version",
+    "noSavedBase": "No additional starting version is stored for this copy.",
+    "historyFailed": "The preserved revisions could not be loaded."
   },
   "mobile": {
     "tabSearch": "Search",
@@ -2569,7 +2580,8 @@
     "swipeHint": "Swipe a row left for actions. The same actions are in the row's menu.",
     "swipeHintAck": "Got it",
     "propertyWriteFailed": "Property could not be saved: {{message}}",
-    "selectMany": "Select several"
+    "selectMany": "Select several",
+    "readerAutoHide": "Automatically hide controls while reading"
   },
   "tasks": {
     "hideFromView": "Hide from tasks",
@@ -2661,7 +2673,9 @@
       "taskId": "ID",
       "recurrence": "Recurrence",
       "unsupported": "Rule preserved; no automatic continuation here."
-    }
+    },
+    "resetFilters": "Reset filters",
+    "filterUnavailable": "Unavailable"
   },
   "findReplace": {
     "title": "Find & replace in vault",
@@ -2727,7 +2741,13 @@
     "labels": "Labels",
     "addLabel": "Search labels…",
     "newLabel": "Create “{{name}}”",
-    "inlineTag": "in the text"
+    "inlineTag": "in the text",
+    "loadingCards": "Loading cards…",
+    "indexMissing": "Not indexed yet",
+    "loadFailed": "Cards could not be loaded",
+    "searchPlaceholder": "Search this pinboard…",
+    "noMatches": "No matching cards",
+    "retry": "Try again"
   },
   "compose": {
     "toolbar": "Formatting",
@@ -4141,18 +4161,18 @@
     "title": "What's new in Plainva {{version}}",
     "lead": "Biggest change",
     "experimental": "Experimental",
-    "highlight1Title": "More reliable connections and sync",
-    "highlight1": "Interrupted operations retry selectively. Sign-in problems and uncertain data states are clearer, while local changes are preserved.",
-    "highlight2Title": "Exact results, embeds and history",
-    "highlight2": "Jump to the matching passage, embed individual sections or blocks, and compare the actual line changes in a version.",
-    "highlight3Title": "JEX import and database export",
-    "highlight3": "Import Joplin archives with attachments into a new folder. Export supported rollups as Obsidian formulas or explicitly as values. Tasks keep their metadata.",
-    "highlight4Title": "Clear results for mail actions",
-    "highlight4": "Bulk actions show successes and failures per message. The attachment filter explains incomplete metadata; adding account services preserves existing sign-ins.",
-    "highlight5Title": "Your design and daily workflows",
-    "highlight5": "Customize light and dark separately and optionally sync your personal design. Daily notes, window handoff and queued shared content are more reliable.",
-    "highlight6Title": "Feedback on publications",
-    "highlight6": "Authorized recipients can comment and suggest changes. Owners can review feedback and retain it after a recipient loses access.",
+    "highlight1Title": "Keep working through conflicts",
+    "highlight1": "A conflict working copy follows further edits and survives a restart. Compare earlier snapshots and choose which version to keep.",
+    "highlight2Title": "Steadier editing, faster pinboards",
+    "highlight2": "Lists remain stable with difficult font metrics. Selection controls stay inside the visible area. Pinboards load visible previews on demand and remember content and position for your return.",
+    "highlight3Title": "Property suggestions and pinboard search",
+    "highlight3": "Get suggestions for property names, types and individual list values. Curated database options stay exclusive. Search pinboards by note content together with labels; empty properties now filter correctly.",
+    "highlight4Title": "Task filters and folder bookmarks",
+    "highlight4": "Task filters stay with each vault on this device and can be reset. Bookmark folders and open them directly; bookmark paths follow renames and moves.",
+    "highlight5Title": "More room for reading",
+    "highlight5": "On mobile, the header and pencil retreat when scrolling down and return on the first upward movement. This new reading option is on by default and can be turned off in Editor & notes. The tablet rail stays visible; desktop has focus mode.",
+    "highlight6Title": "Open and zoom images",
+    "highlight6": "Open image takes you from reading or live preview to the image viewer. Mobile adds pinch zoom, double-tap and reset. Long-pressing embedded images keeps the native image actions.",
     "readBlog": "Read the blog post",
     "understand": "Got it"
   },

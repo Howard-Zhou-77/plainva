@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-16
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -150,7 +150,7 @@ De **Item**-knop linksboven (voorheen **Nieuw**; duidelijk gescheiden van de glo
 
 Het weergavetype **Prikbord** toont de notities van de database als kaarten met hun weergegeven inhoud — een bord vol kleefbriefjes. Kaarten renderen tekst, lijsten en klikbare selectievakjes (een klik vinkt de taak direct in de notitie af), afbeeldingen en opmaak; tabellen, formules en insluitingen verschijnen als subtiele plaatshouders. Een klik op een kaart opent de notitie in het voorbeeldvenster.
 
-- **Snel vastleggen**: het veld **Notitie schrijven…** boven het bord vouwt uit tot een klein pop-upvenster met een veld **Titel** en meerregelige notitietekst — net als bij Google Keep. Een getypte titel wordt de bestandsnaam ÉN de eerste kop van de notitie; zonder titel krijgt het bestand een tijdstempelnaam en heeft de notitie geen kop. De tekst is in beide gevallen de inhoud — geen sjabloon, geen omwegen (Ctrl/Cmd+Enter slaat op).
+- **Snel vastleggen**: **Item** opent een venster voor titel en tekst. De titel wordt de bestandsnaam en eerste kop. Zonder titel krijgt het bestand een tijdstempel als naam. Ctrl/Cmd+Enter slaat op.
 - **Vastzetten**: de vastzet-knop (rechtsboven wanneer je over een kaart zweeft) verplaatst een kaart naar de sectie **Vastgezet**.
 - **Ordenen**: sleep kaarten om ze te herschikken; de volgorde staat in het `.base`-bestand en synchroniseert mee. Kaarten die nog niet zijn geordend (net vastgelegd of extern aangemaakt) verschijnen bovenaan, nieuwste eerst. Is er een sorteerregel ingesteld onder **Configureren**, dan wint die — slepen is dan uitgeschakeld.
 - **Labels**: de chipbalk boven het bord filtert de kaarten — standaard op tags, om te zetten naar een multiselectie-eigenschap (**Configureren** → **Labelbron**). Meerdere chips filteren met EN gecombineerd; de selectie is vluchtig en wordt nooit in het bestand geschreven. Bewerk de labels van een kaart via **Labels** in het contextmenu van de kaart.
@@ -295,3 +295,11 @@ Open **Tabel exporteren** in het databasemenu op de desktop of via het exportpic
 **Formules (.base)** maakt een tabel met een vaste selectie van de huidige rijen. Deze berekeningen via opgeslagen relaties blijven formules: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open het bestand in dezelfde kluis met de gekoppelde notities. Niet-ondersteunde berekeningen en omgekeerde relaties staan in het venster; gebruik daarvoor de waardenexport.
 
 **Waarden (.csv)** bevat de huidige berekende waarden en bestandspaden. Waarden worden later niet bijgewerkt; lijsten blijven JSON. Formuleachtige tekst wordt als tekst beschermd voor spreadsheets. Geen van beide opties schrijft berekende eigenschappen in de oorspronkelijke notities.
+
+## Lege eigenschappen
+
+Een lege YAML-waarde, `~` of `null` zonder aanhalingstekens verschijnt als een lege eigenschap en valt onder filters voor lege waarden. De expliciet aangehaalde tekst `"null"` blijft tekst. Dit geldt voor tabellen, lijsten, borden, galerijen en prikborden. Bijwerken vernieuwt alleen de afgeleide zoekindex; notitiebestanden blijven ongewijzigd.
+
+## Zoeken in een prikbord en terugkeren
+
+De prikbordzoekfunctie doorzoekt titels, tekst, tags en zichtbare eigenschappen. Weergavefilters, geselecteerde labels en zoektekst gelden samen. Wissen of Escape verwijdert de zoekopdracht. Ingesloten prikborden hebben hetzelfde zoekveld. Na het openen van een kaart blijven zoektekst, labels en leespositie bij terugkeer tijdens de sessie behouden. Opgeslagen voorbeelden verschijnen direct; gewijzigde inhoud wordt opnieuw geladen. Afbeeldingen laden wanneer ze zichtbaar zijn. Niet-geïndexeerde items worden aangegeven en na een laadfout kun je opnieuw proberen.

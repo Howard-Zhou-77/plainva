@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-16
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -150,7 +150,7 @@ O botão **Entrada** no canto superior esquerdo (antes **Novo**; claramente sepa
 
 O tipo de visualização **Mural** mostra as notas do banco de dados como cartões com seu conteúdo renderizado — um mural cheio de notas adesivas. Os cartões renderizam texto, listas e caixas de seleção clicáveis (um clique marca a tarefa diretamente na nota), imagens e formatação; tabelas, fórmulas e conteúdos incorporados aparecem como indicadores discretos. Clicar em um cartão abre a nota na janela de pré-visualização.
 
-- **Captura rápida**: o campo **Escreva uma nota…** acima do mural se expande em um pequeno popup com um campo **Título** e um texto de nota de várias linhas — como no Google Keep. Um título digitado vira o nome do arquivo E o primeiro título da nota; sem um título, o arquivo recebe um nome com carimbo de data/hora e a nota fica sem título. O texto é o conteúdo de qualquer forma — sem modelo, sem desvios (Ctrl/Cmd+Enter salva).
+- **Captura rápida**: **Entrada** abre uma janela para título e texto. O título vira o nome do arquivo e o primeiro cabeçalho. Sem título, o nome usa data e hora. Ctrl/Cmd+Enter salva.
 - **Fixação**: o botão de fixar (canto superior direito ao passar o cursor sobre um cartão) move um cartão para a seção **Fixadas**.
 - **Organização**: arraste os cartões para reordená-los; a ordem fica salva no arquivo `.base` e é sincronizada junto. Cartões ainda não organizados (recém-capturados ou criados fora do Plainva) aparecem no topo, do mais recente para o mais antigo. Se houver uma regra de ordenação definida em **Configurar**, ela prevalece — nesse caso, arrastar fica desativado.
 - **Marcadores**: a barra de chips acima do mural filtra os cartões — por tags por padrão, alternável para uma propriedade de seleção múltipla (**Configurar** → **Origem dos marcadores**). Vários chips se combinam com E; a seleção é temporária e nunca é gravada no arquivo. Edite os marcadores de um cartão pelo item **Marcadores** no menu de contexto do cartão.
@@ -295,3 +295,11 @@ Abra **Exportar tabela** no menu do banco de dados no desktop ou use o ícone de
 **Fórmulas (.base)** cria uma tabela com uma seleção fixa das linhas atuais. Estes cálculos por relações salvas permanecem como fórmulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Abra o arquivo no mesmo cofre com as notas vinculadas. A janela identifica cálculos incompatíveis e relações inversas; use a exportação de valores para essas colunas.
 
 **Valores (.csv)** contém os valores calculados atuais e os caminhos dos arquivos. Os valores não serão atualizados; as listas permanecem em JSON. Textos semelhantes a fórmulas são protegidos como texto em planilhas. Nenhuma opção grava propriedades calculadas nas notas originais.
+
+## Propriedades vazias
+
+Um valor YAML vazio, `~` ou `null` sem aspas aparece como propriedade vazia e corresponde aos filtros de valores vazios. O texto explicitamente entre aspas `"null"` continua sendo texto. Isso vale para tabelas, listas, quadros, galerias e murais de notas. A atualização reconstrói apenas o índice de pesquisa derivado; os arquivos das notas não mudam.
+
+## Pesquisar no mural e retornar
+
+A pesquisa do mural inclui títulos, texto, tags e propriedades visíveis. Ela se combina com os filtros da visualização e as etiquetas selecionadas. Limpar ou Escape remove a pesquisa. Murais incorporados têm o mesmo campo. Ao abrir um cartão e voltar, pesquisa, etiquetas e posição são preservadas durante a sessão. As prévias salvas aparecem imediatamente e os conteúdos alterados são recarregados. As imagens carregam quando ficam visíveis. Itens não indexados são indicados e erros de carregamento permitem tentar novamente.

@@ -59,7 +59,7 @@ import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } 
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush, type SaveFlushRequest } from "../services/saveFlush";
 import { SplitButton, type SplitDirection } from "./SplitButton";
-import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction } from "@plainva/ui";
+import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction, type SelectionToolbarPosition } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
@@ -71,7 +71,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { mergeEditorText, containsTextChanges, ConflictError } from "@plainva/core";
+import { mergeEditorText, containsTextChanges } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
@@ -645,7 +645,7 @@ export const Editor: React.FC<{
     };
   }, [vaultPath]);
   // Floating formatting toolbar over a non-empty selection (#5).
-  const [selToolbar, setSelToolbar] = useState<{ x: number; y: number; above: boolean } | null>(null);
+  const [selToolbar, setSelToolbar] = useState<SelectionToolbarPosition | null>(null);
   // Block handle menu (#7): opened from a block's drag grip.
   const [blockMenu, setBlockMenu] = useState<{ x: number; y: number; from: number } | null>(null);
   // Document icon / header-color pickers (W3), anchored where the user clicked.
@@ -678,7 +678,7 @@ export const Editor: React.FC<{
    * shown as text at all — the system app gets the offer instead.
    */
   const [notText, setNotText] = useState(false);
-  const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string } | null>(null);
+  const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string; working?: boolean; foreignCopySnapshot?: string | null } | null>(null);
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
   const [draftOffer, setDraftOffer] = useState<{ text: string; savedAt: number; revision: number; sessionId?: string } | null>(null);
@@ -748,22 +748,29 @@ export const Editor: React.FC<{
         const disk = normalize(await vaultAdapter.readTextFile(path));
         const base = saveState.baseInput;
         let candidate = val;
+        let conflictSession: import("@plainva/core").ConflictEditSession | null = null;
+        let confirmed: string;
+        if (vaultAdapter.writeEditorText) {
+          const result = await vaultAdapter.writeEditorText(path, shape ? applyTextShape(val, shape) : val,
+            base === null ? null : shape ? applyTextShape(base, shape) : base);
+          conflictSession = result.session;
+          confirmed = normalize(result.stored);
+          if (current()) setConflictInfo(conflictSession ? { conflictPath: conflictSession.workingCopyPath, working: true, foreignCopySnapshot: conflictSession.foreignCopySnapshot } : null);
+        } else {
         // A pull may already have advanced the sync index. The editor's own
         // base still identifies changes it has not incorporated into its buffer.
         if (base !== null && disk !== base && disk !== val) {
           const merged = mergeEditorText(base, val, disk);
           if (merged.hasConflicts) {
-            const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
-            const stem = ext ? path.slice(0, -ext.length) : path;
-            const copy = stem + ".CONFLICT-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID() + ext;
-            await vaultAdapter.writeTextFile(copy, shape ? applyTextShape(val, shape) : val);
-            throw new ConflictError("Cannot automatically merge the pending editor changes", copy);
+            throw new Error("Conflict-safe editing is unavailable; the pending draft has been retained");
           }
           candidate = merged.mergedText;
         }
         await vaultAdapter.writeTextFile(path, shape ? applyTextShape(candidate, shape) : candidate);
-        const stored = normalize(await vaultAdapter.readTextFile(path));
-        if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
+        confirmed = normalize(await vaultAdapter.readTextFile(path));
+        if (!containsTextChanges(disk, candidate, confirmed)) throw new Error("The saved note could not be confirmed");
+        }
+        const stored = confirmed;
         saveState.update({ baseInput: val });
         saveState.update({ savedRevision: revAtSave });
         saveState.update({ persisted: stored });
@@ -779,7 +786,7 @@ export const Editor: React.FC<{
             saveState.update({ baseInput: stored });
             saveState.update({ dirty: false });
             dirtyStore.set(path, false, saveState.id);
-            setConflictInfo(null);
+            if (!conflictSession) setConflictInfo(null);
           }
         }
         if (draftVault) {
@@ -794,9 +801,10 @@ export const Editor: React.FC<{
         // The note is committed even if refreshing its derived index fails.
         try {
           if (indexer) {
+            const storedPath = conflictSession?.workingCopyPath ?? path;
             let info: VaultFileInfo;
-            try { info = await vaultAdapter.getFileInfo(path); }
-            catch { info = { path, name: path.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: stored.length }; }
+            try { info = await vaultAdapter.getFileInfo(storedPath); }
+            catch { info = { path: storedPath, name: storedPath.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: stored.length }; }
             const metaChanged = await indexer.indexFile(info);
             if (metaChanged) triggerFileTreeUpdate([path]);
           }
@@ -1895,9 +1903,11 @@ export const Editor: React.FC<{
     // Wait for an in-flight write to this file (P1.7) — loading mid-write
     // would show the pre-write content and re-save it over the newer text.
     const inFlight = pendingWriteFor(vaultPath ?? "", activePath);
-    const readAfterWrites = inFlight
-      ? inFlight.catch(() => {}).then(() => vaultAdapter.readTextFile(activePath))
-      : vaultAdapter.readTextFile(activePath);
+    const readAfterWrites = Promise.resolve(inFlight).catch(() => {}).then(async () => {
+      const conflict = await vaultAdapter.getConflictSession?.(activePath);
+      if (isMounted && conflict) setConflictInfo({ conflictPath: conflict.workingCopyPath, working: true, foreignCopySnapshot: conflict.foreignCopySnapshot });
+      return vaultAdapter.readTextFile(conflict?.workingCopyPath ?? activePath);
+    });
     readAfterWrites.then(text => {
       if (isMounted) {
         loadedPathRef.current = activePath;
@@ -1994,7 +2004,9 @@ export const Editor: React.FC<{
       const capturedSession = sessionRef.current;
       void withPendingWrite(vaultPath ?? "", path, async () => {
         if (!current() || sessionRef.current !== capturedSession) return;
-        const raw = await vaultAdapter.readTextFile(path);
+        const conflict = await vaultAdapter.getConflictSession?.(path);
+        if (current()) setConflictInfo(conflict ? { conflictPath: conflict.workingCopyPath, working: true, foreignCopySnapshot: conflict.foreignCopySnapshot } : null);
+        const raw = await vaultAdapter.readTextFile(conflict?.workingCopyPath ?? path);
         if (!current() || sessionRef.current !== capturedSession) return;
         const disk = saveState.shape ? readTextShape(raw).text : raw.replace(/\r\n/g, "\n");
         const draft = capturedSession?.view.state.doc.toString() ?? contentRef.current;
@@ -2002,20 +2014,14 @@ export const Editor: React.FC<{
         const action = saveState.dirty
           ? decideDirtyExternalUpdate({ disk, draft, lastPersisted: saveState.persisted }) : "realign";
         if (action === "own-echo") return;
-        let conflictPath: string | null = null;
         if (action !== "realign") {
-          const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
-          const stem = ext ? path.slice(0, -ext.length) : path;
-          conflictPath = stem + ".CONFLICT-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID() + ext;
+          if (!vaultAdapter.preserveConflict) throw new Error("Conflict-safe editing is unavailable; the pending draft has been retained");
           const shape = saveState.shape;
-          // Keep the scheduled write until this copy exists. If new typing
-          // arrives during preservation, its next save merges from its own
-          // editor base and cannot blindly overwrite the external version.
-          await vaultAdapter.writeTextFile(conflictPath, shape ? applyTextShape(draft, shape) : draft);
-          if (current()) {
-            setConflictInfo({ conflictPath });
-            toast.warning(t("dialogs.conflictSavedMsg", { path: conflictPath }));
-          }
+          const kept = await vaultAdapter.preserveConflict(path, shape ? applyTextShape(draft, shape) : draft, "editor-external");
+          if (current()) setConflictInfo({ conflictPath: kept.workingCopyPath, working: true, foreignCopySnapshot: kept.foreignCopySnapshot });
+          // The scheduled save still owns any typing that arrived while
+          // preserving. It will update this same working copy.
+          return;
         }
         if (!current() || sessionRef.current !== capturedSession || saveState.revision !== revision
           || (capturedSession?.view.state.doc.toString() ?? contentRef.current) !== draft) return;
@@ -2032,7 +2038,7 @@ export const Editor: React.FC<{
         saveState.update({ discardedRevision: revision });
         saveState.update({ baseInput: disk });
         saveState.update({ persisted: disk });
-        applyExternalText(disk, conflictPath ? "external modification (draft preserved)" : "external modification");
+        applyExternalText(disk, "external modification");
         saveState.update({ dirty: false });
         dirtyStore.set(path, false, saveState.id);
         if (vaultPath) {
@@ -2152,9 +2158,10 @@ export const Editor: React.FC<{
         notePath: activePath ?? "",
         resolveByName: (name) => vaultContext.queryService?.findByFileName(name, activePath ?? undefined) ?? Promise.resolve(null),
       }),
+      onOpenImage: (absolutePath: string) => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); },
       onImageContext: (e, absolutePath) => openContextMenu({
         x: e.clientX, y: e.clientY, selection: "", editable: null,
-        image: { loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },
+        image: { open: () => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); }, loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },
       }),
       buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
     };
@@ -3088,9 +3095,10 @@ export const Editor: React.FC<{
             </>
           }
         >
-          {conflictInfo.conflictPath
+          {conflictInfo.working ? t("conflict.workingCopy") : conflictInfo.conflictPath
             ? t("editor.conflictBanner", { path: conflictInfo.conflictPath })
             : t("editor.conflictBannerNoPath")}
+          {conflictInfo.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
         </Banner>
       )}
 
@@ -3384,7 +3392,7 @@ export const Editor: React.FC<{
       )}
 
       {viewMode !== 'read' && selToolbar && (
-        <SelectionToolbar x={selToolbar.x} y={selToolbar.y} above={selToolbar.above} onAction={applyFormat} />
+        <SelectionToolbar {...selToolbar} onAction={applyFormat} />
       )}
 
       {blockMenu && (

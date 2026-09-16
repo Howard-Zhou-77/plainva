@@ -9,6 +9,10 @@ import { EditorState } from "@codemirror/state";
 import { ConflictError, containsTextChanges, mergeEditorText } from "@plainva/core";
 import { applyTextShape, readTextShape } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
+import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
+import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
+import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import type { IDatabaseAdapter } from "@plainva/core";
 import { EditorSaveLifetime } from "./editorSaveLifetime";
 import { dirtyStore } from "./dirtyStore";
 import { withPendingWrite, resetPendingWritesForTests } from "./pendingWrites";
@@ -34,16 +38,18 @@ function gate() {
   return { promise, resolve };
 }
 let root: string, raw: LocalVaultAdapter;
+let db: IDatabaseAdapter, files: ConflictAwareVaultAdapter;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "plainva-desktop-save-"));
   raw = new LocalVaultAdapter(root);
   await raw.initialize();
   await raw.writeTextFile("Note.md", "base\nmiddle\nend");
+  db = await realSqlite(); files = new ConflictAwareVaultAdapter(raw, new SyncStateRepository(db));
   resetPendingWritesForTests(); dirtyStore.clearAll();
 });
-afterEach(async () => { vi.restoreAllMocks(); await rm(root, { recursive: true, force: true }); });
+afterEach(async () => { vi.restoreAllMocks(); await db.close(); await rm(root, { recursive: true, force: true }); });
 function harness(path = "Note.md", initial = "base\nmiddle\nend") {
-  const lifetime = new EditorSaveLifetime(root, path, raw);
+  const lifetime = new EditorSaveLifetime(root, path, files);
   lifetime.activate(); lifetime.baseInput = initial; lifetime.persisted = initial;
   const session = {
     view: { state: EditorState.create({ doc: initial }) },
@@ -60,7 +66,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   });
   const ui = { saving: vi.fn(), error: vi.fn(), content: vi.fn(), conflict: vi.fn() };
   const deps = {
-    activePath: path, vaultPath: root, vaultAdapter: raw, saveState: lifetime, sessionRef, contentRef,
+    activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef, contentRef,
     withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, applyTextShape, readTextShape, dirtyStore,
     loadJournal: async () => ({ recordDraft, clearDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict,
@@ -76,6 +82,25 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
 }
 
 describe("original desktop save completion", () => {
+  it("keeps one working copy through 100 actual editor saves and a new editor lifetime", async () => {
+    let h = harness();
+    await raw.writeTextFile("Note.md", "foreign\nmiddle\nend");
+    for (let i = 0; i < 100; i++) {
+      if (i === 50) {
+        h.lifetime.deactivate();
+        const session = await files.getConflictSession("Note.md");
+        h = harness("Note.md", await files.readTextFile(session!.workingCopyPath));
+      }
+      const text = `local ${i}\nmiddle\nend`;
+      h.edit(text); await h.persist(text);
+    }
+    const sessions = await files.listConflictSessions();
+    expect(sessions).toHaveLength(1);
+    expect(await raw.readTextFile(sessions[0].workingCopyPath)).toBe("local 99\nmiddle\nend");
+    expect(await raw.readTextFile("Note.md")).toBe("foreign\nmiddle\nend");
+    expect(h.ui.conflict).toHaveBeenLastCalledWith(expect.objectContaining({ working: true, conflictPath: sessions[0].workingCopyPath }));
+    expect(h.journals.size).toBe(0);
+  });
   it("rejects an actual write failure and retains its recovery draft and dirty state", async () => {
     const h = harness(); h.edit("my draft");
     vi.spyOn(raw, "writeTextFile").mockRejectedValueOnce(new Error("disk full"));
@@ -151,12 +176,11 @@ describe("original desktop save completion", () => {
   it("preserves a conflict even if the sync index would already consider the foreign disk current", async () => {
     const h = harness(); await raw.writeTextFile("Note.md", "foreign\nmiddle\nend");
     h.edit("local\nmiddle\nend");
-    const error = await h.persist("local\nmiddle\nend").catch((error) => error as ConflictError);
-    expect(error).toBeInstanceOf(ConflictError);
-    if (!(error instanceof ConflictError)) throw new Error("Expected a persisted conflict");
-    expect(await raw.readTextFile(error.conflictPath!)).toBe("local\nmiddle\nend");
+    await h.persist("local\nmiddle\nend");
+    const conflict = await files.getConflictSession("Note.md");
+    expect(await raw.readTextFile(conflict!.workingCopyPath)).toBe("local\nmiddle\nend");
     expect(await raw.readTextFile("Note.md")).toBe("foreign\nmiddle\nend");
-    expect(h.lifetime.dirty).toBe(true);
+    expect(h.lifetime.dirty).toBe(false);
   });
 
   it("does not confirm or clear a draft when read-back no longer contains the submitted change", async () => {

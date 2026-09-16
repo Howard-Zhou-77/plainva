@@ -18,19 +18,7 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, type SearchOccurrence } from "./searchOccurrences.js";
-
-/** Preserve YAML null and empty strings across every indexed-property read.
- * Objects remain serialized for existing namespace consumers; the index stores
- * an actual null as type=object/value="null", unlike the literal text "null". */
-function decodeIndexedProperty(type: unknown, value: any): any {
-  if (type === "number") return Number(value);
-  if (type === "boolean") return value === "true";
-  if (type === "object" && value === "null") return null;
-  if (type === "list") {
-    try { return JSON.parse(value); } catch { return value; }
-  }
-  return value;
-}
+import { decodeIndexedProperty } from "./indexedProperty.js";
 
 export interface FileRecord {
   id: string;
@@ -113,6 +101,8 @@ export interface TaskRecord extends ScannedTask {
 
 /** Body/tags/ctime of one note, for content-rendering views (plan Pinboard P2). */
 export interface NoteCardData {
+  /** A file row without indexed text is not an empty note. */
+  indexStatus?: "ready" | "missing";
   /** Full note text from the FTS index (frontmatter included; callers strip it). */
   content: string;
   tags: string[];
@@ -440,6 +430,28 @@ export class VaultQueryService {
    * SQLite's bound-variable limit; paths missing from the index are simply
    * absent from the result.
    */
+  /** Board-local substring search, Unicode case folding, bounded reads and path-only results.
+   * Search the note body, not hidden YAML properties. Metadata matches use the visible row fields.
+   */
+  async searchCardContent(paths: string[], query: string, signal?: AbortSignal): Promise<string[]> {
+    const needle = query.trim().normalize("NFC").toLocaleLowerCase();
+    if (!needle || paths.length === 0) return [];
+    const found: string[] = [];
+    const unique = [...new Set(paths)];
+    for (let i = 0; i < unique.length; i += 200) {
+      if (signal?.aborted) throw new DOMException("Search cancelled", "AbortError");
+      const chunk = unique.slice(i, i + 200);
+      const rows = await this.db.query<{ path: string; content: string | null }>(
+        `SELECT path, content FROM fts_notes WHERE path IN (${chunk.map(() => "?").join(",")})`, chunk,
+      );
+      for (const row of rows) {
+        const body = (row.content ?? "").replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/, "");
+        if (body.normalize("NFC").toLocaleLowerCase().includes(needle)) found.push(row.path);
+      }
+    }
+    return found;
+  }
+
   async getCardData(paths: string[]): Promise<Record<string, NoteCardData>> {
     const out: Record<string, NoteCardData> = {};
     if (paths.length === 0) return out;
@@ -461,7 +473,7 @@ export class VaultQueryService {
       );
       for (const r of fileRows) {
         if (!r.path) continue;
-        if (!out[r.path]) out[r.path] = { content: "", tags: [], ctime: null };
+        if (!out[r.path]) out[r.path] = { content: "", tags: [], ctime: null, indexStatus: "missing" };
         out[r.path].ctime = r.ctime ?? null;
       }
       const tagRows = await this.db.query<{ path: string; tag: string }>(
@@ -1001,27 +1013,56 @@ export class VaultQueryService {
    * folder, so a generic key like `status` reused across unrelated note types does
    * not mix vocabularies. An empty/omitted prefix keeps the vault-global behaviour.
    */
-  async getDistinctPropertyValues(key: string, folderPrefix?: string): Promise<{ value: string; count: number }[]> {
-    const scoped = folderPrefix !== undefined && folderPrefix !== "";
-    const sql = scoped
-      ? `SELECT p.value AS value, COUNT(DISTINCT p.file_id) AS count
-         FROM properties p JOIN files f ON f.id = p.file_id
-         WHERE p.key = ? AND p.value IS NOT NULL AND p.value != '' AND f.path LIKE ? ESCAPE '\\'
-         GROUP BY p.value
-         ORDER BY count DESC, value ASC`
-      : `SELECT value AS value, COUNT(DISTINCT file_id) AS count
-         FROM properties
-         WHERE key = ? AND value IS NOT NULL AND value != ''
-         GROUP BY value
-         ORDER BY count DESC, value ASC`;
-    const params = scoped ? [key, `${escapeLikePrefix(folderPrefix)}%`] : [key];
-    const rows = await this.db.query(sql, params);
-    return rows
-      .map((row: any) => ({
-        value: String(row.value ?? row.VALUE ?? ""),
-        count: Number(row.count ?? row.COUNT ?? 0),
-      }))
-      .filter((r) => r.value !== "");
+  async getKnownProperties(query = "", limit = 80): Promise<{ name: string; type: string; count: number }[]> {
+    const rows = await this.db.query<{ name: string; type: string; count: number }>(
+      `WITH used AS (
+        SELECT key, type, COUNT(DISTINCT file_id) AS uses FROM properties
+        WHERE key LIKE ? ESCAPE '\\' GROUP BY key, type
+      ), ranked AS (
+        SELECT key AS name, type, SUM(uses) OVER (PARTITION BY key) AS count,
+          ROW_NUMBER() OVER (PARTITION BY key ORDER BY uses DESC, type ASC) AS rank
+        FROM used
+      ) SELECT name, type, count FROM ranked WHERE rank = 1
+      ORDER BY count DESC, name ASC LIMIT ?`,
+      [`%${escapeLikePrefix(query.trim().normalize("NFC"))}%`, Math.max(1, Math.min(200, Math.floor(limit) || 80))],
+    );
+    return rows;
+  }
+
+  async getDistinctPropertyValues(
+    key: string, folderPrefix?: string, types?: readonly string[],
+  ): Promise<{ value: string; count: number }[]> {
+    // Expand only valid indexed arrays. Never offer a serialized list/object as
+    // a value; repeated elements in one note still count as one occurrence.
+    const conditions = ["p.key = ?"];
+    const params: (string | number)[] = [key];
+    if (folderPrefix === "/") conditions.push("instr(f.path, '/') = 0");
+    else if (folderPrefix) {
+      const variants = [...new Set([folderPrefix.normalize("NFC"), folderPrefix.normalize("NFD")])];
+      conditions.push(`(${variants.map(() => "f.path LIKE ? ESCAPE '\\'").join(" OR ")})`);
+      params.push(...variants.map((v) => `${escapeLikePrefix(v)}%`));
+    }
+    if (types) {
+      if (!types.length) return [];
+      conditions.push(`p.type IN (${types.map(() => "?").join(",")})`);
+      params.push(...types);
+    }
+    const rows = await this.db.query<{ value: string; count: number }>(
+      `WITH scoped AS (
+        SELECT p.file_id, p.type, p.value FROM properties p JOIN files f ON f.id = p.file_id
+        WHERE ${conditions.join(" AND ")}
+      ), items AS (
+        SELECT file_id, value FROM scoped WHERE type IN ('string', 'number', 'boolean')
+        UNION ALL
+        SELECT p.file_id, CAST(j.value AS TEXT) AS value FROM scoped p,
+          json_each(CASE WHEN p.type = 'list' AND json_valid(p.value)
+            THEN CASE WHEN json_type(p.value) = 'array' THEN p.value ELSE '[]' END ELSE '[]' END) j
+        WHERE j.type = 'text'
+      ) SELECT value, COUNT(DISTINCT file_id) AS count FROM items
+      WHERE value IS NOT NULL AND value != '' GROUP BY value
+      ORDER BY count DESC, value ASC LIMIT 100`, params,
+    );
+    return rows.map((r) => ({ value: String(r.value ?? ""), count: Number(r.count ?? 0) })).filter((r) => r.value !== "");
   }
 
   /**
@@ -1029,7 +1070,7 @@ export class VaultQueryService {
    */
   async queryDatabaseFiles(config: any, options: { includeFilterMetadata?: boolean } = {}): Promise<any[]> {
     let sql = `
-      SELECT f.id, f.path AS path, f.title, f.mtime_local, f.size_bytes
+      SELECT f.id, f.path AS path, f.title, f.mtime_local, f.size_bytes, f.sha256, f.ctime
       FROM files f
       WHERE 1=1 AND f.mode != 'attachment'
     `;
@@ -1083,6 +1124,7 @@ export class VaultQueryService {
     // when EVERY entry is a source string. A mixed or-list must evaluate in
     // memory — the old code cut it down to its source clauses and dropped
     // rows that only matched a property alternative.
+    const pinboard = (config.views?.[0]?.plainva?.render ?? config.views?.[0]?.type) === "pinboard";
     const andList: any[] = Array.isArray(config.filters?.and) ? config.filters.and : [];
     const orList: any[] = Array.isArray(config.filters?.or) ? config.filters.or : [];
     const residualAnd: any[] = [];
@@ -1169,7 +1211,9 @@ export class VaultQueryService {
         "file.path": row.path || "",
         "file.mtime": row.mtime_local,
         "file.size": row.size_bytes,
-        ...props
+        ...props,
+        "file.revision": row.sha256 ?? `${row.mtime_local}:${row.size_bytes}`,
+        "file.ctime": row.ctime ?? null
       };
       // Case-insensitive fallback onto the schema's column keys: frontmatter
       // keys keep the exact casing of the note ("Frist"), but every view reads
@@ -1238,12 +1282,12 @@ export class VaultQueryService {
     // any source condition inside a mixed or-list. `file.hasTag` outside SQL
     // needs the tag table. Filter pickers request the same bulk data over the
     // unfiltered source, so values remain selectable when the view is empty.
-    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata) {
+    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata || pinboard) {
       const rootNode = {
         and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])],
       };
       let tagsByPath: Map<string, Set<string>> | null = null;
-      if ((filterNeedsTags(rootNode) || options.includeFilterMetadata) && finalResult.length > 0) {
+      if ((filterNeedsTags(rootNode) || options.includeFilterMetadata || pinboard) && finalResult.length > 0) {
         tagsByPath = new Map();
         for (let i = 0; i < fileIds.length; i += chunkSize) {
           const chunk = fileIds.slice(i, i + chunkSize);

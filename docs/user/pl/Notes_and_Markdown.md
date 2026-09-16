@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-15
+Stan na: 2026-09-16
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -193,3 +193,19 @@ Nagłówek ATX i zadanie GFM są alternatywnymi typami bloków. Plainva nie zapi
 `![[Notatka#Nagłówek]]` pokazuje sekcję z podnagłówkami do następnego nagłówka tego samego lub wyższego poziomu. `![[Notatka#^block-id]]` pokazuje wskazany akapit, element listy albo blok przed identyfikatorem umieszczonym w osobnym wierszu. Zwykły link `[[Notatka#^block-id]]` prowadzi tam również w trybie czytania.
 
 Przy powtarzających się nagłówkach użyj jednoznacznej hierarchii (`#Projekt#Wynik`) lub kotwicy z numerem (`#wynik-1`). Brakujące i niejednoznaczne cele pokazują komunikat, a źródło pozostaje dostępne. Głębokość zagnieżdżenia jest ograniczona; przykłady kodu nie wykonują osadzania. Na telefonie sekcje i bloki nie są skracane do czterech wierszy zwykłego podglądu notatki. Istniejące pliki nie są zmieniane.
+
+## Obsługa list
+
+Element listy zwija się dopiero po zakończeniu stuknięcia lub kliknięcia jego znacznika. Przeciąganie, przewijanie, przerwany dotyk ani gest wieloma palcami go nie zwijają. Wcięcia pozostają stabilne przy zmianie czcionki i w wąskich oknach; tekst źródłowy, tabulatory i pozycja kursora są zachowane.
+
+## Widoczne paski zaznaczenia
+
+Pasek formatowania podąża za zaznaczeniem podczas przewijania i zachowuje odstęp od krawędzi ekranu. Gdy brakuje miejsca, przechodzi na drugą stronę zaznaczenia lub zawija przyciski. W mobilnym trybie czytania długie etykiety w razie potrzeby stają się ikonami z dostępnymi nazwami; Kopiuj, Zaznacz wszystko oraz dostępne działania edycji i komentarzy pozostają osiągalne.
+
+## Uzupełnianie właściwości
+
+Przy dodawaniu właściwości pojawiają się znane nazwy z typem i liczbą użyć. Nazwy już obecne i zastrzeżone są wykluczone. Pierwszeństwo ma typ z właściwej bazy, następnie typ indeksu i lokalny rejestr. Sugestie tekstu i list pochodzą z folderu notatki; „Szukaj w całym sejfie” rozszerza zakres. Listy oferują pojedyncze wartości. Opcje zdefiniowane w bazie pozostają wyłączne, nawet jeśli lista jest pusta. Można wpisywać dowolne wartości; tylko zatwierdzona edycja zmienia notatkę. Tekst i listy zachowują swój typ we właściwościach i komórkach baz na komputerze i urządzeniu mobilnym.
+
+### Otwórz obraz
+
+**Otwórz obraz** jest dostępne dla lokalnych obrazów w trybie czytania, podglądzie i menu kontekstowym. W mobilnej przeglądarce użyj dwóch palców, podwójnego stuknięcia lub przycisków; **Resetuj powiększenie** pokazuje cały obraz. Wstecz wraca do notatki. Przytrzymanie zachowuje akcje systemu, a zaznaczanie regionu do komentarza nadal działa.

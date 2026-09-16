@@ -113,7 +113,8 @@
     "pasteFailed": "クリップボードから貼り付けできませんでした。",
     "copyImage": "画像をコピー",
     "saveImageAs": "名前を付けて画像を保存…",
-    "copyImageFailed": "画像をコピーできませんでした。"
+    "copyImageFailed": "画像をコピーできませんでした。",
+    "openImage": "画像を開く"
   },
   "common": {
     "on": "オン",
@@ -652,7 +653,6 @@
     "missingFileRefresh": "インデックスから削除",
     "notTextTitle": "このファイルはテキストではありません",
     "notTextBody": "拡張子はテキストと言っていますが、中身は違います。保存するとファイルが壊れるため、Plainva は表示しません。",
-    "key": "キー",
     "value": "値",
     "slashCheckbox": "チェックボックス",
     "slashBulletList": "箇条書きリスト",
@@ -941,7 +941,8 @@
     "today": "今日",
     "viewSwitch": "ビュー",
     "bookmarkSaveFailed": "ブックマークを保存できませんでした。",
-    "search": "検索"
+    "search": "検索",
+    "bookmarkMissing": "リンク先が見つかりません"
   },
   "database": {
     "graphNoColumns": "グラフに表示できるプロパティ列がありません。",
@@ -1332,7 +1333,8 @@
     "keepRatio": "縦横比を保持",
     "textPlaceholder": "テキストを入力…",
     "viewOnly": "表示のみ——編集可能な形式はPNG、JPG、WebPです。",
-    "loadError": "画像を読み込めませんでした。"
+    "loadError": "画像を読み込めませんでした。",
+    "zoomReset": "ズームをリセット"
   },
   "okfInfo": {
     "title": "OKFとは？",
@@ -1827,7 +1829,9 @@
     "rollupFn_unchecked": "未チェック",
     "rollupFn_empty": "値なし",
     "rollupFn_filled": "値あり",
-    "rollupFn_unique": "異なる値"
+    "rollupFn_unique": "異なる値",
+    "existingNames": "既存のプロパティ",
+    "searchWholeVault": "保管庫全体を検索"
   },
   "docHeader": {
     "addIcon": "アイコンを追加",
@@ -2333,7 +2337,14 @@
   "conflict": {
     "resolveFailed": "競合を解決できませんでした: {{error}}",
     "resolveAction": "競合を解決…",
-    "notAConflictFile": "このファイルは競合コピーではありません。"
+    "notAConflictFile": "このファイルは競合コピーではありません。",
+    "workingCopy": "競合コピーを編集中です。統合後に同期されます。",
+    "workingCopyChanged": "この編集セッションの外で作業コピーが変更されました。別の版は保存されています。",
+    "savedRevisions": "保存された版を比較",
+    "savedBase": "保存された開始時の版",
+    "foreignCopy": "作業コピーの別の版",
+    "noSavedBase": "このコピーには追加の開始時の版が保存されていません。",
+    "historyFailed": "保存された版を読み込めませんでした。"
   },
   "mobile": {
     "tabSearch": "検索",
@@ -2551,7 +2562,8 @@
     "swipeHint": "行を左にスワイプすると操作が表示されます。同じ操作は行のメニューにもあります。",
     "swipeHintAck": "了解",
     "propertyWriteFailed": "プロパティを保存できませんでした: {{message}}",
-    "selectMany": "複数を選択"
+    "selectMany": "複数を選択",
+    "readerAutoHide": "閲覧中に操作バーを自動的に隠す"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",
@@ -2639,7 +2651,9 @@
       "taskId": "ID",
       "recurrence": "繰り返し",
       "unsupported": "ルールは保持されますが、ここでは自動的に次回を作成しません。"
-    }
+    },
+    "resetFilters": "フィルターをリセット",
+    "filterUnavailable": "利用不可"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
@@ -2702,7 +2716,13 @@
     "labels": "ラベル",
     "addLabel": "ラベルを検索…",
     "newLabel": "「{{name}}」を作成",
-    "inlineTag": "本文内"
+    "inlineTag": "本文内",
+    "loadingCards": "カードを読み込み中…",
+    "indexMissing": "まだインデックスされていません",
+    "loadFailed": "カードを読み込めませんでした",
+    "searchPlaceholder": "このピンボードを検索…",
+    "noMatches": "一致するカードはありません",
+    "retry": "再試行"
   },
   "compose": {
     "toolbar": "書式",
@@ -4093,18 +4113,18 @@
     "title": "Plainva {{version}} の新機能",
     "lead": "最大の変更点",
     "experimental": "実験的",
-    "highlight1Title": "接続と同期の信頼性を向上",
-    "highlight1": "中断された操作を必要に応じて再試行します。ログインの問題やデータの不確かな状態をわかりやすく示し、ローカルの変更を保持します。",
-    "highlight2Title": "正確な検索結果・埋め込み・履歴",
-    "highlight2": "一致した箇所に移動し、特定のセクションやブロックを埋め込み、バージョン間の実際の行の変更を比較できます。",
-    "highlight3Title": "JEXのインポートとデータベースのエクスポート",
-    "highlight3": "添付ファイルを含むJoplinアーカイブを新しいフォルダーに取り込めます。対応するロールアップはObsidianの数式として、または明示的に値として出力できます。タスクのメタデータも保持します。",
-    "highlight4Title": "メール操作の結果を明確に表示",
-    "highlight4": "一括操作の成功と失敗をメッセージごとに表示します。添付ファイルのフィルターは未取得のメタデータを説明し、アカウントへのサービス追加時も既存のログインを保持します。",
-    "highlight5Title": "自分のデザインと日々の操作",
-    "highlight5": "ライトとダークを別々に設定し、希望すれば個人のデザインを同期できます。デイリーノート、ウィンドウ間の引き継ぎ、待機中の共有コンテンツの扱いを改善しました。",
-    "highlight6Title": "公開資料へのフィードバック",
-    "highlight6": "権限のある受信者がコメントや変更の提案を送れます。所有者は内容を確認でき、受信者のアクセスを取り消した後もフィードバックを保持します。",
+    "highlight1Title": "競合が起きても編集を継続",
+    "highlight1": "競合時の作業用コピーに以後の編集を保持し、再起動後も復元します。以前の状態を比較して、残す内容を選べます。",
+    "highlight2Title": "安定したエディターと高速なピンボード",
+    "highlight2": "特殊なフォント寸法でもリスト表示が安定します。選択ツールバーは表示領域内に収まります。ピンボードは必要なプレビューを読み込み、戻った際に内容と位置を復元します。",
+    "highlight3Title": "プロパティ候補とピンボード検索",
+    "highlight3": "名前、型、リスト内の個々の値を候補として表示します。データベースで定義された選択肢はその範囲に限定されます。ラベルと組み合わせてノート本文を検索でき、空のプロパティも正しく絞り込めます。",
+    "highlight4Title": "タスクフィルターとフォルダーのブックマーク",
+    "highlight4": "この端末の保管庫ごとにフィルターを保持し、リセットできます。フォルダーをブックマークから開き、名前変更や移動に合わせてパスを更新します。",
+    "highlight5Title": "読むためのスペースを拡大",
+    "highlight5": "モバイルでは下にスクロールするとヘッダーと鉛筆が隠れ、上への最初の動きで戻ります。閲覧時は初期設定で有効で、エディタとノートの設定で無効にできます。タブレットのナビゲーションは表示を維持し、デスクトップではフォーカスモードを使えます。",
+    "highlight6Title": "画像を開いて拡大",
+    "highlight6": "閲覧画面やライブプレビューから「画像を開く」でビューアーへ移動できます。モバイルではピンチ、ダブルタップ、リセットを利用できます。埋め込み画像の長押しは端末の画像操作を維持します。",
     "readBlog": "ブログ記事を読む",
     "understand": "了解"
   },

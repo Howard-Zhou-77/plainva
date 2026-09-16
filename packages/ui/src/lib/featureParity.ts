@@ -340,6 +340,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-15",
   },
   {
+    id: "reader-chrome-auto-hide",
+    title: "Automatically hide controls while reading",
+    area: "editor",
+    kind: "decision",
+    desktop: "partial",
+    desktopReason: "Desktop uses its explicit focus-mode command and shortcut. Touch readers hide the header and pencil on downward scrolling, with a device-local opt-out; the tablet navigation rail stays available.",
+    mobile: "yes",
+    verified: "2026-09-16",
+  },
+  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",

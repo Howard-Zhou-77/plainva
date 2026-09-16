@@ -66,11 +66,11 @@ describe("Database Schema", () => {
     expect(reset).toContain(`LIKE '%.md'`);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
     expect(stamp).toBeDefined();
-    expect(stamp!.params).toEqual(["3"]);
+    expect(stamp!.params).toEqual(["4"]);
   });
 
   it("skips the reindex when the stored index format is current", async () => {
-    db.mockedOneResults.push({ value: "3" });
+    db.mockedOneResults.push({ value: "4" });
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
