@@ -11,9 +11,13 @@ app = archive / "Products/Applications/App.app"
 extension = app / "PlugIns/ShareExtension.appex"
 profiles = {}
 versions = []
-for product, bundle_id in [(app, "com.plainva.app"), (extension, "com.plainva.app.share")]:
+for product, bundle_id, package_type in [(app, "com.plainva.app", "APPL"), (extension, "com.plainva.app.share", "XPC!")]:
     info = plistlib.loads((product / "Info.plist").read_bytes())
     assert info["CFBundleIdentifier"] == bundle_id, "Unexpected bundle identifier"
+    assert info.get("CFBundlePackageType") == package_type, "Unexpected bundle package type"
+    executable = info.get("CFBundleExecutable")
+    assert isinstance(executable, str) and executable and pathlib.Path(executable).name == executable, "Missing or invalid CFBundleExecutable"
+    assert (product / executable).is_file(), "Declared bundle executable is missing"
     versions.append((info["CFBundleShortVersionString"], info["CFBundleVersion"]))
     subprocess.run(["codesign", "--verify", "--strict", str(product)], check=True)
     raw = subprocess.check_output(["security", "cms", "-D", "-i", str(product / "embedded.mobileprovision")])
