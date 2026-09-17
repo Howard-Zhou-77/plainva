@@ -151,12 +151,16 @@ export function useBaseCells({
   const getRollup = (col: string) => (getColumnSchema(col) as any)?.rollup ?? null;
   const isRollupColumn = (col: string): boolean => getRollup(col) !== null;
 
-  const editingInput = editingCell ? getColumnInput(editingCell.col) ?? inferType(dbData.find((r) => r["file.path"] === editingCell.path)?.[editingCell.col], editingCell.col) : "text";
+  // Reverse relations contain lists of links, but their editor must write the
+  // owning notes rather than treating the derived value as local frontmatter.
+  const cellInput = (col: string, value: unknown): string => isReverseColumn(col)
+    ? "relation" : getColumnInput(col) ?? inferType(value, col);
+  const editingInput = editingCell ? cellInput(editingCell.col, dbData.find((r) => r["file.path"] === editingCell.path)?.[editingCell.col]) : "text";
   const editingCurated = editingCell ? getColumnSchema(editingCell.col)?.options : undefined;
   const loadSuggestions = useCallback(async (key: string, all = false) => queryService
     ? queryService.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(editingCell?.path ?? ""), propertyIndexTypes(editingInput)) : [],
   [queryService, editingCell?.path, editingInput]);
-  const suggestions = usePropertyValues(!!editingCell && editingCurated === undefined, editingCell?.col ?? "", loadSuggestions);
+  const suggestions = usePropertyValues(!!editingCell && editingCurated === undefined && editingInput !== "relation" && editingInput !== "link", editingCell?.col ?? "", loadSuggestions);
   const scopeAction = editingCurated === undefined && !suggestions.wholeVault
     ? <Button variant="ghost" className="pv-popover-row" onClick={suggestions.expand}>{t("properties.searchWholeVault")}</Button> : null;
 
@@ -532,7 +536,7 @@ export function useBaseCells({
     // A rollup is derived: there is nothing in this note to edit. Typing into
     // it would suggest the number lives here, which is exactly what it does not.
     const isReadOnly = col.startsWith('file.') || col === 'okf_version' || isRollupColumn(col);
-    const input = getColumnInput(col) ?? inferType(val, col);
+    const input = cellInput(col, val);
     // Checkboxes toggle on click; they have no separate edit mode.
     const isCheckbox = input === 'checkbox' || typeof val === 'boolean';
 

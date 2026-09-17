@@ -1438,6 +1438,7 @@ test('Show on target: the column editor writes the reverse column into the other
 test('Reverse column: shows linking notes and editing writes the counterpart frontmatter', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Kundenkartei');
+  const originalGlobex = await page.evaluate(() => (window as any).mockFs['/test-vault/Kunden/Globex.md']);
 
   const table = page.locator('table');
   // The enrichment lists Alpha (kunde -> ACME) in ACME reverse cell.
@@ -1457,6 +1458,9 @@ test('Reverse column: shows linking notes and editing writes the counterpart fro
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Beta.md']))
     .toContain('kunde: "[[Globex]]"');
+  // A reverse value is derived. Editing it must never add a list property to
+  // the displayed note, even when its empty array would infer the list type.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Kunden/Globex.md'])).toBe(originalGlobex);
 });
 
 test('Sub-items: rows nest under their parent, expand state persists across reopen', async ({ page }) => {
