@@ -5,8 +5,8 @@ async function read(page: Page, path: string) {
   return page.evaluate(async path => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/" + path, directory: "DATA", encoding: "utf8" })).data, path);
 }
 async function openNote(page: Page) {
-  const whatsNew = page.getByTestId("whats-new-sheet");
-  if (await whatsNew.isVisible()) await page.getByTestId("whats-new-close").click();
+  // The registered overlay handler owns dismissal. A second close click can
+  // resume after the handler has already removed its target.
   const row = page.locator(".m-swipe-front").filter({ hasText: "Example" }).first();
   await expect(row.or(page.getByTestId("note-menu"))).toBeVisible();
   if (await row.isVisible()) await row.click();

@@ -20,8 +20,7 @@ for (const language of ["en", "de"]) test(`reader clipboard actions copy a long 
     }, source);
     await page.reload();
     await expect(page.locator(".m-tabbar")).toBeVisible();
-    const close = page.getByTestId("whats-new-close");
-    if (await close.isVisible()) await close.click();
+    // The overlay handler dismisses What's New before the row action.
     await page.locator(".m-swipe-front").filter({ has: page.getByText("Auswahl", { exact: true }) }).first().click();
     const editor = page.locator(".m-editor .cm-content");
     await expect(editor).toHaveAttribute("contenteditable", "false");
