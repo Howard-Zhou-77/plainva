@@ -135,3 +135,19 @@ describe('HTML folder — a Confluence-shaped export', () => {
     expect(vault.files.get('Import/Notes (2).md')).toContain('two');
   });
 });
+
+it('reports deeply nested HTML without writing a partial note or stopping valid imports', async () => {
+  const vault = fakeVault();
+  vault.files.set('Import/Keep.md', 'Existing note');
+  const explanation = 'Dieses HTML ist zu tief verschachtelt.';
+  const report = await new HtmlFolderImporter().run([
+    { relativePath: 'deep.html', content: '<h1>Deep</h1>' + '<div>'.repeat(300) + 'Do not truncate this note' + '</div>'.repeat(300) },
+    { relativePath: 'valid.html', content: '<h1>Valid</h1><p>Keep this content</p>' },
+  ], { ...opts(vault), labels: { ...DEFAULT_IMPORT_LABELS, htmlNestingExceeded: explanation } });
+  expect(report.importedNotesCount).toBe(1);
+  expect(report.skippedCount).toBe(1);
+  expect(report.items).toContainEqual(expect.objectContaining({ path: 'deep.html', status: 'skipped', details: expect.stringContaining(explanation) }));
+  expect(vault.files.has('Import/Deep.md')).toBe(false);
+  expect(vault.files.get('Import/Valid.md')).toContain('Keep this content');
+  expect(vault.files.get('Import/Keep.md')).toBe('Existing note');
+});

@@ -19,24 +19,44 @@
  */
 
 import { connectionErrorText } from "./connectionErrorText";
+import i18n from "i18next";
+
+const INPUT_REJECTIONS = new Map([
+  ["Invalid mail header", "mailHeader"],
+  ["Invalid attachment header", "attachmentHeader"],
+  ["Invalid calendar method", "calendarMethod"],
+  ["Invalid IMAP argument", "imapValue"],
+  ["Invalid IMAP command", "imapValue"],
+  ["Invalid SMTP command", "smtpValue"],
+  ["Invalid Google Drive folder id", "driveFolder"],
+  ["HTML nesting exceeds the import limit", "htmlDepth"],
+]);
+
+/** Translate known input refusals at the shared display boundary. */
+function inputErrorText(message: string): string {
+  const key = INPUT_REJECTIONS.get(message);
+  if (!key) return message;
+  const translated = i18n.t(`inputRejected.${key}`, { defaultValue: message });
+  return typeof translated === "string" && translated.trim() ? translated : message;
+}
 
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
   const connection = connectionErrorText(err);
   if (connection) return connection;
-  if (typeof err === "string") return err.trim() || "unknown error";
+  if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");
 
   if (err instanceof Error) {
     // An Error with an empty message still carries its name — "TypeError" says
     // more than nothing at all.
-    return err.message.trim() || err.name || "unknown error";
+    return inputErrorText(err.message.trim() || err.name || "unknown error");
   }
 
   // Plain objects with a message: some plugin layers reject with `{message}`
   // without an Error prototype, and structured clone strips prototypes too.
   if (err && typeof err === "object") {
     const message = (err as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message.trim();
+    if (typeof message === "string" && message.trim()) return inputErrorText(message.trim());
 
     // A stringified object is useless ("[object Object]") — say so plainly
     // rather than pretending there is a reason on screen.

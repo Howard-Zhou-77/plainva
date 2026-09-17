@@ -1,6 +1,6 @@
 # Importar de outro aplicativo
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-17
 
 O Plainva importa notas de outros aplicativos para um novo vault ou uma subpasta com nome novo do vault aberto. O restante fica intacto; depois você pode mover ou excluir a pasta importada.
 
@@ -180,3 +180,7 @@ Selecione um JEX/TAR descriptografado ou uma pasta RAW. A prévia conta notas, c
 Os bytes dos recursos são preservados. Registros originais, incluindo campos desconhecidos, também ficam em `_Joplin/Export.json`, contado como um anexo. O relatório indica recursos ausentes e links não resolvidos, mantendo os links originais. Leia antes de excluir a exportação.
 
 JEX exige um destino novo. Arquivos inválidos, caminhos conflitantes, links simbólicos/físicos e extensões TAR como PAX são rejeitados por inteiro. Limites: 20.000 entradas, 32 MiB por arquivo, 2 MiB por texto, 256 MiB no total, 64 MiB de texto e 64 MiB do arquivo complementar. Desktop usa uma cópia privada; celular lê trechos do arquivo. Cancelar a análise não grava no vault. Durante a importação, arquivos já gravados e relatório parcial permanecem; a pasta inteira não é revertida automaticamente.
+
+## Quando um arquivo HTML não pode ser convertido
+
+Se o HTML ultrapassar a profundidade de aninhamento suportada, o relatório de importação mostrará o arquivo como ignorado. O Plainva não salva uma nota cortada no lugar dele. Outros arquivos válidos podem continuar sendo importados. Tente uma exportação HTML mais simples ou exporte a nota afetada como Markdown; mantenha a exportação original até conferir o resultado.

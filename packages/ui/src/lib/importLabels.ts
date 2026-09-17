@@ -45,6 +45,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     viewPinboard: t('database.viewPinboard', { defaultValue: d.viewPinboard }) as string,
     skippedAttachment: limit('skippedAttachment', d.skippedAttachment),
     entryFailed: pick('entryFailed', d.entryFailed),
+    htmlNestingExceeded: t('inputRejected.htmlDepth', { defaultValue: d.htmlNestingExceeded ?? 'HTML nesting exceeds the import limit' }) as string,
     runStopped: pick('runStopped', d.runStopped),
     runCancelled: pick('runCancelled', d.runCancelled),
     skippedDuplicate: pick('skippedDuplicate', d.skippedDuplicate),

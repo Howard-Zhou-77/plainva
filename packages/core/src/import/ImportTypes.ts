@@ -138,6 +138,8 @@ export interface ImportLabels {
   skippedAttachment: string;
   /** Recorded when one entry threw and the run carried on without it. */
   entryFailed: string;
+  /** Optional for existing callers that provide their own complete label set. */
+  htmlNestingExceeded?: string;
   /** Recorded when the run itself stopped early; the report is written anyway. */
   runStopped: string;
   /** Recorded when the user stopped the run — a decision, not a failure. */
@@ -202,6 +204,7 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   viewPinboard: 'Pinboard',
   skippedAttachment: 'attachment — not imported',
   entryFailed: 'could not be imported',
+  htmlNestingExceeded: 'This HTML is too deeply nested. Simplify it or import a Markdown export.',
   runStopped: 'the import stopped early — everything up to this point was written',
   runCancelled: 'you stopped the import — everything up to this point was written and can be deleted with the folder',
   skippedDuplicate: 'the same note is in the export twice — imported once, as',

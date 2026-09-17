@@ -1,6 +1,6 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-17
 
 Plainva importeert notities uit andere apps in een nieuwe vault of een nieuw benoemde submap van de geopende vault. De rest blijft ongewijzigd; je kunt de importmap daarna verplaatsen of verwijderen.
 
@@ -180,3 +180,7 @@ Selecteer een ontsleutelde JEX/TAR-export of RAW-map. De voorvertoning telt noti
 Bronbestanden blijven bytegelijk. Oorspronkelijke records, inclusief onbekende velden, staan ook in `_Joplin/Export.json`, geteld als één bijlage. Het verslag meldt ontbrekende bronnen en onopgeloste links; oorspronkelijke links blijven staan. Lees het voordat je de export verwijdert.
 
 JEX vereist een nieuw doel. Ongeldige archieven, conflicterende paden, symbolische/harde links en TAR-uitbreidingen zoals PAX worden volledig geweigerd. Grenzen: 20.000 items, 32 MiB per bestand, 2 MiB per tekstbestand, 256 MiB totaal, 64 MiB tekst en 64 MiB begeleidend bestand. Desktop gebruikt een privékopie; mobiel leest delen van het bestand. Analyse annuleren schrijft niets naar de vault. Tijdens import blijven geschreven bestanden en een gedeeltelijk verslag behouden; de hele map wordt niet automatisch teruggedraaid.
+
+## Als een HTML-bestand niet kan worden omgezet
+
+Als HTML dieper is genest dan wordt ondersteund, vermeldt het importrapport het bestand als overgeslagen. Plainva slaat hiervoor geen ingekorte notitie op. Andere geldige bestanden kunnen wel verder worden geïmporteerd. Probeer een eenvoudigere HTML-export of exporteer de betreffende notitie als Markdown; bewaar de oorspronkelijke export totdat je het resultaat hebt gecontroleerd.

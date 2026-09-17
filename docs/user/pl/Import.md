@@ -1,6 +1,6 @@
 # Import z innej aplikacji
 
-Stan na: 2026-09-15
+Stan na: 2026-09-17
 
 Plainva importuje notatki z innych aplikacji do nowego sejfu lub podfolderu o nowej nazwie w otwartym sejfie. Pozostała zawartość się nie zmienia; folder importu można potem przenieść lub usunąć.
 
@@ -180,3 +180,7 @@ Wybierz odszyfrowany eksport JEX/TAR lub folder RAW. Podgląd liczy notatki, not
 Bajty zasobów są zachowane. Oryginalne rekordy, także nieznane pola, trafiają również do `_Joplin/Export.json`, liczonego jako jeden załącznik. Raport wymienia brakujące zasoby i nierozwiązane odnośniki; oryginalne odnośniki pozostają. Przeczytaj go przed usunięciem eksportu.
 
 JEX wymaga nowego celu. Błędne archiwa, konflikty ścieżek, dowiązania symboliczne/twarde i rozszerzenia TAR, np. PAX, są odrzucane w całości. Limity: 20 000 wpisów, 32 MiB na plik, 2 MiB na tekst, 256 MiB łącznie, 64 MiB tekstu i 64 MiB pliku dodatkowego. Komputer używa prywatnej kopii; telefon czyta fragmenty pliku. Anulowanie analizy nic nie zapisuje w sejfie. Podczas importu zapisane pliki i częściowy raport pozostają; cały folder nie jest automatycznie wycofywany.
+
+## Gdy nie można przekonwertować pliku HTML
+
+Jeśli HTML przekracza obsługiwaną głębokość zagnieżdżenia, raport importu oznacza plik jako pominięty. Plainva nie zapisuje w jego miejsce skróconej notatki. Pozostałe poprawne pliki mogą nadal zostać zaimportowane. Spróbuj prostszego eksportu HTML lub wyeksportuj tę notatkę jako Markdown; zachowaj oryginalny eksport do czasu sprawdzenia wyniku.

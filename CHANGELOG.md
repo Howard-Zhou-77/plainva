@@ -5,6 +5,55 @@ All notable changes to Plainva are documented here. The format is based on
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
 reaches 1.0.
 
+## [0.8.3] - 2026-09-17
+
+Keep your work in view. This release brings together the changes since 0.8.2: clearer conflict editing, more useful pinboards and databases, smoother account and import workflows, and stronger handling of outside content. Shared improvements apply to desktop and mobile.
+
+### Notes, conflicts and navigation
+
+- Continued edits stay in the same conflict copy during the editing session. The comparison includes surrounding text so you can review both versions before resolving the conflict.
+- Task filters stay with each vault. Task metadata, completion and supported recurrence handling work consistently across the editor and task views.
+- Section and block embeds display the selected part of a note. Missing targets are visible and recursive embeds are bounded.
+- Search lists individual matches with their context, pages through larger result sets and restores your position when you return.
+- Date navigation can open an existing daily note or create the missing one, separately from jumping in the calendar.
+- Folder bookmarks are supported. Desktop window handoff retains the draft until the receiving window confirms it, and version comparisons can open separately.
+- On mobile, reading controls hide on downward scroll by default; the behavior is configurable. Desktop retains its explicit focus mode. Images open in a larger, zoomable view, selection bars stay within the viewport, and iOS list indentation and collapsed-list interaction are more stable.
+
+### Pinboards, databases and your design
+
+- Pinboards reuse unchanged cached content when you return and load newly visible cards as needed. Search, missing-index states and sorting have received corrections.
+- Database controls distinguish whole-note tags from a Tags property. Metadata filters, property suggestions, summaries and relations have been improved; derived relations stay out of generic list editing.
+- Relation rollup export supports count, filled/empty and checked/unchecked values. Other aggregates can be exported as CSV values. A .base export carries the selected result rows and supported formulas; it does not promise identical external filters or layouts.
+- “My theme” stores a light/dark pair. System mode uses that pair; a suggested counterpart is adopted only when chosen. Optional personal sync can transfer the design through a selected vault.
+- Newly created vaults include an expanded tour. Existing vaults and your own templates are not supplemented or replaced.
+
+### Accounts, sync, mail and imports
+
+- Account setup and renewed sign-ins have clearer states. Interrupted account handovers can resume while retaining existing identities and credentials until transfer is confirmed.
+- Microsoft mail and shared account controls have been extended. Google Drive uses an explicitly chosen destination folder.
+- Android WebDAV connections support user-installed certificate authorities, with clearer certificate and connection diagnostics. Thanks for [#94](https://github.com/plainva/plainva/issues/94).
+- Encrypted sync distinguishes retryable, sign-in and integrity failures more clearly, keeps pending work, and avoids unnecessary unchanged sideband downloads. Encrypted workspaces remain experimental.
+- Mail bulk actions track confirmed results and partial failures. Attachment filtering and mobile hardware-keyboard handling have improved.
+- Joplin JEX import preserves more source structure and attachments. Obsidian task metadata and supported recurrence data are retained more consistently.
+- The mobile share inbox keeps incoming material ready for the chosen vault. iOS app and share-extension bundle metadata has been corrected for signed delivery.
+- Publication feedback separates comments, suggestions and the owner's decision in the original vault. Moderation and interrupted acceptance are more robust.
+
+### Input handling and compatibility
+
+- HTML import and mail conversion use structural parsing with explicit output contexts. Excessively nested HTML is reported instead of being saved as a shortened note; other valid import files can continue.
+- Mail headers and protocol arguments reject command separators and invalid control characters. IMAP quoting, MIME filenames and Google Drive query escaping preserve legitimate special characters.
+- Graph state uses validated entries without inheriting object properties. New identifiers use cryptographic randomness, and recovery checks select distinct groups uniformly; existing identifiers remain unchanged.
+- Text processing in notes, paths, templates, mail and diagnostics handles long or malformed input more efficiently without silently cutting off long notes.
+- rustls includes the upstream handshake-validation correction. Mermaid stays on the 11.x line to preserve the existing Safari/iOS minimum version.
+
+These are specific corrections and compatibility improvements, not an independent security audit. Encrypted workspaces and the native device-calendar provider remain experimental.
+
+### Downloads
+
+[Desktop installers](https://github.com/plainva/plainva/releases/tag/v0.8.3) · [Android APK](https://github.com/plainva/plainva/releases/tag/mobile-v0.8.3) · [iOS TestFlight](https://testflight.apple.com/join/ZRSEfZBn)
+
+Update each device that works with the same vault to receive the shared improvements throughout. On iOS, the native marketing version remains 1.0; the TestFlight build number identifies the new delivery.
+
 ## [0.8.2] - 2026-09-11
 
 More reliable saves, faster navigation. This release brings together the work since 0.8.1: stronger handling of interrupted saves and sync, comments that stay with their notes, and quicker ways to reach a date or a heading. These improvements cover desktop and mobile, with additional fixes for desktop windows and the mobile session.

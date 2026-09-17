@@ -27,6 +27,11 @@ export class ImportAbortedError extends Error {
   }
 }
 
+function importFailureText(error: unknown, labels: ImportLabels): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message === 'HTML nesting exceeds the import limit' ? labels.htmlNestingExceeded ?? message : message;
+}
+
 /** Epoch milliseconds to the ISO form `Date.parse` reads back. */
 function toIsoDate(ms: number | undefined): string | undefined {
   if (ms === undefined || !Number.isFinite(ms)) return undefined;
@@ -363,7 +368,7 @@ export class ImportWriter {
    * no report was written at all — the files already on disk had no record.
    */
   recordFailure(path: string, error: unknown): void {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = importFailureText(error, this.labels);
     this.items.push({
       path,
       status: 'skipped',
@@ -389,7 +394,7 @@ export class ImportWriter {
         // Cancelling is a decision, not a fault — no technical message.
         this.items.push({ path: source.name, status: 'skipped', details: this.labels.runCancelled });
       } else {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = importFailureText(error, this.labels);
         this.items.push({
           path: source.name,
           status: 'skipped',

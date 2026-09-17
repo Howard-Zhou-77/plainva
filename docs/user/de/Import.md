@@ -1,6 +1,6 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-09-15
+Stand: 2026-09-17
 
 Plainva übernimmt Notizen aus anderen Apps in einen neuen Vault oder einen neu benannten Unterordner des offenen Vaults. Der restliche Vault bleibt unverändert; der Importordner lässt sich anschließend verschieben oder löschen.
 
@@ -180,3 +180,7 @@ Wähle einen entschlüsselten JEX/TAR-Export oder RAW-Ordner. Die Vorschau nennt
 Ressourcen bleiben bytegleich. Alle ursprünglichen Datensätze einschließlich unbekannter Felder liegen zusätzlich in `_Joplin/Export.json`; diese Datei zählt als ein Anhang. Nicht verfügbare Ressourcen und nicht auflösbare Links stehen im Bericht; die ursprünglichen Links bleiben erhalten. Prüfe den Bericht, bevor Du den Export löschst.
 
 JEX verlangt ein frisches Ziel. Ungültige Archive, Pfadkonflikte, symbolische/harte Links und TAR-Erweiterungen wie PAX werden vollständig abgelehnt. Grenzen: 20.000 Einträge, 32 MiB pro Datei, 2 MiB pro Textdatei, 256 MiB entpackt insgesamt sowie 64 MiB Text und 64 MiB für die Begleitdatei. Desktop verwendet eine private Archivkopie, Mobil liest die ausgewählte Datei abschnittsweise. Abbruch während der Analyse schreibt nichts in den Vault. Während des Imports bleiben bereits geschriebene Dateien und der Teilbericht erhalten; es gibt kein automatisches Zurückrollen des ganzen Ordners.
+
+## Wenn sich eine HTML-Datei nicht umwandeln lässt
+
+Ist HTML tiefer verschachtelt als unterstützt, führt der Importbericht die Datei als übersprungen auf. Plainva speichert dafür keine gekürzte Notiz. Andere gültige Dateien desselben Imports können weiter verarbeitet werden. Versuche einen einfacheren HTML-Export oder exportiere die betroffene Notiz als Markdown; behalte den ursprünglichen Export, bis Du das Ergebnis geprüft hast.
