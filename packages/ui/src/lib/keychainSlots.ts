@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * Readable names for the entries Plainva puts in the OS keychain (plan P6, E1).
  *
@@ -94,7 +95,7 @@ export function vaultFingerprint(vaultKey: string): string {
 
 /** The last path segment, which is what a person calls their vault. */
 export function vaultDisplayName(vaultKey: string): string {
-  const trimmed = vaultKey.replace(/[/\\]+$/, "");
+  const trimmed = trimEndChars(vaultKey, "/\\");
   const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
   const name = cut >= 0 ? trimmed.slice(cut + 1) : trimmed;
   return name || vaultKey;

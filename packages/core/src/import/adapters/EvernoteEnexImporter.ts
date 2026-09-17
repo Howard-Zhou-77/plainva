@@ -1,3 +1,5 @@
+import { htmlToMarkdown } from "../../pim/htmlToMarkdown.js";
+import { replaceDelimited } from "../../textScan.js";
 import {
   DEFAULT_IMPORT_LABELS,
   ImportFamily,
@@ -91,47 +93,6 @@ export class EvernoteEnexImporter implements ImportSource {
     return ms === undefined ? undefined : new Date(ms).toISOString();
   }
 
-  /** Flattens the inline HTML of one checklist item to a single text line. */
-  private flattenInline(html: string): string {
-    return html
-      .replace(/<br\s*\/?>/gi, ' ')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  /**
-   * Turns both checklist syntaxes Evernote has shipped into GFM task lines.
-   *
-   * The classic ENML element is `<en-todo checked="true"/>`; the current
-   * Evernote 10 apps export a `<ul style="--en-todo:true;">` whose items carry
-   * `--en-checked:true|false`. The old parser matched `checked="true"` and the
-   * bare element, so an UNCHECKED `<en-todo checked="false"/>` fell through to
-   * the generic tag strip: the box vanished and the item read as ordinary
-   * text — the one state where losing the checkbox also loses the meaning.
-   */
-  private convertChecklists(text: string): string {
-    let out = text;
-
-    // Evernote 10: the checked state sits on the list item, not on a marker.
-    out = out.replace(
-      /<li\b[^>]*--en-checked\s*:\s*true[^>]*>([\s\S]*?)<\/li>/gi,
-      (_m, inner: string) => `\n- [x] ${this.flattenInline(inner)}`
-    );
-    out = out.replace(
-      /<li\b[^>]*--en-checked\s*:\s*false[^>]*>([\s\S]*?)<\/li>/gi,
-      (_m, inner: string) => `\n- [ ] ${this.flattenInline(inner)}`
-    );
-    out = out.replace(/<ul\b[^>]*--en-todo[^>]*>/gi, '\n');
-
-    // Classic ENML marker: anything that is not explicitly checked is open.
-    out = out.replace(/<en-todo\b([^>]*)>/gi, (_m, attrs: string) =>
-      /checked\s*=\s*["']?\s*true/i.test(attrs) ? '- [x] ' : '- [ ] '
-    );
-
-    return out;
-  }
-
   /** Whether a note carries at least one checklist item, in either syntax. */
   private hasChecklist(note: EnexNote): boolean {
     const xml = note.contentXml || '';
@@ -161,11 +122,7 @@ export class EvernoteEnexImporter implements ImportSource {
     lines.push('');
 
     let text = note.contentXml || '';
-    text = text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
-    text = this.convertChecklists(text);
-    text = text.replace(/<div>([\s\S]*?)<\/div>/gi, '$1\n');
-    text = text.replace(/<br\s*\/?>/gi, '\n');
-    text = text.replace(/<[^>]+>/g, '');
+    text = htmlToMarkdown(replaceDelimited(text, "<![CDATA[", "]]>", (_raw, inner) => inner));
 
     lines.push(text.trim());
     return lines.join('\n');

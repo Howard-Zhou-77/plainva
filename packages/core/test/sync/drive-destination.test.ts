@@ -18,6 +18,25 @@ function fixture(folderId?: string) {
 }
 
 describe("explicit Drive destinations", () => {
+  it("refuses a provider response whose folder id could change query syntax", async () => {
+    const { target, fetch } = fixture("chosen");
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json({ id: "folder\\' or trashed=true", name: "Vault", mimeType: mime, trashed: false }));
+    await expect(target.previewFolder("chosen")).rejects.toThrow("unavailable");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("quotes both folder names and provider-supplied parent ids as single values", async () => {
+    const queries: string[] = [];
+    const name = "O'Reilly";
+    const fetch: FetchFn = vi.fn(async url => {
+      const q = new URL(String(url)).searchParams.get("q")!; queries.push(q);
+      return Response.json(queries.length === 1 ? { files: [{ id: "a\\'b", name }] } : { files: [] });
+    });
+    const target = new DriveSyncTarget({ clientId: "client", clientSecret: "test", refreshToken: "refresh", accessToken: "access" }, fetch);
+    await target.listFolders(name);
+    expect(queries[0]).toBe("name='O\\'Reilly' and 'root' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false");
+    expect(queries[1]).toBe("'a\\\\\\'b' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  });
   it("refuses an ambiguous historical name and creates nothing", async () => {
     await expect(fixture().target.previewConfiguredFolder()).rejects.toThrow("several folders");
   });

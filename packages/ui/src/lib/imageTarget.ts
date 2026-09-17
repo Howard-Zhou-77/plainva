@@ -1,3 +1,5 @@
+import { delimitedText, markdownLinks } from "@plainva/core";
+import { trimChars } from "@plainva/core";
 /**
  * Where an image embed points (TestFlight feedback Build 91, P3).
  *
@@ -62,7 +64,7 @@ export function imageCandidates(target: string, lookup: ImageLookup): string[] {
   if (!t || ABSOLUTE_RE.test(t)) return [];
   const noteDir = lookup.notePath.includes("/") ? lookup.notePath.slice(0, lookup.notePath.lastIndexOf("/")) : "";
   const basename = t.split(/[/\\]/).pop() ?? t;
-  const attachments = (lookup.attachmentFolder ?? "").trim().replace(/^[/\\]+|[/\\]+$/g, "");
+  const attachments = trimChars((lookup.attachmentFolder ?? "").trim(), "/\\");
   const raw = [
     t,
     noteDir ? `${noteDir}/${t}` : null,
@@ -100,20 +102,17 @@ export interface ImageEmbedMatch {
  * followed by a link on the same line became one match whose target was the
  * link. Neither form may contain a `]` (markdown alt) or `]]` (wiki) inside.
  */
-const EMBED_RE = /!\[\[([^\]]*?)\]\]|!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-
 export function findImageEmbeds(text: string): ImageEmbedMatch[] {
   const out: ImageEmbedMatch[] = [];
-  EMBED_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = EMBED_RE.exec(text)) !== null) {
-    if (m[1] !== undefined) {
-      const parsed = parseWikiImageTarget(m[1]);
-      if (!isImageTarget(parsed.target)) continue; // a note embed — not ours
-      out.push({ start: m.index, end: m.index + m[0].length, syntax: "wiki", ...parsed });
-    } else if (m[2]) {
-      out.push({ start: m.index, end: m.index + m[0].length, syntax: "markdown", target: m[2], width: null, alt: null });
-    }
+  for (const part of delimitedText(text, "![[", "]]")) {
+    if (part.inner.includes("]")) continue;
+    const parsed = parseWikiImageTarget(part.inner);
+    if (isImageTarget(parsed.target)) out.push({ start: part.index, end: part.end, syntax: "wiki", ...parsed });
   }
-  return out;
+  for (const part of markdownLinks(text)) {
+    if (part.index === 0 || text[part.index - 1] !== "!") continue;
+    const destination = /^([^\s]+)(?:\s+"[^"]*")?$/.exec(part.destination);
+    if (destination) out.push({ start: part.index - 1, end: part.end, syntax: "markdown", target: destination[1], width: null, alt: null });
+  }
+  return out.sort((a, b) => a.start - b.start);
 }

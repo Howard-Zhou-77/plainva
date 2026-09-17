@@ -1,3 +1,4 @@
+import { quoteImapString } from "./imap";
 import type { ImapCreds, MailTransport } from "../transport";
 import { ImapConnection, pageEnvelopes } from "./imap";
 import { buildMimeMessage } from "./mimeBuild";
@@ -145,8 +146,8 @@ export function createSocketMailTransport(): MailTransport {
         // an 8-bit search term without it.
         // eslint-disable-next-line no-control-regex
         const ascii = /^[\x00-\x7f]*$/.test(args.query);
-        const term = args.query.replace(/"/g, '\\"');
-        const uids = await c.searchUids(`${ascii ? "" : "CHARSET UTF-8 "}TEXT "${term}"`);
+        const term = quoteImapString(args.query);
+        const uids = await c.searchUids(`${ascii ? "" : "CHARSET UTF-8 "}TEXT ${term}`);
         return c.fetchEnvelopes(uids.slice(-args.limit).reverse());
       }),
 

@@ -1,3 +1,4 @@
+import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
 import { deleteFrontmatterPath, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
@@ -25,7 +26,10 @@ const CURSOR_TOKEN = "{{cursor}}";
 /** Every token that carries an answer, in the one grammar of the engine:
  *  `{{prompt:Label}}`, `{{prompt:Label|Default}}`, `{{select:Label|A,B}}`,
  *  `{{date_prompt:Label}}`. The label is the answer key. */
-const ANSWERABLE_RE = /(\\?)\{\{(prompt|select|date_prompt):([^}]*)\}\}/g;
+const ANSWERABLE = new Set(["prompt", "select", "date_prompt"]);
+function isAnswerable(token: TemplateToken): boolean {
+  return token.arg !== null && ANSWERABLE.has(token.name) && token.raw.startsWith((token.escaped ? "\\" : "") + "{{" + token.name + ":");
+}
 
 /** Label of an answerable token: everything before the first `|`. */
 function labelOf(arg: string): string {
@@ -39,9 +43,9 @@ function labelOf(arg: string): string {
 export function extractTemplatePrompts(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const m of text.matchAll(ANSWERABLE_RE)) {
-    if (m[1] === "\\") continue; // escaped — not a question
-    const label = labelOf(m[3]);
+  for (const token of scanTemplate(text)) {
+    if (!isAnswerable(token) || token.escaped) continue;
+    const label = labelOf(token.arg!);
     if (label && !seen.has(label)) {
       seen.add(label);
       out.push(label);
@@ -63,9 +67,12 @@ export interface FinalizedTemplate {
  * text (minus the backslash) — that is how the token can be written down.
  * Pure — assumes resolveTemplate has already run. */
 export function finalizeTemplate(text: string, answers: Record<string, string> = {}): FinalizedTemplate {
-  const filled = text.replace(ANSWERABLE_RE, (raw, esc: string, _name: string, arg: string) =>
-    esc === "\\" ? raw.slice(1) : (answers[labelOf(arg)] ?? "")
-  );
+  const filled = replaceTemplateTokens(text, token => {
+    if (!isAnswerable(token)) return token.raw;
+    if (token.escaped) return token.raw.slice(1);
+    const label = labelOf(token.arg!);
+    return Object.prototype.hasOwnProperty.call(answers, label) ? answers[label] : "";
+  });
   const at = filled.indexOf(CURSOR_TOKEN);
   return { text: filled.split(CURSOR_TOKEN).join(""), cursor: at < 0 ? null : at };
 }

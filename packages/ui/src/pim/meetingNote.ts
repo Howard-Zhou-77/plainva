@@ -1,3 +1,4 @@
+import { trimChars } from "@plainva/core";
 import { upsertFrontmatterKeys, readFrontmatterPath, type PimEventRow } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { taskDbFileStem } from "../lib/taskDatabase";
@@ -54,7 +55,7 @@ export interface ResolveMeetingNoteResult {
 
 export async function resolveOrCreateMeetingNote(opts: ResolveMeetingNoteOptions): Promise<ResolveMeetingNoteResult> {
   const { adapter, event, dayKey, folder, noteType } = opts;
-  const dir = folder.replace(/^\/+|\/+$/g, "");
+  const dir = trimChars(folder, "/");
   const prefix = dir ? dir + "/" : "";
   const stem = meetingNoteStem(dayKey, event.title || dayKey);
 

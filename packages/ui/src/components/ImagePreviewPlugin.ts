@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { imageMimeType } from "../services/imageFiles";
@@ -190,7 +191,7 @@ function resolveImageSource(src: string, vaultRoot: string, lookup: ImageLookupF
   if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) {
     return { kind: "direct", url: src };
   }
-  const root = vaultRoot.replace(/\\/g, "/").replace(/\/+$/, "");
+  const root = trimEndChars(vaultRoot.replace(/\\/g, "/"), "/");
   const absolute = (rel: string) => `${root}/${rel}`;
   const known = lookup?.();
   // Note content is potentially foreign (synced vaults): every candidate

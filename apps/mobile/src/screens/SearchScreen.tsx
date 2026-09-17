@@ -1,3 +1,4 @@
+import { trimChars } from "@plainva/core";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, FilePlus, Search } from "lucide-react";
@@ -16,7 +17,7 @@ const jumpTermOf = (q: string): string => {
   for (const tok of q.trim().split(/\s+/)) {
     const low = tok.toLowerCase();
     if (!tok || tok.startsWith("-") || low.startsWith("path:") || low.startsWith("tag:")) continue;
-    return tok.replace(/^"+|"+$/g, "");
+    return trimChars(tok, '"');
   }
   return "";
 };

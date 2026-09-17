@@ -98,21 +98,39 @@ export interface TemplateToken {
 }
 
 /** `\?{{ name [±N] [:arg] }}` — one grammar for every placeholder. */
-const TOKEN_RE = /(\\?)\{\{([a-zA-Z_][a-zA-Z_0-9]*)([+-]\d+)?(?::([^}]*))?\}\}/g;
+const TOKEN_HEAD = /([a-zA-Z_][a-zA-Z_0-9]*)([+-]\d+)?/y;
 
+/** Scan delimiters once; an unterminated argument never rescans every opener. */
 export function scanTemplate(text: string): TemplateToken[] {
   const out: TemplateToken[] = [];
-  for (const m of text.matchAll(TOKEN_RE)) {
-    out.push({
-      raw: m[0],
-      escaped: m[1] === "\\",
-      name: m[2],
-      offset: m[3] ? Number(m[3]) : 0,
-      arg: m[4] ?? null,
-      index: m.index ?? 0,
-    });
+  let cursor = 0, close = -1;
+  while (cursor < text.length) {
+    const open = text.indexOf("{{", cursor);
+    if (open < 0) break;
+    if (close < open + 2) close = text.indexOf("}", open + 2);
+    if (close < 0) break;
+    if (text[close + 1] !== "}") { cursor = close + 1; continue; }
+    TOKEN_HEAD.lastIndex = open + 2;
+    const head = TOKEN_HEAD.exec(text);
+    const end = TOKEN_HEAD.lastIndex;
+    if (!head || (end !== close && (text[end] !== ":" || end > close))) { cursor = open + 2; continue; }
+    const escaped = open > 0 && text[open - 1] === "\\";
+    const index = escaped ? open - 1 : open;
+    out.push({ raw: text.slice(index, close + 2), escaped, name: head[1], offset: Number(head[2] ?? 0), arg: end === close ? null : text.slice(end + 1, close), index });
+    cursor = close + 2;
   }
   return out;
+}
+
+export function replaceTemplateTokens(text: string, replace: (token: TemplateToken) => string): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const token of scanTemplate(text)) {
+    parts.push(text.slice(cursor, token.index), replace(token));
+    cursor = token.index + token.raw.length;
+  }
+  parts.push(text.slice(cursor));
+  return parts.join("");
 }
 
 /** Tokens resolved later, in finalizeTemplate — not here. */
@@ -217,10 +235,8 @@ export function resolveTemplate(
   const seenRequest = new Set<string>();
   const unresolved: string[] = [];
 
-  const out = text.replace(TOKEN_RE, (raw, esc: string, name: string, off: string, arg: string | undefined) => {
-    if (esc === "\\") return raw.slice(1); // escaped: drop the backslash, keep the token
-    const offset = off ? Number(off) : 0;
-    const argument = arg ?? null;
+  const out = replaceTemplateTokens(text, ({ raw, escaped, name, offset, arg: argument }) => {
+    if (escaped) return raw.slice(1); // escaped: drop the backslash, keep the token
     const when = offset ? addDays(ctx.now, offset) : ctx.now;
 
     switch (name) {
@@ -295,7 +311,7 @@ export function resolveTemplate(
 
     if (DEFERRED.has(name)) return raw;
 
-    const kind = INTERACTIVE[name];
+    const kind = Object.prototype.hasOwnProperty.call(INTERACTIVE, name) ? INTERACTIVE[name] : undefined;
     if (kind) {
       const { label, rest } = splitArg(argument);
       if (!label) return "";

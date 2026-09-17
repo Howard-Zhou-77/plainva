@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
@@ -396,7 +397,7 @@ export function parseMicrosoftMe(value: unknown): VerifiedProviderProfile | null
 export function pimIdentity(a: Pick<PimAccountRow, "provider" | "label" | "config">): string {
   const verified = verifiedProviderIdentityOf(a);
   if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
-  const url = typeof a.config.url === "string" ? a.config.url.trim().replace(/\/+$/, "").toLowerCase() : "";
+  const url = typeof a.config.url === "string" ? trimEndChars(a.config.url.trim(), "/").toLowerCase() : "";
   const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
   return a.provider === "caldav" && url && user
     ? ["caldav", url, user].join("|")
@@ -407,7 +408,7 @@ function pimMergeIdentity(a: Pick<PimAccountRow, "provider" | "config">): string
   const verified = verifiedProviderIdentityOf(a);
   if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
   if (a.provider !== "caldav") return null;
-  const url = typeof a.config.url === "string" ? a.config.url.trim().replace(/\/+$/, "").toLowerCase() : "";
+  const url = typeof a.config.url === "string" ? trimEndChars(a.config.url.trim(), "/").toLowerCase() : "";
   const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
   return url && user ? ["caldav", url, user].join("|") : null;
 }

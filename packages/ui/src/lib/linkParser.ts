@@ -1,3 +1,4 @@
+import { delimitedText, markdownLinks } from "@plainva/core";
 import { splitLinkAnchor } from './linkAnchor';
 
 export type ParsedLink =
@@ -19,23 +20,24 @@ export type InlineSegment =
  */
 export function segmentInlineText(text: string): InlineSegment[] {
   const segments: InlineSegment[] = [];
-  const re = /\[\[([^\]]+?)\]\]|\[([^\]]*?)\]\(([^)\s]+)\)|https?:\/\/[^\s)\]]+/g;
+  const matches: Array<{ index: number; end: number; segment: InlineSegment }> = [];
+  for (const part of delimitedText(text, "[[", "]]")) {
+    if (!part.inner || part.inner.includes("]")) continue;
+    const [rawTarget, alias] = part.inner.split("|");
+    const { target, anchor } = splitLinkAnchor(rawTarget);
+    matches.push({ index: part.index, end: part.end, segment: { type: "wiki", target, display: (alias ?? rawTarget).trim() || target, ...(anchor ? { anchor } : {}) } });
+  }
+  for (const part of markdownLinks(text)) {
+    if (!part.destination || /\s/.test(part.destination)) continue;
+    matches.push({ index: part.index, end: part.end, segment: { type: "markdown", target: part.destination, text: part.label } });
+  }
+  for (const m of text.matchAll(/https?:\/\/[^\s)\]]+/g)) matches.push({ index: m.index, end: m.index + m[0].length, segment: { type: "url", target: m[0] } });
+  matches.sort((a, b) => a.index - b.index);
   let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) segments.push({ type: 'text', text: text.slice(last, m.index) });
-    if (m[1] !== undefined) {
-      const [rawTarget, alias] = m[1].split('|');
-      const { target, anchor } = splitLinkAnchor(rawTarget);
-      const seg: InlineSegment = { type: 'wiki', target, display: (alias ?? rawTarget).trim() || target };
-      if (anchor) seg.anchor = anchor;
-      segments.push(seg);
-    } else if (m[3] !== undefined) {
-      segments.push({ type: 'markdown', target: m[3], text: m[2] });
-    } else {
-      segments.push({ type: 'url', target: m[0] });
-    }
-    last = m.index + m[0].length;
+  for (const part of matches) {
+    if (part.index < last) continue;
+    if (part.index > last) segments.push({ type: "text", text: text.slice(last, part.index) });
+    segments.push(part.segment); last = part.end;
   }
   if (last < text.length) segments.push({ type: 'text', text: text.slice(last) });
   return segments;
@@ -46,28 +48,18 @@ export function segmentInlineText(text: string): InlineSegment[] {
  * Used to resolve clicks inside the CodeMirror editor.
  */
 export function findLinkAtOffset(text: string, offset: number): ParsedLink | null {
-  // Check for WikiLinks: [[target|alias]] or [[target]]
-  const wikiRegex = /\[\[(.*?)\]\]/g;
+  for (const part of delimitedText(text, "[[", "]]")) {
+    if (/[\r\n\u2028\u2029]/.test(part.inner)) continue;
+    if (offset >= part.index && offset <= part.end) {
+      const { target, anchor } = splitLinkAnchor(part.inner.split("|")[0]);
+      return anchor ? { type: "wiki", target, anchor } : { type: "wiki", target };
+    }
+  }
+  for (const part of markdownLinks(text)) {
+    if (part.label.includes("\n") || part.destination.includes("\n")) continue;
+    if (offset >= part.index && offset <= part.end) return { type: "markdown", text: part.label, target: part.destination };
+  }
   let m;
-  while ((m = wikiRegex.exec(text)) !== null) {
-    if (offset >= m.index && offset <= m.index + m[0].length) {
-      // The anchor (`#Heading`, `^block`) stays with the link (issue #92);
-      // the shell resolves it after the note is open.
-      const { target, anchor } = splitLinkAnchor(m[1].split('|')[0]);
-      return anchor ? { type: 'wiki', target, anchor } : { type: 'wiki', target };
-    }
-  }
-
-  // Check for Standard Links: [text](url). The link TEXT must not contain a
-  // `]` — otherwise the match spans a preceding `[...]` (e.g. a footnote `[^1]`)
-  // into the real link and a tap on the footnote/text opens the link (issue #11).
-  const mdRegex = /\[([^\]\n]*?)\]\(([^)\n]*?)\)/g;
-  while ((m = mdRegex.exec(text)) !== null) {
-    if (offset >= m.index && offset <= m.index + m[0].length) {
-      return { type: 'markdown', text: m[1], target: m[2] };
-    }
-  }
-
   // Check for raw URLs: https://...
   const urlRegex = /(https?:\/\/[^\s)]+)/g;
   while ((m = urlRegex.exec(text)) !== null) {

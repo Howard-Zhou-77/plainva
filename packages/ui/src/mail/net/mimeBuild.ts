@@ -23,6 +23,24 @@ function fold(data: string): string {
   return (data.match(/.{1,76}/g) ?? []).join(CRLF);
 }
 
+/** RFC 2231 continuations keep Unicode names and header lines interoperable. */
+function filenameParameter(key: string, value: string): string {
+  if (value.length <= 50 && /^[\x20-\x7e]*$/.test(value)) {
+    return ` ${key}="${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  }
+  const encoded = encodeURIComponent(value).replace(/[!'()*]/g, char => "%" + char.charCodeAt(0).toString(16).toUpperCase());
+  const pieces: string[] = [];
+  let piece = "";
+  for (let index = 0; index < encoded.length;) {
+    const token = encoded.slice(index, index + (encoded[index] === "%" ? 3 : 1));
+    if (piece.length + token.length > 48) { pieces.push(piece); piece = ""; }
+    piece += token;
+    index += token.length;
+  }
+  pieces.push(piece);
+  return pieces.map((piece, index) => `${CRLF} ${key}*${index}*=${index === 0 ? "utf-8''" : ""}${piece}`).join(";");
+}
+
 /** RFC 2047 for a header value; ASCII passes through untouched. */
 export function encodeHeaderValue(value: string): string {
   return /^[\x20-\x7e]*$/.test(value) ? value : `=?utf-8?B?${b64Text(value)}?=`;
@@ -59,6 +77,13 @@ export interface BuildMimeArgs {
  *     attachments…
  */
 export function buildMimeMessage(args: BuildMimeArgs): string {
+  for (const value of [args.from, args.to, args.cc, args.bcc, args.subject, args.calendar?.method]) {
+    if (value && /[\r\n\0]/.test(value)) throw new Error("Invalid mail header");
+  }
+  if (args.calendar?.method !== undefined && !/^[a-z0-9-]+$/i.test(args.calendar.method)) throw new Error("Invalid calendar method");
+  for (const attachment of args.attachments ?? []) {
+    if (/[\r\n\0]/.test(attachment.name) || !/^[a-z0-9!#$%&'*+.^_`|~-]+\/[a-z0-9!#$%&'*+.^_`|~-]+$/i.test(attachment.mime)) throw new Error("Invalid attachment header");
+  }
   const date = (args.date ?? new Date()).toUTCString().replace("GMT", "+0000");
   const headers: string[] = [
     `Date: ${date}`,
@@ -105,9 +130,9 @@ export function buildMimeMessage(args: BuildMimeArgs): string {
     const inner = [contentType, "", body].join(CRLF);
     const files = attachments.map((a) =>
       [
-        `Content-Type: ${a.mime}; name="${a.name}"`,
+        `Content-Type: ${a.mime};${filenameParameter("name", a.name)}`,
         `Content-Transfer-Encoding: base64`,
-        `Content-Disposition: attachment; filename="${a.name}"`,
+        `Content-Disposition: attachment;${filenameParameter("filename", a.name)}`,
         "",
         fold(a.contentBase64.replace(/\s+/g, "")),
       ].join(CRLF),

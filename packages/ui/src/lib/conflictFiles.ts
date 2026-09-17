@@ -5,16 +5,16 @@
  */
 
 export function isConflictCopyPath(path: string): boolean {
-  return /\.CONFLICT-[^/\\]*$/.test(path) || /\.CONFLICT-[^/\\]*\.[^./\\]+$/.test(path);
+  return conflictOriginalPath(path) !== null;
 }
 
 /** `Notes/a.CONFLICT-2026-07-05T12-30-00-000Z.md` -> `Notes/a.md`; null if not a conflict copy. */
 export function conflictOriginalPath(conflictPath: string): string | null {
-  const withExt = conflictPath.match(/^(.*)\.CONFLICT-[^/\\]*?(\.[^./\\]+)$/);
-  if (withExt) return `${withExt[1]}${withExt[2]}`;
-  const bare = conflictPath.match(/^(.*)\.CONFLICT-[^/\\]*$/);
-  if (bare) return bare[1];
-  return null;
+  const marker = conflictPath.lastIndexOf(".CONFLICT-");
+  if (marker < 0 || marker < Math.max(conflictPath.lastIndexOf("/"), conflictPath.lastIndexOf("\\"))) return null;
+  const suffix = conflictPath.slice(marker + ".CONFLICT-".length);
+  const dot = suffix.lastIndexOf(".");
+  return conflictPath.slice(0, marker) + (dot >= 0 && dot < suffix.length - 1 ? suffix.slice(dot) : "");
 }
 
 /**

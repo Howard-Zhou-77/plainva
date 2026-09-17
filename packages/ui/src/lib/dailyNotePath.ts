@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 import { isValid } from "date-fns";
 import { formatMoment, parseMoment } from "./momentFormat";
 
@@ -15,7 +16,7 @@ import { formatMoment, parseMoment } from "./momentFormat";
 export function buildDailyNotePath(date: Date, rawFormat: string, folder: string): { fullPath: string; dateStr: string } {
   const dateStr = formatMoment(date, rawFormat);
   const fileName = dateStr.endsWith(".md") ? dateStr : `${dateStr}.md`;
-  const fullPath = folder ? `${folder.replace(/[/\\]+$/, "")}/${fileName}` : fileName;
+  const fullPath = folder ? `${trimEndChars(folder, "/\\")}/${fileName}` : fileName;
   return { fullPath, dateStr };
 }
 
@@ -41,7 +42,7 @@ export function parseDailyNoteDate(path: string, rawFormat: string, folder: stri
   const target = norm(path);
   if (!/\.md$/i.test(target)) return null;
 
-  const folderPrefix = folder ? `${norm(folder).replace(/\/+$/, "")}/` : "";
+  const folderPrefix = folder ? `${trimEndChars(norm(folder), "/")}/` : "";
   if (folderPrefix && target.toLowerCase().indexOf(folderPrefix.toLowerCase()) !== 0) return null;
 
   const dateStr = target.slice(folderPrefix.length).replace(/\.md$/i, "");

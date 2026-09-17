@@ -1,3 +1,4 @@
+import { isSimpleEmail } from "@plainva/core";
 import {
   normalizeVerifiedProviderIdentity,
   verifiedProviderIdentityKey,
@@ -206,12 +207,12 @@ export function nextcloudEndpoints(baseUrl: string, user: string): { files: stri
   };
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 
 /** Normalized identity used for the conservative auto-merge (exact match only). */
 export function identityKey(label: string | undefined): string | null {
   const trimmed = (label ?? "").trim().toLowerCase();
-  return EMAIL_RE.test(trimmed) ? trimmed : null;
+  return isSimpleEmail(trimmed) ? trimmed : null;
 }
 
 /** What a shell observed in its subsystem stores (the runtime truth).
@@ -225,7 +226,7 @@ export interface ObservedCloudState {
 }
 
 function defaultNewId(): string {
-  return Math.random().toString(36).slice(2, 10);
+  return crypto.randomUUID();
 }
 
 function betterLabel(current: string, candidate: string | undefined): string {
@@ -329,7 +330,7 @@ export function reconcileCloudAccounts(
   for (const mail of observed.mail) {
     if (boundMail.has(mail.id)) continue;
     const family = mail.family ?? familyOfMailAccount(mail);
-    const identity = EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label;
+    const identity = isSimpleEmail(mail.user.trim().toLowerCase()) ? mail.user : mail.label;
     const target = attachTarget(family, mail.verifiedProviderIdentity);
     if (target && !target.services.mail) {
       target.services.mail = { mailAccountId: mail.id };
@@ -405,7 +406,7 @@ export function reconcileCloudAccounts(
     if (rec.services.mail) {
       const mail = mailById.get(rec.services.mail.mailAccountId);
       if (mail) {
-        rec.label = betterLabel(rec.label, EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label);
+        rec.label = betterLabel(rec.label, isSimpleEmail(mail.user.trim().toLowerCase()) ? mail.user : mail.label);
         if (!rec.verifiedProviderIdentity && mail.verifiedProviderIdentity) {
           rec.verifiedProviderIdentity = mail.verifiedProviderIdentity;
         }

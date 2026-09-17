@@ -1,3 +1,4 @@
+import { trimChars } from "@plainva/core";
 import { upsertFrontmatterKeys, readFrontmatterPath, type OkfSource } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { safeFileStem } from "../lib/fileStem";
@@ -101,7 +102,7 @@ export function buildEmailNoteContent(
     }
   }
   const body = (message.text ?? "").trim();
-  if (body) content = content.replace(/\s*$/, "\n\n") + body + "\n";
+  if (body) content = (content.trimEnd() + "\n\n") + body + "\n";
   return content;
 }
 
@@ -124,7 +125,7 @@ export interface CaptureMailResult {
 export async function captureMailAsNote(opts: CaptureMailOptions): Promise<CaptureMailResult> {
   const { adapter, message, accountId, mailbox } = opts;
   const stamp: MailCaptureStampOptions = { generatedBy: opts.generatedBy };
-  const dir = opts.folder.replace(/^\/+|\/+$/g, "");
+  const dir = trimChars(opts.folder, "/");
   const prefix = dir ? dir + "/" : "";
   const dayKey = mailDayKey(message);
   const stem = mailNoteStem(dayKey, message.subject || "E-Mail");
@@ -175,7 +176,7 @@ export async function saveEmlFile(
   folder: string
 ): Promise<string> {
   if (!adapter.writeBinaryFile) throw new Error("binary writes unsupported");
-  const dir = folder.replace(/^\/+|\/+$/g, "");
+  const dir = trimChars(folder, "/");
   const prefix = dir ? dir + "/" : "";
   const stem = mailNoteStem(mailDayKey(message), message.subject || "E-Mail");
   let path = prefix + stem + ".eml";

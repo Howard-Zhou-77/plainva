@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * When a deletion is big enough to ask twice (maintainer decision E2,
  * 2026-07-09): more than 10 affected files, OR more than 20% of the vault.
@@ -21,7 +22,7 @@ export function countAffectedFiles(
   files: ReadonlyArray<{ path: string; isDir?: boolean }>,
   roots: string[]
 ): number {
-  const norm = roots.map((r) => r.replace(/\\/g, "/").replace(/\/+$/, ""));
+  const norm = roots.map((r) => trimEndChars(r.replace(/\\/g, "/"), "/"));
   let n = 0;
   for (const f of files) {
     if (f.isDir) continue;

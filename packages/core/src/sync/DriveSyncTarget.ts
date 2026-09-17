@@ -8,6 +8,11 @@ import { SyncProviderError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
 
+/** Quote one Drive query value; escaping quotes alone leaves backslashes active. */
+function driveQueryString(value: string): string {
+  return "'" + value.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+}
+
 /**
  * BYO Google Drive credentials. The user supplies their own OAuth "Desktop app"
  * client (see ADR 0006) plus the tokens obtained from the (maintainer-verified,
@@ -341,7 +346,7 @@ export class DriveSyncTarget implements ISyncTarget {
     }
 
     const names: string[] = [];
-    const q = `'${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
+    const q = `${driveQueryString(parentId)} in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
     let pageToken: string | undefined;
     do {
       let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent("nextPageToken, files(name)")}&pageSize=1000`;
@@ -360,7 +365,7 @@ export class DriveSyncTarget implements ISyncTarget {
     const response = await this.authedFetch("GET", `${DRIVE_API}/files/${encodeURIComponent(id)}?fields=id,name,mimeType,trashed`);
     if (!response.ok) throw await driveResponseError("folder preview", response);
     const folder = await response.json() as { id?: string; name?: string; mimeType?: string; trashed?: boolean };
-    if (!folder.id || typeof folder.name !== "string" || folder.mimeType !== FOLDER_MIME || folder.trashed !== false) {
+    if (typeof folder.id !== "string" || !/^[\w-]+$/.test(folder.id) || typeof folder.name !== "string" || folder.mimeType !== FOLDER_MIME || folder.trashed !== false) {
       throw new Error("The selected Google Drive folder is unavailable");
     }
     return { id: folder.id, name: folder.name };
@@ -369,7 +374,7 @@ export class DriveSyncTarget implements ISyncTarget {
   /** Read-only, bounded metadata page. No download or folder creation. */
   public async previewFolder(id: string, pageToken?: string): Promise<DriveFolderPreview> {
     const folder = await this.readFolderMetadata(id);
-    const params = new URLSearchParams({ q: `'${folder.id.replace(/'/g, "\\'")}' in parents and trashed=false`,
+    const params = new URLSearchParams({ q: `${driveQueryString(folder.id)} in parents and trashed=false`,
       fields: "nextPageToken,files(id,name,mimeType,modifiedTime)", pageSize: "100", orderBy: "name" });
     if (pageToken) params.set("pageToken", pageToken);
     const response = await this.authedFetch("GET", `${DRIVE_API}/files?${params}`);
@@ -407,7 +412,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
   /** Folder lookup by name under a parent — null when it does not exist. */
   private async findFolder(name: string, parentId: string): Promise<string | null> {
-    const q = `name='${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
+    const q = `name=${driveQueryString(name)} and ${driveQueryString(parentId)} in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
     const listUrl = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`;
     const res = await this.authedFetch("GET", listUrl);
     if (!res.ok) throw await driveResponseError("folder lookup", res);
@@ -548,7 +553,7 @@ export class DriveSyncTarget implements ISyncTarget {
     // the folder object and Drive deletes it recursively).
     const parentId = await this.resolveFolderIdReadOnly(folder);
     if (parentId === null) return null;
-    const q = `name='${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
+    const q = `name=${driveQueryString(name)} and ${driveQueryString(parentId)} in parents and trashed=false`;
     const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,md5Checksum)`;
     const res = await this.authedFetch("GET", url);
     if (!res.ok) throw await driveResponseError("file lookup", res);
@@ -786,7 +791,7 @@ export class DriveSyncTarget implements ISyncTarget {
     let pageToken: string | undefined;
     do {
       const params = new URLSearchParams({
-        q: `'${folderId}' in parents and trashed=false`,
+        q: `${driveQueryString(folderId)} in parents and trashed=false`,
         fields: "nextPageToken,files(id,name,md5Checksum,modifiedTime,mimeType)",
         pageSize: "1000",
       });

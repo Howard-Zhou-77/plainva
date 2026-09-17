@@ -21,7 +21,7 @@ const SECRET_FIELD = "password|pass|secret|client[_-]?id|client[_-]?secret|acces
  * against provider/library errors that echo a request field or URL userinfo. */
 export function redactDiagnosticText(input: string): string {
   return input
-    .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)[^\s/@]+@/gi, "$1[REDACTED]@")
+    .replace(/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)[^\s/@]+@/gi, "$1[REDACTED]@")
     .replace(/(authorization\s*[:=]\s*)(?:bearer|basic)\s+[^\s,;]+/gi, "$1[REDACTED]")
     .replace(new RegExp(`(["']?(?:${SECRET_FIELD})["']?\\s*[:=]\\s*)["'][^"']*["']`, "gi"), "$1\"[REDACTED]\"")
     .replace(new RegExp(`((?:^|[?&\\s,;])(?:${SECRET_FIELD})\\s*=\\s*)[^&\\s,;]+`, "gi"), "$1[REDACTED]");

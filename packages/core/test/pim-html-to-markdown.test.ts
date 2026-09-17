@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { htmlToMarkdown, normalizeDescription, looksLikeHtml } from "../src/pim/htmlToMarkdown.js";
+import { htmlToMarkdown, htmlToPlainText, extractHtmlTitle, normalizeDescription, looksLikeHtml } from "../src/pim/htmlToMarkdown.js";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
 
 describe("htmlToMarkdown", () => {
   it("maps common inline tags and links to Markdown", () => {
@@ -15,7 +17,27 @@ describe("htmlToMarkdown", () => {
   });
 
   it("decodes entities and strips unknown tags", () => {
-    expect(htmlToMarkdown("Tom &amp; Jerry &lt;3 <span>x</span>")).toBe("Tom & Jerry <3 x");
+    const markdown = htmlToMarkdown("Tom &amp; Jerry &lt;3 <span>x</span>");
+    const tree = unified().use(remarkParse).parse(markdown);
+    expect(tree.children).toMatchObject([{ type: "paragraph", children: [{ type: "text", value: "Tom & Jerry <3 x" }] }]);
+  });
+
+  it("keeps hostile markup out of Markdown syntax while retaining literal text", () => {
+    const markdown = htmlToMarkdown('<script>alert(1)</script><style>hidden</style><!-- --!><p>&lt;img src=x onerror=alert(1)&gt; &amp;lt;script&amp;gt;</p><a href="java&#x09;script:alert(1)">unsafe</a>');
+    const tree = unified().use(remarkParse).parse(markdown);
+    expect(JSON.stringify(tree)).not.toContain('"type":"html"');
+    expect(JSON.stringify(tree)).not.toContain('"type":"link"');
+    expect(markdown).toContain("unsafe");
+    expect(markdown).not.toContain("hidden");
+    expect(htmlToPlainText("<p>&amp;lt;script&amp;gt;</p>").trim()).toBe("&lt;script&gt;");
+  });
+
+  it("preserves legitimate destinations and formatting without allowing attributes to escape", () => {
+    expect(htmlToMarkdown('<a href="https://example.org/a(b)?x=1&amp;y=2">A [label]</a>')).toBe('[A \\[label\\]](https://example.org/a%28b%29?x=1&y=2)');
+    expect(htmlToMarkdown('<img src="javascript:alert(1)" alt="unsafe"><img src="pic.png" alt="a] &lt;b&gt;">')).toBe('![a\\] \\<b\\>](pic.png)');
+    expect(htmlToMarkdown('<code>`x`</code>')).toBe('`` `x` ``');
+    expect(extractHtmlTitle('<h1>Tom &amp; Jerry <b>Plan</b></h1><p>Body</p>', 'Fallback')).toEqual({ title: 'Tom & Jerry Plan', body: '<p>Body</p>' });
+    expect(extractHtmlTitle('<h1>Unclosed<p>Keep this', 'Fallback').body).toBe('<h1>Unclosed<p>Keep this');
   });
 });
 

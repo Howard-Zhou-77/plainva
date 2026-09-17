@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 import { decodeMarkdownLinkTarget } from "@plainva/core";
 import { resolveOpenAction } from "./openTarget";
 
@@ -57,7 +58,7 @@ export function resolveRelativeTarget(sourcePath: string, href: string): Relativ
   const segs = rootRelative || !sourcePath.includes("/")
     ? []
     : sourcePath.replace(/\\/g, "/").split("/").slice(0, -1);
-  for (const part of raw.replace(/\/+$/, "").split("/")) {
+  for (const part of trimEndChars(raw, "/").split("/")) {
     if (part === "" || part === ".") continue;
     if (part === "..") {
       if (segs.length === 0) return null; // would escape the vault

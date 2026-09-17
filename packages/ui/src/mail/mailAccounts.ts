@@ -1,3 +1,4 @@
+import { firstAngleValue, trimEndChars, trimChars } from "@plainva/core";
 import { getPlatformServices } from "../platform/services";
 import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
@@ -101,7 +102,7 @@ export function splitSenderKey(key: string): { accountId: string; address: strin
  * From picker. Pure.
  */
 export function normalizeSenderAddress(value: string): string {
-  return (value.match(/<([^>]+)>/)?.[1] ?? value).trim().toLowerCase();
+  return (firstAngleValue(value) ?? value).trim().toLowerCase();
 }
 
 /**
@@ -157,8 +158,8 @@ export function withSignature(
   // scrap of the quoted mail appeared above the signature — and a forward, which
   // has no ">" at all, pushed it to the very bottom.
   const quoteAt = quotedOriginalStart(markdown);
-  if (quoteAt < 0) return `${markdown.replace(/\s*$/, "")}\n\n${block}\n`;
-  const head = markdown.slice(0, quoteAt).replace(/\s*$/, "");
+  if (quoteAt < 0) return `${markdown.trimEnd()}\n\n${block}\n`;
+  const head = markdown.slice(0, quoteAt).trimEnd();
   return `${head}\n\n${block}\n\n${markdown.slice(quoteAt)}`;
 }
 
@@ -182,12 +183,13 @@ export function withoutSignature(
     .sort((a, b) => b.length - a.length);
   const block = blocks.find((b) => markdown.includes(b));
   if (!block) return markdown;
-  return markdown.replace(new RegExp(`\\n*${escapeRegExp(block)}\\n*`), "\n\n").replace(/\s*$/, "\n");
+  const at = markdown.indexOf(block);
+  const before = trimEndChars(markdown.slice(0, at), "\n");
+  const after = trimChars(markdown.slice(at + block.length), "\n");
+  return (before + "\n\n" + after).trimEnd() + "\n";
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+
 
 /** Backend selector: stored accounts without a kind are IMAP. */
 export function mailAccountKind(account: MailAccountConfig): "imap" | "microsoft" | "gmail" {

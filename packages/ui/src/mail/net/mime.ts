@@ -1,3 +1,4 @@
+import { htmlToPlainText } from "@plainva/core";
 import type { MailAttachmentInfo } from "../types";
 
 /**
@@ -104,13 +105,49 @@ function qpBytes(s: string): Uint8Array {
 /** `name="x"; charset=utf-8` → map. Handles quoted values. */
 export function parseParams(value: string): Map<string, string> {
   const out = new Map<string, string>();
-  for (const chunk of value.split(";").slice(1)) {
+  const chunks: string[] = [];
+  let part = "", quoted = false;
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    if (quoted && char === "\\" && index + 1 < value.length) { part += value[++index]; continue; }
+    if (char === '"') { quoted = !quoted; part += char; continue; }
+    if (!quoted && char === ";") { chunks.push(part); part = ""; } else part += char;
+  }
+  chunks.push(part);
+  for (const chunk of chunks.slice(1)) {
     const i = chunk.indexOf("=");
     if (i < 0) continue;
     const k = chunk.slice(0, i).trim().toLowerCase();
     let v = chunk.slice(i + 1).trim();
     if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
     out.set(k, decodeWords(v));
+  }
+  const continued = new Map<string, Array<{ index: number; encoded: boolean; value: string }>>();
+  for (const [key, val] of out) {
+    const match = /^([^*]+)\*(?:(\d+)(\*)?)?$/.exec(key);
+    if (!match) continue;
+    const parts = continued.get(match[1]) ?? [];
+    parts.push({ index: Number(match[2] ?? 0), encoded: match[2] === undefined || !!match[3], value: val });
+    continued.set(match[1], parts);
+  }
+  for (const [key, parts] of continued) {
+    parts.sort((a, b) => a.index - b.index);
+    if (parts.some((part, index) => part.index !== index)) continue;
+    const joined = parts.map(part => part.value).join("");
+    if (!parts[0].encoded) { out.set(key, joined); continue; }
+    const first = joined.indexOf("'"), second = joined.indexOf("'", first + 1);
+    if (first < 0 || second < 0) continue;
+    const bytes: number[] = [];
+    const raw = joined.slice(second + 1);
+    let valid = true;
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i] === "%") {
+        const hex = raw.slice(i + 1, i + 3);
+        if (!/^[a-f0-9]{2}$/i.test(hex)) { valid = false; break; }
+        bytes.push(parseInt(hex, 16)); i += 2;
+      } else bytes.push(raw.charCodeAt(i));
+    }
+    if (valid) out.set(key, dec(joined.slice(0, first) || "utf-8").decode(new Uint8Array(bytes)));
   }
   return out;
 }
@@ -251,14 +288,7 @@ export function previewFromBodyPrefix(raw: string, max = 160): string {
   let text = encoding === "quoted-printable" || /=[0-9A-F]{2}/.test(body) ? decodeText(headers, body) : body;
 
   if ((headers.get("content-type") ?? "").includes("text/html") || /<\/?(p|div|br|span|table)\b/i.test(text)) {
-    text = text
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">");
+    text = htmlToPlainText(text);
   }
 
   const flat = text

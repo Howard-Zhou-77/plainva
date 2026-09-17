@@ -1,3 +1,4 @@
+import { delimitedText } from "@plainva/core";
 /**
  * Reading `List-Unsubscribe` (S23, plan P12).
  *
@@ -34,7 +35,7 @@ export interface UnsubscribeOffer {
   available: boolean;
 }
 
-const ANGLE = /<([^>]+)>/g;
+
 
 /**
  * Parses the two headers into routes.
@@ -52,10 +53,8 @@ export function parseUnsubscribe(headers: {
   const oneClick = /one-?click/i.test(headers.listUnsubscribePost ?? "");
   const routes: UnsubscribeRoute[] = [];
 
-  ANGLE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = ANGLE.exec(raw))) {
-    const uri = (m[1] ?? "").trim();
+  for (const part of delimitedText(raw, "<", ">")) {
+    const uri = part.inner.trim();
     if (/^mailto:/i.test(uri)) {
       const rest = uri.slice("mailto:".length);
       const [addr, query = ""] = rest.split("?", 2);

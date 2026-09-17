@@ -19,14 +19,24 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "examples", "LICENSE", "README.md"],
-  "engines": { "node": ">=22.0.0" },
+  "files": [
+    "dist",
+    "examples",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/plainva/plainva.git",
     "directory": "packages/core"
   },
-  "publishConfig": { "access": "public", "tag": "next" },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
   "description": "Markdown, frontmatter, links, tasks and indexed vault queries for local-first tools.",
   "license": "AGPL-3.0-only",
   "scripts": {
@@ -50,6 +60,7 @@
     "fast-xml-parser": "^5.11.1",
     "ical.js": "^2.2.1",
     "node-diff3": "^3.2.1",
+    "parse5": "^7.3.0",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",

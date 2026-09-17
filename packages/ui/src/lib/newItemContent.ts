@@ -49,7 +49,7 @@ export function buildCaptureContent(opts: {
   /** Extra frontmatter to pre-fill; only written where the key is unset. */
   prefills?: Record<string, unknown>;
 }): string {
-  const body = opts.text.replace(/\s+$/, "");
+  const body = opts.text.trimEnd();
   const title = (opts.title ?? "").trim();
   const base = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? body + "\n" : "";
   return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills ?? {});

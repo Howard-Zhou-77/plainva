@@ -162,20 +162,19 @@ jobs:
         with:
           tool: cargo-audit
 
-      # Ignored advisories have no actionable fix today (transitive, not reachable
-      # by this app's runtime). Re-evaluate on the next major tauri/plist bump.
-      #   RUSTSEC-2026-0194 / RUSTSEC-2026-0195: quick-xml DoS. Pinned to 0.39.x by
-      #     `plist = "^0.39.2"` (via tauri); >=0.41 needs a tauri/plist major bump.
-      #     plist only parses our own bundled Info.plist (macOS), never untrusted input.
+      # Reviewed 2026-09-17: quick-xml 0.41.0 (plist 1.10.0) is patched;
+      # RUSTSEC-2026-0194 and RUSTSEC-2026-0195 no longer need exceptions.
+      # The two entries below remain in Cargo.lock for optional SQLx backends,
+      # but `cargo tree --locked --target all -i rsa` / `-i rkyv` have no active
+      # dependency path with this application's SQLite feature selection.
+      # Re-check enabled features and these inverse trees on every dependency
+      # update; enabling a backend is not covered by these exceptions.
       #   RUSTSEC-2023-0071: `rsa` Marvin attack. No fixed upstream release exists.
       #     Pulled via sqlx-mysql (tauri-plugin-sql); this app is SQLite-only, so the
       #     MySQL auth path that would exercise RSA never runs.
-      #   RUSTSEC-2026-0235: `rkyv` 0.7 out-of-bounds read when VALIDATING AN ARCHIVE
-      #     that contains Rc/Arc. `cargo update -p rkyv` locks 0 packages — there is no
-      #     patched 0.7.x, only a major bump of rust_decimal (and with it
-      #     tauri-plugin-sql). The chain is tauri-plugin-sql -> rust_decimal -> rkyv;
-      #     this app never deserialises an rkyv archive (no rkyv or Decimal use in
-      #     src-tauri at all), so the vulnerable code path is never entered.
-      #     Re-evaluate on the next tauri-plugin-sql major bump.
+      #   RUSTSEC-2026-0235: rkyv 0.7 archive-validation out-of-bounds read.
+      #     The fix is on 0.8; 0.7 is unsupported. The lockfile chain is optional
+      #     SQLx -> rust_decimal -> rkyv, absent from the active graph. Re-evaluate
+      #     when that chain updates or archive/Decimal support is enabled.
       - name: cargo audit
-        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195 --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0235
+        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0235

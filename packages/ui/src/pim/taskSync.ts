@@ -717,7 +717,7 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
 
 function firstH1(content: string): string | null {
   const body = stripFrontmatterBlock(content);
-  const m = body.match(/^#\s+(.+)$/m);
+  const m = body.match(/^#[ \t]+(\S[^\r\n]*)/m);
   return m ? m[1].trim() : null;
 }
 
@@ -725,8 +725,8 @@ function replaceFirstH1(content: string, title: string): string {
   const fmEnd = frontmatterEnd(content);
   const head = content.slice(0, fmEnd);
   const body = content.slice(fmEnd);
-  if (/^#\s+.+$/m.test(body)) {
-    return head + body.replace(/^#\s+.+$/m, `# ${title}`);
+  if (/^#[ \t]+\S[^\r\n]*/m.test(body)) {
+    return head + body.replace(/^#[ \t]+\S[^\r\n]*/m, `# ${title}`);
   }
   return head + `# ${title}\n` + body;
 }

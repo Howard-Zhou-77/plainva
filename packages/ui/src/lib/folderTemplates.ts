@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * Folder and type templates (plan Vorlagen-Engine, P4/P4b).
  *
@@ -31,7 +32,7 @@ export interface TypeTemplateRule {
  * compares against this, so a hand-typed `\Projekte\` behaves like a picked one.
  */
 export function normalizeFolderPath(raw: string): string {
-  const cleaned = raw.replace(/\\/g, "/").replace(/^\.?\/+/, "").replace(/\/+$/, "").trim();
+  const cleaned = trimEndChars(raw.replace(/\\/g, "/").replace(/^\.?\/+/, ""), "/").trim();
   return cleaned === "." ? "" : cleaned;
 }
 

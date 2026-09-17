@@ -29,6 +29,36 @@ function fakeAdapter(initial?: string): IVaultAdapter & { written: Record<string
 }
 
 describe("graphState", () => {
+  it("roundtrips special context and node names without touching prototypes", async () => {
+    const raw = '{"version":1,"vaultLayout":2,"pins":{"__proto__":{"constructor":{"x":1,"y":2}},"constructor":{"__proto__":{"x":3,"y":4}}},"pinModes":{"__proto__":false}}';
+    const adapter = fakeAdapter(raw), store = new GraphStateStore(adapter);
+    const prototype = Object.getOwnPropertyDescriptors(Object.prototype);
+    await store.load();
+    expect(Object.getPrototypeOf(store.getPins("__proto__"))).toBeNull();
+    expect(store.getPins("__proto__").constructor).toEqual({ x: 1, y: 2 });
+    expect(store.getPinMode("__proto__")).toBe(false);
+    store.setPin("__proto__", "toString", { x: 5, y: 6 });
+    store.setPin("constructor", "__proto__", { x: 7, y: 8 });
+    store.setPinMode("toString", false);
+    await store.flush();
+    expect(Object.getOwnPropertyDescriptors(Object.prototype)).toEqual(prototype);
+    const reopened = new GraphStateStore(adapter);
+    await reopened.load();
+    expect(reopened.getPins("constructor").__proto__).toEqual({ x: 7, y: 8 });
+    expect(reopened.getPins("__proto__").toString).toEqual({ x: 5, y: 6 });
+    expect(reopened.getPinMode("toString")).toBe(false);
+    expect(reopened.getPins("other")).toEqual({});
+  });
+
+  it("rejects malformed pin buckets and non-finite coordinates", async () => {
+    const store = new GraphStateStore(fakeAdapter('{"version":1,"vaultLayout":2,"pins":{"array":[],"bad":null,"vault":{"ok":{"x":1,"y":2},"bad":{"x":"3","y":4},"inf":{"x":1e999,"y":2}}}}'));
+    await store.load();
+    for (const x of [NaN, Infinity, Number.MAX_VALUE]) store.setPin("vault", "bad", { x, y: 0 });
+    expect(store.getPins("vault")).toEqual({ ok: { x: 1, y: 2 } });
+    expect(store.getPins("array")).toEqual({});
+    expect(store.getPins("bad")).toEqual({});
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
   });

@@ -1,3 +1,4 @@
+import { trimChars } from "@plainva/core";
 import { useEffect, useRef, useState } from "react";
 import { errorText, ICON, useFixedPopover, Modal, Button } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
@@ -268,7 +269,7 @@ export function NewItemFolderDialog({
   const [value, setValue] = useState<string>(current ?? folderSources[0] ?? "");
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const clean = value.replace(/^\/+|\/+$/g, "").trim();
+  const clean = trimChars(value, "/").trim();
 
   return (
     <Modal

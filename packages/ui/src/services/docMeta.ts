@@ -1,3 +1,4 @@
+import { markdownLinks } from "@plainva/core";
 import { parse as parseYaml } from "yaml";
 import { getPlainvaMeta, type PlainvaDocMeta } from "@plainva/core";
 
@@ -63,10 +64,10 @@ export function plainvaMetaFromContent(content: string): PlainvaDocMeta {
  */
 export function referencesRelativeAttachments(content: string): boolean {
   if (/!\[\[/.test(content)) return true;
-  const mdImage = /!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g;
-  let m: RegExpExecArray | null;
-  while ((m = mdImage.exec(content)) !== null) {
-    const target = m[1].trim();
+  for (const part of markdownLinks(content)) {
+    if (part.index === 0 || content[part.index - 1] !== "!") continue;
+    const target = /^\S+/.exec(part.destination)?.[0];
+    if (!target) continue;
     if (!/^[a-z][a-z0-9+.-]*:/i.test(target)) return true;
   }
   return false;

@@ -62,6 +62,19 @@ describe("anchorAwareHtmlBlock", () => {
     expect(nested.filter((n) => n === "ListItem")).toHaveLength(2);
   });
 
+  it("treats HTML's alternate comment closer as opaque CommonMark source", () => {
+    const doc = '<!-- comment --!>\n<img src=x onerror="window.injected=1">\n**still comment**\n-->\n\nSafe';
+    const tree = names(doc);
+    expect(tree).toContain("CommentBlock");
+    expect(tree).not.toContain("StrongEmphasis");
+    expect(tree.filter(name => name === "Paragraph")).toHaveLength(1);
+    const view = new EditorView({ state: EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage, extensions: [anchorAwareHtmlBlock] })] }), parent: document.body });
+    try {
+      expect(view.dom.querySelector("img,script")).toBeNull();
+      expect(view.state.doc.toString()).toBe(doc);
+    } finally { view.destroy(); }
+  });
+
   it("the live preview no longer dims the commented item and its bullet is still a list mark", () => {
     const doc = "- <!--pv#7f3a-->Vorlagen<!--/pv#7f3a-->\n- zwei\n";
     const view = new EditorView({

@@ -7,14 +7,25 @@
  * open, and revealing them draws a fresh pair, so looking is never a shortcut past the check.
  */
 
+/** Rejection sampling over a power-of-two range, without modulo bias. */
+function uniformIndex(count: number): number {
+  if (count === 1) return 0;
+  const mask = (2 ** Math.ceil(Math.log2(count)) - 1) >>> 0;
+  const word = new Uint32Array(1);
+  for (;;) {
+    crypto.getRandomValues(word);
+    const index = (word[0] & mask) >>> 0;
+    if (index < count) return index;
+  }
+}
+
 /** Two distinct group indexes, or `[0, 0]` when a code is too short to ask twice. */
 export function pickRecoveryChallenge(groupCount: number): [number, number] {
+  if (!Number.isSafeInteger(groupCount) || groupCount < 0 || groupCount > 0x1_0000_0000) throw new RangeError("Invalid recovery group count");
   if (groupCount < 2) return [0, 0];
-  const random = crypto.getRandomValues(new Uint32Array(2));
-  const first = random[0] % groupCount;
-  let second = random[1] % groupCount;
-  if (second === first) second = (second + 1) % groupCount;
-  return [first, second];
+  const first = uniformIndex(groupCount);
+  const remaining = uniformIndex(groupCount - 1);
+  return [first, remaining >= first ? remaining + 1 : remaining];
 }
 
 /** Same width as the value it stands in for, so revealing does not reflow the code. */

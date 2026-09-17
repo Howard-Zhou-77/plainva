@@ -1,3 +1,4 @@
+import { firstAngleValue } from "@plainva/core";
 import type { SmtpSendArgs } from "../transport";
 import { LineSocket } from "./socket";
 import { MAIL_OAUTH_REJECTED, xoauth2Payload } from "./xoauth2";
@@ -42,6 +43,7 @@ async function expect(sock: LineSocket, ok: number[], what: string): Promise<str
 }
 
 async function say(sock: LineSocket, line: string, ok: number[], what: string): Promise<string> {
+  if (/[\r\n\0]/.test(line)) throw new Error("Invalid SMTP command");
   await sock.writeText(line + CRLF);
   return expect(sock, ok, what);
 }
@@ -91,7 +93,7 @@ export async function smtpSend(args: SmtpSendArgs, mime: string, timeoutMs = 30_
       .split(/[,;]/)
       .map((r) => r.trim())
       .filter(Boolean)
-      .map((r) => (/<([^>]+)>/.exec(r)?.[1] ?? r).trim());
+      .map((r) => (firstAngleValue(r) ?? r).trim());
     if (recipients.length === 0) throw new Error("no recipient");
     for (const rcpt of recipients) {
       await say(sock, `RCPT TO:<${rcpt}>`, [250, 251], `the server rejected ${rcpt}`);

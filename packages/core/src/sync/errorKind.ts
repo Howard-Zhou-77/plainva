@@ -71,7 +71,7 @@ export function classifySyncError(error: unknown): SyncErrorKind {
 
   // Authentication is fatal even when it arrives wrapped in a 5xx-looking
   // sentence: `invalid_grant` means the refresh token is gone for good.
-  if (/invalid[_ -]?grant|token.*(?:revoked|expired)|unauthori[sz]ed/.test(text)) return "fatal";
+  if (/invalid[_ -]?grant|unauthori[sz]ed/.test(text) || text.split(/[\r\n\u2028\u2029]/).some(line => { const token = line.indexOf("token"); return token >= 0 && /revoked|expired/.test(line.slice(token + 5)); })) return "fatal";
 
   if (error instanceof AggregateError && error.errors.length > 0)
     return error.errors.every(cause => classifySyncError(cause) === "transient") ? "transient" : "fatal";

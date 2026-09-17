@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * Turns arbitrary user text into a safe file-name stem. Shared because three
  * unrelated features need the exact same rule — database files, meeting notes
@@ -5,11 +6,10 @@
  * cases (reserved characters, a trailing dot colliding with the extension).
  */
 export function safeFileStem(name: string): string | null {
-  const stem = name
+  // A trailing dot would collide with the ".base" extension on Windows.
+  const stem = trimEndChars(name
     .replace(/[\\/:*?"<>|]/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    // A trailing dot would collide with the ".base" extension on Windows.
-    .replace(/\.+$/, "");
+    .trim(), ".");
   return stem.length > 0 ? stem : null;
 }

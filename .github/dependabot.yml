@@ -2,6 +2,11 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
+    # Version 12 requires Safari 17.4; the supported floor is still Safari 16.4.
+    # Keep 11.x updates enabled and reconsider this with a platform-floor change.
+    ignore:
+      - dependency-name: mermaid
+        versions: ["12.x"]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

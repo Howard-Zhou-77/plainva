@@ -11,7 +11,7 @@ import {
 } from '../ImportTypes.js';
 import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
-import { htmlToMarkdown } from '../../pim/htmlToMarkdown.js';
+import { htmlToMarkdown, extractHtmlTitle } from '../../pim/htmlToMarkdown.js';
 import { timesFromFile } from '../sourceTimes.js';
 
 const HTML_RE = /\.html?$/i;
@@ -30,15 +30,7 @@ function safeName(name: string, fallback: string): string {
   return cleaned.length > 0 ? cleaned.slice(0, 90) : fallback;
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&');
-}
+
 
 /**
  * The page's own title, and the body with that heading removed.
@@ -49,15 +41,7 @@ function decodeEntities(text: string): string {
  * the body avoids the heading appearing twice in the note.
  */
 export function htmlTitleAndBody(content: string, fallback: string): { title: string; body: string } {
-  const h1 = content.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
-  if (h1) {
-    const title = decodeEntities(h1[1].replace(/<[^>]+>/g, '')).trim();
-    if (title) return { title, body: content.slice(0, h1.index) + content.slice((h1.index ?? 0) + h1[0].length) };
-  }
-
-  const titleTag = content.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
-  const title = titleTag ? decodeEntities(titleTag[1].replace(/<[^>]+>/g, '')).trim() : '';
-  return { title: title || fallback, body: content };
+  return extractHtmlTitle(content, fallback);
 }
 
 /** Resolves `href="../a/b.html"` against the folder the link sits in. */

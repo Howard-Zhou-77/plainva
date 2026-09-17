@@ -14,7 +14,7 @@ export function FileComparisonDetails({ vault, originalPath, copyPath, original,
     const fields = (anchor ? frontmatterKeys(content!).map(key => [key, readFrontmatterPath(content!, [key])] as const) : []).filter(([key, value]) => !["type", "title"].includes(key) && value !== null && ["string", "boolean", "number"].includes(typeof value));
     return <GroupCard><div className="pv-comparison-file">
       <strong>{title}</strong><strong>{path.split(/[/\\]/).pop()}</strong><span>{path}</span>
-      {anchor && <><span>{content!.match(/^#\s+(.+)$/m)?.[1]}</span>{fields.map(([key, value]) => <span key={key}>{key}: {String(value)}</span>)}<span>{t("compare.taskList")}: {anchor.list}</span></>}
+      {anchor && <><span>{content!.match(/^#[ \t]+(\S[^\r\n]*)/m)?.[1]}</span>{fields.map(([key, value]) => <span key={key}>{key}: {String(value)}</span>)}<span>{t("compare.taskList")}: {anchor.list}</span></>}
       <div className="pv-comparison-actions"><Button size="sm" variant="ghost" onClick={() => { void navigator.clipboard.writeText(path).then(() => toast.success(t("fileTree.pathCopied"))).catch(() => toast.error(t("connection.clipboardFailed"))); }}>{t("fileTree.copyPath")}</Button><Button size="sm" variant="ghost" onClick={() => onReveal(path)}>{t("compare.revealFolder")}</Button></div>
     </div></GroupCard>;
   };

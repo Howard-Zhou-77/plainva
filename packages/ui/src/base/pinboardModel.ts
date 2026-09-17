@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * Pure pinboard view-model helpers (plan Pinboard P3/P5), shared by both
  * shells.
@@ -218,7 +219,7 @@ export function captureFileName(text: string, maxLen = 48): string | null {
     const space = cut.lastIndexOf(" ");
     s = (space > maxLen / 2 ? cut.slice(0, space) : cut.slice(0, maxLen)).trim();
   }
-  s = s.replace(/[. ]+$/, ""); // Windows: no trailing dots/spaces
+  s = trimEndChars(s, ". "); // Windows: no trailing dots/spaces
   return s || null;
 }
 

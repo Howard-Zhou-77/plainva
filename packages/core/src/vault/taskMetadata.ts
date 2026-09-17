@@ -1,3 +1,4 @@
+import { codeSpanRanges } from "../textScan.js";
 /** Obsidian Tasks emoji fields. Reading never reformats the source line. */
 export interface TasksRepeatRule { unit: "day" | "week" | "month" | "year"; interval: number; whenDone: boolean }
 export interface TasksMetadata {
@@ -19,15 +20,19 @@ export function tasksDayNumber(value: string): number | null {
   return Number.isFinite(stamp) && new Date(stamp).toISOString().slice(0, 10) === value ? stamp / 86_400_000 : null;
 }
 const dayKey = (day: number) => new Date(day * 86_400_000).toISOString().slice(0, 10);
-function outsideCode(text: string, offset: number): boolean {
-  for (const match of text.matchAll(/(`+)[\s\S]*?\1/g)) if (match.index <= offset && match.index + match[0].length > offset) return false;
-  return offset === 0 || text[offset - 1] !== "\\";
+function outsideCode(text: string, offset: number, ranges: ReturnType<typeof codeSpanRanges>): boolean {
+  let low = 0, high = ranges.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (ranges[mid].to <= offset) low = mid + 1; else high = mid;
+  }
+  return !(low < ranges.length && ranges[low].from <= offset) && (offset === 0 || text[offset - 1] !== "\\");
 }
-function tokens(text: string): Token[] {
+function tokens(text: string, ranges = codeSpanRanges(text)): Token[] {
   const out: Token[] = [];
   for (const match of text.matchAll(markers)) {
     const from = match.index, start = from + match[0].length;
-    if (!outsideCode(text, from)) continue;
+    if (!outsideCode(text, from, ranges)) continue;
     const field = symbols[match[1]], tail = text.slice(start);
     const raw = field === "recurrence" ? tail.split(boundary, 1)[0].trimEnd() : tail.match(/^\S+/)?.[0] ?? "";
     if (field === "recurrence" || (field === "taskId" ? /^[A-Za-z0-9_-]{1,256}$/.test(raw) : tasksDayNumber(raw) !== null)) out.push({ field, from, to: start + raw.length, value: raw });
@@ -36,14 +41,15 @@ function tokens(text: string): Token[] {
 }
 export function readTasksMetadata(text: string): TasksMetadata {
   const result: TasksMetadata = { created: null, completed: null, due: null, scheduled: null, start: null, taskId: null, recurrence: null, repeatRule: null, unsafeRecurrence: false };
-  const found = tokens(text), counts = new Map<Field, number>();
+  const ranges = codeSpanRanges(text), found = tokens(text, ranges), counts = new Map<Field, number>();
   for (const token of found) counts.set(token.field, (counts.get(token.field) ?? 0) + 1);
   for (const token of found) {
     if (counts.get(token.field) !== 1) { result.unsafeRecurrence = true; continue; }
     result[token.field] = token.value;
   }
   // Unsupported directives and malformed/duplicated dates remain verbatim.
-  for (const match of text.matchAll(markers)) if (outsideCode(text, match.index) && !found.some(t => t.from === match.index)) result.unsafeRecurrence = true;
+  const validOffsets = new Set(found.map(token => token.from));
+  for (const match of text.matchAll(markers)) if (outsideCode(text, match.index, ranges) && !validOffsets.has(match.index)) result.unsafeRecurrence = true;
   if (/(?:^|\s)(?:⛔|🏁|\^[A-Za-z0-9_-]+(?:\s|$))/.test(text)) result.unsafeRecurrence = true;
   const rule = result.recurrence?.match(/^every(?: ([1-9]\d{0,2}))? (day|week|month|year)s?( when done)?$/i);
   if (rule && !result.unsafeRecurrence) result.repeatRule = { unit: rule[2].toLowerCase() as TasksRepeatRule["unit"], interval: Number(rule[1] ?? 1), whenDone: !!rule[3] };
@@ -68,7 +74,8 @@ export function setTasksField(text: string, field: Field, value: string | null):
     return text.slice(0, start) + (value === null ? "" : symbol + " " + value) + text.slice(token.to);
   }
   if (value === null) return text;
-  const block = /\s+\^[A-Za-z0-9_-]+\s*$/.exec(text), at = block?.index ?? text.trimEnd().length;
+  const tail = text.trimEnd(), block = /\^[A-Za-z0-9_-]+$/.exec(tail);
+  const at = block && block.index > 0 && /\s/.test(tail[block.index - 1]) ? tail.slice(0, block.index).trimEnd().length : tail.length;
   return text.slice(0, at) + " " + symbol + " " + value + text.slice(at);
 }
 /** Tasks advances one occurrence from its reference, including overdue ones.

@@ -20,7 +20,7 @@ import { taskDbFileStem } from "./taskDatabase";
  * wrong line.
  */
 
-const TITLE_DUE = /\s*📅\s*\d{4}-\d{2}-\d{2}/gu;
+const TITLE_DUE = /📅\s*\d{4}-\d{2}-\d{2}/gu;
 const TITLE_TAG = /(^|\s)#[\p{L}\p{N}][\p{L}\p{N}_/-]*/gu;
 const MAX_STEM_LENGTH = 60;
 
@@ -297,7 +297,7 @@ export async function createTaskInDatabase(
     inheritTags: target.inheritTags ?? [],
     prefills,
   });
-  const content = opts.trailer ? built.replace(/\s*$/, "\n") + opts.trailer : built;
+  const content = opts.trailer ? (built.trimEnd() + "\n") + opts.trailer : built;
   await adapter.writeTextFile(notePath, content);
   return { ok: true, notePath };
 }

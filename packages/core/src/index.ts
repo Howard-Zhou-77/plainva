@@ -108,3 +108,5 @@ export * from "./import/index.js";
 export { foldPathNormalization } from "./sync/pathIdentity.js";
 
 export { projectCommentRecords } from "./comments/commentProjection.js";
+export * from "./textScan.js";
+export { htmlToPlainText } from "./pim/htmlToMarkdown.js";

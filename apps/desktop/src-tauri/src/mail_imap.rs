@@ -677,6 +677,7 @@ pub async fn mail_fetch_attachment(
 /// RFC 2047 header encoding via mail-builder). Extracted for the roundtrip
 /// unit test below.
 fn build_draft_mime(to: &str, cc: &str, bcc: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[crate::mail_smtp::MailAttachment]) -> Result<Vec<u8>, String> {
+    crate::mail_smtp::validate_headers(&[to, cc, bcc, subject])?;
     let mut builder = mail_builder::MessageBuilder::new()
         .to(to.to_string())
         .subject(subject.to_string())
@@ -718,9 +719,11 @@ pub async fn mail_append_draft(
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mime = build_draft_mime(&to, &cc.unwrap_or_default(), &bcc.unwrap_or_default(), &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
+        crate::mail_smtp::validate_headers(&[&mailbox])?;
         with_session(&host, port, &user, &pass, auth, |session| {
             session
-                .append_with_flags(escape_imap_string(&mailbox), &mime, &[imap::types::Flag::Draft])
+                // The IMAP library quotes mailbox names itself, exactly once.
+                .append_with_flags(&mailbox, &mime, &[imap::types::Flag::Draft])
                 .map_err(|e| format!("append failed: {e}"))?;
             Ok(())
         })
@@ -732,8 +735,11 @@ pub async fn mail_append_draft(
 // ---- Mailbox actions (mail-client E4) -------------------------------------
 
 /// IMAP quoted-string escape for a free-text SEARCH term (backslash + quote). Pure.
-fn escape_imap_string(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
+fn escape_imap_string(s: &str) -> Result<String, String> {
+    if s.contains(['\r', '\n', '\0']) {
+        return Err("Invalid IMAP argument".into());
+    }
+    Ok(s.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 /// Builds the SEARCH argument for a free-text query. A non-ASCII query gets a
@@ -741,12 +747,12 @@ fn escape_imap_string(s: &str) -> String {
 /// forbids raw 8-bit in a quoted string without it — strict servers answer
 /// `BAD [BADCHARSET]` otherwise). ASCII queries stay bare for maximum
 /// compatibility. Pure.
-fn build_search_arg(query: &str) -> String {
-    let body = format!("TEXT \"{}\"", escape_imap_string(query));
+fn build_search_arg(query: &str) -> Result<String, String> {
+    let body = format!("TEXT \"{}\"", escape_imap_string(query)?);
     if query.is_ascii() {
-        body
+        Ok(body)
     } else {
-        format!("CHARSET UTF-8 {body}")
+        Ok(format!("CHARSET UTF-8 {body}"))
     }
 }
 
@@ -918,7 +924,7 @@ pub async fn mail_search(host: String, port: u16, user: String, pass: String, au
     tauri::async_runtime::spawn_blocking(move || {
         with_session(&host, port, &user, &pass, auth, |session| {
             session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
-            let search = build_search_arg(&query);
+            let search = build_search_arg(&query)?;
             let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
             let mut v: Vec<u32> = uids.into_iter().collect();
             v.sort_unstable_by(|a, b| b.cmp(a));
@@ -946,7 +952,7 @@ pub async fn mail_search_envelopes(
     tauri::async_runtime::spawn_blocking(move || {
         with_session(&host, port, &user, &pass, auth, |session| {
             let selected = session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
-            let search = build_search_arg(&query);
+            let search = build_search_arg(&query)?;
             let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
             let mut ordered: Vec<u32> = uids.into_iter().collect();
             ordered.sort_unstable_by(|a, b| b.cmp(a)); // highest UID = newest first
@@ -1007,19 +1013,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rejects_search_command_injection() {
+        for query in ["x\r\nA9 LOGOUT", "x\nUID STORE 1 +FLAGS (\\Deleted)", "x\0y"] {
+            assert!(build_search_arg(query).is_err());
+        }
+        assert_eq!(build_search_arg("a\\\"b").unwrap(), "TEXT \"a\\\\\\\"b\"");
+    }
+
+    #[test]
+    fn draft_keeps_bcc_unicode_names_and_attachment_bytes() {
+        let name = format!("{}.pdf", "Grüße-日本語-".repeat(20));
+        let attachments = [crate::mail_smtp::MailAttachment { name: name.clone(), mime: "application/pdf".into(), content_base64: "AAECA//+".into() }];
+        let mime = build_draft_mime("to@example.invalid", "cc@example.invalid", "bcc@example.invalid", "Grüße 日本語", "", Some("<p>Hallo</p>"), &attachments).unwrap();
+        let parsed = parse_message(&mime).unwrap();
+        assert_eq!(header_text(&parsed, mail_parser::HeaderName::Subject), "Grüße 日本語");
+        assert_eq!(address_text(parsed.header(mail_parser::HeaderName::Bcc).and_then(|h| h.as_address())), "bcc@example.invalid");
+        let part = parsed.attachments().next().unwrap();
+        assert_eq!(part.attachment_name(), Some(name.as_str()));
+        assert_eq!(part.contents(), &[0, 1, 2, 3, 255, 254]);
+        assert!(build_draft_mime("to@example.invalid", "", "", "x\r\nBcc: injected@example.invalid", "", None, &[]).is_err());
+    }
+
+    #[test]
+    fn received_inline_image_keeps_cid_and_binary_payload() {
+        let raw = b"MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary=B\r\n\r\n--B\r\nContent-Type: text/html\r\n\r\n<img src=\"cid:picture\">\r\n--B\r\nContent-Type: image/png\r\nContent-ID: <picture>\r\nContent-Disposition: inline; filename=picture.png\r\nContent-Transfer-Encoding: base64\r\n\r\nAAECA//+\r\n--B--\r\n";
+        let parsed = parse_message(raw).unwrap();
+        assert!(parsed.body_html(0).unwrap().contains("cid:picture"));
+        let part = parsed.attachments().next().unwrap();
+        assert_eq!(part.content_id(), Some("picture"));
+        assert_eq!(part.contents(), &[0, 1, 2, 3, 255, 254]);
+    }
+
+    #[test]
     fn escapes_imap_search_strings() {
-        assert_eq!(escape_imap_string("hello"), "hello");
-        assert_eq!(escape_imap_string("a\"b"), "a\\\"b");
-        assert_eq!(escape_imap_string("a\\b"), "a\\\\b");
-        assert_eq!(escape_imap_string("Drafts \\\"Team\\\""), "Drafts \\\\\\\"Team\\\\\\\"");
+        assert_eq!(escape_imap_string("hello").unwrap(), "hello");
+        assert_eq!(escape_imap_string("a\"b").unwrap(), "a\\\"b");
+        assert_eq!(escape_imap_string("a\\b").unwrap(), "a\\\\b");
+        assert_eq!(escape_imap_string("Drafts \\\"Team\\\"").unwrap(), "Drafts \\\\\\\"Team\\\\\\\"");
     }
 
     #[test]
     fn search_arg_declares_utf8_only_for_non_ascii() {
-        assert_eq!(build_search_arg("invoice"), "TEXT \"invoice\"");
+        assert_eq!(build_search_arg("invoice").unwrap(), "TEXT \"invoice\"");
         // A non-ASCII query gets the CHARSET prefix so strict servers accept it.
-        assert_eq!(build_search_arg("Grüße"), "CHARSET UTF-8 TEXT \"Grüße\"");
-        assert_eq!(build_search_arg("日本語"), "CHARSET UTF-8 TEXT \"日本語\"");
+        assert_eq!(build_search_arg("Grüße").unwrap(), "CHARSET UTF-8 TEXT \"Grüße\"");
+        assert_eq!(build_search_arg("日本語").unwrap(), "CHARSET UTF-8 TEXT \"日本語\"");
     }
 
     #[test]

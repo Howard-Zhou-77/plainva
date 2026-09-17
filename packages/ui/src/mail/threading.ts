@@ -91,7 +91,7 @@ export function threadFields(raw: RawThreadHeaders): ThreadFields {
  * a conversation does not stop being one because the sender's mail app is in
  * another language. */
 const SUBJECT_PREFIX =
-  /^\s*(?:\[[^\]]{1,40}\]\s*)?(?:(?:re|aw|antw|antwort|ref|rif|res|odp|sv|vs|回复|回覆|답장)\s*(?:\[\d+\])?\s*:\s*|(?:fwd?|wg|weitergeleitet|tr|rv|enc|pd|转发|轉寄|전달)\s*(?:\[\d+\])?\s*:\s*)/i;
+  /^\s*(?:\[[^\]]{1,40}\]\s*)?(?:(?:re|aw|antw|antwort|ref|rif|res|odp|sv|vs|回复|回覆|답장)\s*(?:\[\d+\]\s*)?:\s*|(?:fwd?|wg|weitergeleitet|tr|rv|enc|pd|转发|轉寄|전달)\s*(?:\[\d+\]\s*)?:\s*)/i;
 
 /**
  * A subject reduced to what two messages of one conversation share: reply and

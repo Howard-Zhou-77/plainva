@@ -62,8 +62,15 @@ for (const shell of ["mobile", "desktop"] as const) {
     await page.waitForTimeout(350);
     const extra = await page.evaluate(n => (window as PinboardProbeWindow).pinboardProbe.requests.slice(n).flat(), before.requests);
     expect(extra.filter((path: string) => before.paths.includes(path))).toEqual([]);
+    const cached = await page.evaluate(() => {
+      const requests = (window as PinboardProbeWindow).pinboardProbe.requests;
+      return { count: requests.length, paths: requests.flat() };
+    });
     await page.evaluate(({ shell, path }) => { (window as PinboardProbeWindow).pinboardProbe.change(path); (window as PinboardProbeWindow).pinboardProbe.mount({ shell, count: 100 }); }, { shell, path: before.path });
-    await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.requests.at(-1))).toEqual([before.path]);
+    // Layout may expose previously unseen cards. Of the already cached cards,
+    // only the changed note may be requested again, exactly once.
+    await expect.poll(() => page.evaluate(cached => (window as PinboardProbeWindow).pinboardProbe.requests
+      .slice(cached.count).flat().filter(path => cached.paths.includes(path)), cached)).toEqual([before.path]);
     await expect(page.locator('[data-pinboard-card]').filter({ hasText: 'Card body 1.' })).toHaveCount(1);
   });
   test(`${shell}: missing index entries stay distinct and failed loads can be retried`, async ({ page }) => {

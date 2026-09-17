@@ -1,8 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge } from "@plainva/ui";
 import { isInsideVault } from "./services/workspaceSecurity/recoveryFileTarget";
 
 describe("recovery code challenge", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("maps the uniform draws to every ordered distinct pair exactly once", () => {
+    const pairs = new Set<string>();
+    for (let first = 0; first < 5; first++) for (let remaining = 0; remaining < 4; remaining++) {
+      const words = [7, first, remaining]; // 7 must be rejected for a range of five.
+      const random = vi.spyOn(crypto, "getRandomValues").mockImplementation(array => {
+        (array as Uint32Array)[0] = words.shift()!;
+        return array;
+      });
+      const pair = pickRecoveryChallenge(5);
+      expect(random).toHaveBeenCalledTimes(3);
+      expect(pair[0]).not.toBe(pair[1]);
+      expect(pair.every(index => index >= 0 && index < 5)).toBe(true);
+      pairs.add(pair.join(",")); random.mockRestore();
+    }
+    expect(pairs.size).toBe(20);
+  });
+
+  it("refuses invalid counts and never falls back when the random source fails", () => {
+    for (const count of [-1, 1.5, NaN, Infinity, 0x1_0000_0001]) expect(() => pickRecoveryChallenge(count)).toThrow(RangeError);
+    expect(pickRecoveryChallenge(1)).toEqual([0, 0]);
+    vi.spyOn(crypto, "getRandomValues").mockImplementation(() => { throw new Error("random unavailable"); });
+    expect(() => pickRecoveryChallenge(15)).toThrow("random unavailable");
+  });
   it("asks for two different groups", () => {
     for (let attempt = 0; attempt < 50; attempt++) {
       const [first, second] = pickRecoveryChallenge(15);

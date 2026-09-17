@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 import { pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
@@ -902,7 +903,7 @@ export function BaseViewer({
     if (!vaultAdapter || !vaultPath) return;
     setNewItemBusy(true);
     try {
-      const dir = folder.replace(/\/+$/, "");
+      const dir = trimEndChars(folder, "/");
       const name = await nextItemName(baseStemOf(activePath), dbData.length, (n) =>
         vaultAdapter.exists((dir ? dir + "/" : "") + n + ".md").catch(() => false)
       );
@@ -1012,7 +1013,7 @@ export function BaseViewer({
     }
     setNewItemBusy(true);
     try {
-      const dir = target.folder.replace(/\/+$/, "");
+      const dir = trimEndChars(target.folder, "/");
       const withDir = (n: string) => (dir ? dir + "/" : "") + n + ".md";
       const stem = (title ? captureFileName(title, 80) : null) ?? captureTimestampName(new Date());
       let name = stem;

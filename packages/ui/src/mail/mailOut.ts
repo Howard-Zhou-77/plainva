@@ -1,3 +1,4 @@
+import { replaceDelimited, firstAngleValue } from "@plainva/core";
 import { markdownToHtml } from "../lib/markdownToHtml";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
@@ -46,7 +47,7 @@ export function noteToClipboardFlavors(markdown: string): { html: string; text: 
  * Used for DISPLAY and folder-role matching only — IMAP commands keep the raw
  * (encoded) name. Pure. */
 export function decodeImapUtf7(name: string): string {
-  return name.replace(/&([^-]*)-/g, (_m, run: string) => {
+  return replaceDelimited(name, "&", "-", (_m, run: string) => {
     if (run === "") return "&";
     const std = run.replace(/,/g, "/");
     const pad = (4 - (std.length % 4)) % 4;
@@ -143,7 +144,7 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
     /* best effort */
   }
   const quoted = quoteText(message.text ?? "");
-  content = content.replace(/\s*$/, "\n\n") + (quoted ? `\n${quoted}\n` : "");
+  content = (content.trimEnd() + "\n\n") + (quoted ? `\n${quoted}\n` : "");
   return content;
 }
 
@@ -177,8 +178,8 @@ function defaultAttribution(message: Pick<MailMessage, "from" | "dateTs">): stri
  * from "Name <addr>". Pure. */
 export function replyAllRecipients(message: Pick<MailMessage, "from" | "to">, selfEmail: string): string {
   const addr = (s: string): string => {
-    const m = s.match(/<([^>]+)>/);
-    return (m ? m[1] : s).trim();
+    const m = firstAngleValue(s);
+    return (m ?? s).trim();
   };
   const self = selfEmail.trim().toLowerCase();
   const seen = new Set<string>();

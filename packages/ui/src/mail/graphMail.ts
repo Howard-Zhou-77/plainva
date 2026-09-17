@@ -1,3 +1,4 @@
+import { firstAngleValue } from "@plainva/core";
 import { refreshOneDriveAccessToken } from "@plainva/core";
 import { GRAPH_MAIL_SCOPES } from "../lib/oauthScopes";
 export { GRAPH_MAIL_SCOPES } from "../lib/oauthScopes";
@@ -612,8 +613,8 @@ export function toRecipients(to: string): Array<{ emailAddress: { address: strin
     .map((s) => s.trim())
     .filter(Boolean)
     .map((raw) => {
-      const m = raw.match(/<([^>]+)>/);
-      return { emailAddress: { address: (m ? m[1] : raw).trim() } };
+      const m = firstAngleValue(raw);
+      return { emailAddress: { address: (m ?? raw).trim() } };
     });
 }
 
@@ -657,7 +658,7 @@ export async function graphSendMail(
 /** The bare address to put in `from`, or "" when it is the account's own
  * (the common case — sending it back would only invite a SendAs rejection). */
 function pickSender(from: string, account: MailAccountConfig): string {
-  const addr = (from.match(/<([^>]+)>/)?.[1] ?? from).trim();
+  const addr = (firstAngleValue(from) ?? from).trim();
   if (!addr || addr.toLowerCase() === account.user.trim().toLowerCase()) return "";
   return addr;
 }

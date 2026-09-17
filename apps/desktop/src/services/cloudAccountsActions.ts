@@ -124,7 +124,7 @@ export interface ConnectResult {
 const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
 
 function newId(): string {
-  return Math.random().toString(36).slice(2, 10);
+  return crypto.randomUUID();
 }
 
 async function clearOtherSyncSlots(vaultPath: string, keep: SyncProviderId | null): Promise<void> {

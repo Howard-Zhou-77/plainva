@@ -21,7 +21,7 @@ export interface NoteHeading extends NoteSourceRange { level: number; text: stri
 export interface NoteBlock extends NoteSourceRange { id: string; markerFrom: number; markerTo: number }
 
 export function noteSlug(text: string): string {
-  return text.toLowerCase().trim().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return text.toLowerCase().trim().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 }
 
 export function noteSlugger(): (text: string) => string {

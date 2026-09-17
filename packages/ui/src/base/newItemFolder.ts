@@ -1,3 +1,4 @@
+import { trimChars } from "@plainva/core";
 /**
  * The storage folder of a database's new items — the ONE question a base
  * without a folder source has to ask (TestFlight feedback Build 91, P2).
@@ -18,7 +19,7 @@ export type NewItemFolderMode = "setup" | "choice";
 
 /** Vault-relative, no leading/trailing slashes, trimmed — "" when nothing usable was typed. */
 export function cleanNewItemFolder(folder: string): string {
-  return folder.replace(/\\/g, "/").trim().replace(/^\/+|\/+$/g, "").trim();
+  return trimChars(folder.replace(/\\/g, "/").trim(), "/").trim();
 }
 
 /**

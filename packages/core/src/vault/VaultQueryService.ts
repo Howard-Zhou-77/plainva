@@ -1,3 +1,4 @@
+import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
@@ -331,7 +332,7 @@ export class VaultQueryService {
    * `folder` has no slash left in its remainder and belongs to no subfolder.
    */
   async countNotesPerSubfolder(folder: string): Promise<Map<string, number>> {
-    const prefix = folder ? `${folder.replace(/\/+$/, "")}/` : "";
+    const prefix = folder ? `${trimEndChars(folder, "/")}/` : "";
     const rows = await this.db.query<{ folder: string; n: number }>(
       `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
        FROM (SELECT substr(path, ?) AS rest FROM files

@@ -1,3 +1,4 @@
+import { trimChars } from "@plainva/core";
 /**
  * Where a dropped, pasted or photographed file lands (plan P5, step S17).
  *
@@ -36,7 +37,7 @@ export function pastedAttachmentName(mime: string, now: Date): string {
  * it restores the behaviour Plainva had before this setting existed.
  */
 export function attachmentFolderFor(configured: string, noteFolder: string): string {
-  const folder = (configured || "").trim().replace(/^[/\\]+/, "").replace(/[/\\]+$/, "");
+  const folder = trimChars((configured || "").trim(), "/\\");
   return folder || noteFolder;
 }
 

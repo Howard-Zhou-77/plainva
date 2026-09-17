@@ -1,3 +1,11 @@
+/** Match an ordered pair within a line without backtracking through every prefix. */
+function hasOrderedWords(text: string, first: string, second: string): boolean {
+  return text.split(/[\r\n\u2028\u2029]/).some(line => {
+    const start = line.indexOf(first);
+    return start >= 0 && line.indexOf(second, start + first.length) >= 0;
+  });
+}
+
 import { normalizeVerifiedProviderIdentity, verifiedProviderIdentityKey, type VerifiedProviderIdentity } from "./accountProfile";
 import type { CloudAccountRecord, CloudServiceId } from "./cloudAccounts";
 import { sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
@@ -34,8 +42,8 @@ export function serviceConnectionMessage(error: unknown, t: (key: string) => str
   if (/accountChanged|runtime changed|destination_active/.test(value)) return t("connection.accountChanged");
   if (/needsConsent|no_stored_sign_in|invalid_grant/.test(value)) return t("connection.needsConsent");
   if (/identityUnavailable/.test(value)) return t("connection.identityUnavailable");
-  if (/storageFailed|storage_failed|not.*saved|secure storage/.test(value)) return t("connection.storageFailed");
-  if (/transfer_.*changed|transfer_copy_missing/.test(value)) return t("connection.transferChanged");
+  if (/storageFailed|storage_failed|secure storage/.test(value) || hasOrderedWords(value, "not", "saved")) return t("connection.storageFailed");
+  if (value.includes("transfer_copy_missing") || hasOrderedWords(value, "transfer_", "changed")) return t("connection.transferChanged");
   if (/transfer_binding_collision|transfer_ambiguous_destination/.test(value)) return t("connection.transferAccountCollision");
   if (/transfer_incomplete_inventory|transfer_invalid_path/.test(value)) return t("connection.transferInventoryFailed");
   if (/pair-required/.test(value)) return t("connection.transferPairRequired");

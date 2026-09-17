@@ -5,6 +5,12 @@ import { resolveTaskOrdinal, setChecklistTaskDone } from "../src/vault/taskMutat
 
 const options = { today: "2026-09-14", newId: () => "test-origin" };
 describe("Tasks emoji metadata and source edits", () => {
+  it("matches complete backtick runs and ignores metadata inside code spans", () => {
+    const raw = "`` ` 📅 2026-01-01 ` `` 📅 2026-09-17";
+    expect(readTasksMetadata(raw).due).toBe("2026-09-17");
+    expect(tasksDescription(raw)).toBe("`` ` 📅 2026-01-01 ` ``");
+    expect(readTasksMetadata("`unclosed 📅 2026-09-17").due).toBe("2026-09-17");
+  });
   it("reads dates and explicit identity while preserving unknown content", () => {
     const text = "Überprüfung 😀 ➕ 2026-08-01 📅 2026-09-15 ✅ 2026-09-14 🆔 review-1 🔁 every 2 weeks 🧭 custom";
     const task = scanTasks("- [x] " + text)[0];

@@ -45,10 +45,10 @@ export interface ParsedNoteCard {
 
 const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const HR_RE = /^ {0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/;
-const HEADING_RE = /^(#{1,6})\s+(.*)$/;
-const BULLET_RE = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
+const HEADING_RE = /^(#{1,6})[ \t]+(.*)/;
+const BULLET_RE = /^([ \t]*)([-*+]|\d+[.)])[ \t]+(.*)/;
 const QUOTE_RE = /^\s*>\s?(.*)$/;
-const TABLE_ROW_RE = /^\s*\|.*\|?\s*$/;
+
 const IMAGE_WIKI_RE = /^\s*!\[\[([^\]|\n]+)(?:\|[^\]\n]*)?\]\]\s*$/;
 const IMAGE_MD_RE = /^\s*!\[([^\]\n]*)\]\(([^)\n]+)\)\s*$/;
 // The one list lives in services/imageFiles (S42) — this file, the version
@@ -195,7 +195,7 @@ export function parseNoteCard(
       continue;
     }
 
-    if (TABLE_ROW_RE.test(line)) {
+    if (line.trimStart().startsWith("|")) {
       flushPara();
       if (!tableOpen) {
         tableOpen = true;

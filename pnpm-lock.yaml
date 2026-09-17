@@ -364,6 +364,9 @@ importers:
       node-diff3:
         specifier: ^3.2.1
         version: 3.2.1
+      parse5:
+        specifier: ^7.3.0
+        version: 7.3.0
       remark-frontmatter:
         specifier: ^5.0.0
         version: 5.0.0

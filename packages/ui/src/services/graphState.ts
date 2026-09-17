@@ -44,8 +44,40 @@ const WRITE_DEBOUNCE_MS = 800;
 const VAULT_LAYOUT_GENERATION = 2;
 const VAULT_PIN_CONTEXT = "vault";
 
+/** JSON dictionaries must not inherit setters or mutable prototype objects. */
+function dictionary<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readPins(value: unknown): GraphStateFile["pins"] {
+  const contexts = dictionary<Record<string, GraphPin>>();
+  if (!isRecord(value)) return contexts;
+  for (const [context, rawBucket] of Object.entries(value)) {
+    if (!isRecord(rawBucket)) continue;
+    const bucket = dictionary<GraphPin>();
+    for (const [nodeId, pin] of Object.entries(rawBucket)) {
+      if (isRecord(pin) && typeof pin.x === "number" && Number.isFinite(pin.x) && typeof pin.y === "number" && Number.isFinite(pin.y)) {
+        bucket[nodeId] = { x: pin.x, y: pin.y };
+      }
+    }
+    if (Object.keys(bucket).length) contexts[context] = bucket;
+  }
+  return contexts;
+}
+
+function readPinModes(value: unknown): Record<string, boolean> | undefined {
+  if (!isRecord(value)) return undefined;
+  const modes = dictionary<boolean>();
+  for (const [context, mode] of Object.entries(value)) if (typeof mode === "boolean") modes[context] = mode;
+  return modes;
+}
+
 function emptyState(): GraphStateFile {
-  return { version: 1, vaultLayout: VAULT_LAYOUT_GENERATION, pins: {}, dismissedSuggestions: [] };
+  return { version: 1, vaultLayout: VAULT_LAYOUT_GENERATION, pins: Object.create(null), dismissedSuggestions: [] };
 }
 
 export function suggestionKey(reason: string, source: string, target: string): string {
@@ -71,13 +103,8 @@ export class GraphStateStore {
         this.state = {
           version: 1,
           vaultLayout: typeof parsed.vaultLayout === "number" ? parsed.vaultLayout : undefined,
-          pins: typeof parsed.pins === "object" && parsed.pins !== null ? (parsed.pins as GraphStateFile["pins"]) : {},
-          pinModes:
-            typeof parsed.pinModes === "object" && parsed.pinModes !== null
-              ? (Object.fromEntries(
-                  Object.entries(parsed.pinModes).filter(([, v]) => typeof v === "boolean")
-                ) as GraphStateFile["pinModes"])
-              : undefined,
+          pins: readPins(parsed.pins),
+          pinModes: readPinModes(parsed.pinModes),
           dismissedSuggestions: Array.isArray(parsed.dismissedSuggestions)
             ? parsed.dismissedSuggestions.filter((s): s is string => typeof s === "string")
             : [],
@@ -134,11 +161,12 @@ export class GraphStateStore {
   }
 
   getPins(context: string): Record<string, GraphPin> {
-    return this.state.pins[context] ?? {};
+    return this.state.pins[context] ?? dictionary<GraphPin>();
   }
 
   setPin(context: string, nodeId: string, pin: GraphPin | null): void {
-    const bucket = this.state.pins[context] ?? {};
+    const bucket = this.state.pins[context] ?? dictionary<GraphPin>();
+    if (pin && (!Number.isFinite(pin.x * 100) || !Number.isFinite(pin.y * 100))) return;
     if (pin) bucket[nodeId] = { x: Math.round(pin.x * 100) / 100, y: Math.round(pin.y * 100) / 100 };
     else delete bucket[nodeId];
     if (Object.keys(bucket).length > 0) this.state.pins[context] = bucket;
@@ -167,7 +195,7 @@ export class GraphStateStore {
         if (Object.keys(this.state.pinModes).length === 0) delete this.state.pinModes;
       }
     } else {
-      if (!this.state.pinModes) this.state.pinModes = {};
+      if (!this.state.pinModes) this.state.pinModes = dictionary<boolean>();
       this.state.pinModes[context] = false;
     }
     this.persistSoon();

@@ -73,7 +73,7 @@ export function encodeImapUtf7(name: string): string {
 }
 
 /** Quotes a string for an IMAP command argument. */
-function q(s: string): string {
+export function quoteImapString(s: string): string {
   if (/[\r\n\0]/.test(s)) throw new Error("Invalid IMAP argument");
   return '"' + s.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
 }
@@ -114,7 +114,7 @@ export class ImapConnection {
     }
     const login = creds.auth === "xoauth2"
       ? await conn.authenticateOAuth(creds.user, creds.pass).catch(async error => { await sock.close(); throw error; })
-      : await conn.command(`LOGIN ${q(creds.user)} ${q(creds.pass)}`);
+      : await conn.command(`LOGIN ${quoteImapString(creds.user)} ${quoteImapString(creds.pass)}`);
     if (!login.ok) {
       await sock.close();
       throw new Error(creds.auth === "xoauth2" ? MAIL_OAUTH_REJECTED : login.text || "login rejected by the mail server");
@@ -162,6 +162,7 @@ export class ImapConnection {
 
   /** Sends a command and reads until its tagged completion. */
   async command(cmd: string, literal?: Uint8Array): Promise<Response> {
+    if (/[\r\n\0]/.test(cmd)) throw new Error("Invalid IMAP command");
     const tag = `a${++this.tag}`;
     await this.sock.writeText(`${tag} ${cmd}${CRLF}`);
     if (literal) {
@@ -220,7 +221,7 @@ export class ImapConnection {
 
   /** EXAMINE (read-only) → message count and unseen count. */
   async examine(mailbox: string): Promise<{ exists: number; uidValidity: number }> {
-    const res = await this.command(`EXAMINE ${q(encodeImapUtf7(mailbox))}`);
+    const res = await this.command(`EXAMINE ${quoteImapString(encodeImapUtf7(mailbox))}`);
     if (!res.ok) throw new Error(res.text || `could not open ${mailbox}`);
     let exists = 0;
     let uidValidity = 0;
@@ -235,7 +236,7 @@ export class ImapConnection {
   }
 
   async select(mailbox: string): Promise<void> {
-    const res = await this.command(`SELECT ${q(encodeImapUtf7(mailbox))}`);
+    const res = await this.command(`SELECT ${quoteImapString(encodeImapUtf7(mailbox))}`);
     if (!res.ok) throw new Error(res.text || `could not open ${mailbox}`);
     this.uidValidity = Number(/UIDVALIDITY\s+(\d+)/i.exec(res.lines.join(" "))?.[1]) || undefined;
   }
@@ -355,15 +356,15 @@ export class ImapConnection {
    * server does it on CREATE, and an unsubscribed folder is invisible in clients
    * that list by subscription — but the folder exists either way. */
   async create(name: string): Promise<void> {
-    const res = await this.command(`CREATE ${q(encodeImapUtf7(name))}`);
+    const res = await this.command(`CREATE ${quoteImapString(encodeImapUtf7(name))}`);
     if (!res.ok) throw new Error(res.text || "could not create the mailbox");
-    await this.command(`SUBSCRIBE ${q(encodeImapUtf7(name))}`);
+    await this.command(`SUBSCRIBE ${quoteImapString(encodeImapUtf7(name))}`);
   }
 
   async move(uid: number, target: string): Promise<void> {
     const capabilities = await this.command("CAPABILITY");
     if (!capabilities.ok || !/\bMOVE\b/i.test(capabilities.lines.join(" "))) throw new Error("MAIL_BULK_UNSUPPORTED");
-    const moved = await this.command(`UID MOVE ${uid} ${q(encodeImapUtf7(target))}`);
+    const moved = await this.command(`UID MOVE ${uid} ${quoteImapString(encodeImapUtf7(target))}`);
     if (!moved.ok) throw new Error("The mail server did not confirm the move");
   }
 
@@ -406,7 +407,7 @@ export class ImapConnection {
       let command: string;
       if (action.kind === "move") {
         if (action.target === args.mailbox) return uids.map(uid => result.get(uid) ?? { uid, status: "done" });
-        command = `UID MOVE ${set} ${q(encodeImapUtf7(action.target))}`;
+        command = `UID MOVE ${set} ${quoteImapString(encodeImapUtf7(action.target))}`;
       } else command = `UID STORE ${set} ${action.kind === "delete" || action.value ? "+" : "-"}FLAGS (\\${action.kind === "delete" ? "Deleted" : action.kind === "seen" ? "Seen" : "Flagged"})`;
       started = true;
       let response = await this.command(command);
@@ -427,7 +428,7 @@ export class ImapConnection {
 
   async append(args: AppendDraftArgs, mime: Uint8Array): Promise<void> {
     const res = await this.command(
-      `APPEND ${q(encodeImapUtf7(args.mailbox))} (\\Draft \\Seen) {${mime.length}}`,
+      `APPEND ${quoteImapString(encodeImapUtf7(args.mailbox))} (\\Draft \\Seen) {${mime.length}}`,
       mime,
     );
     if (!res.ok) throw new Error(res.text || "could not store the draft");

@@ -99,6 +99,22 @@ pub struct MailAttachment {
     pub content_base64: String,
 }
 
+pub(crate) fn validate_headers(values: &[&str]) -> Result<(), String> {
+    if values.iter().any(|value| value.contains(['\r', '\n', '\0'])) {
+        return Err("Invalid mail header".into());
+    }
+    Ok(())
+}
+
+fn validate_attachment(attachment: &MailAttachment) -> Result<(), String> {
+    validate_headers(&[&attachment.name, &attachment.mime])?;
+    let token = |part: &str| !part.is_empty() && part.bytes().all(|b| b.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&b));
+    if !attachment.mime.split_once('/').is_some_and(|(kind, subtype)| token(kind) && token(subtype)) {
+        return Err("Invalid attachment header".into());
+    }
+    Ok(())
+}
+
 /// Adds the decoded attachments to a mail-builder message. Shared by send +
 /// draft (E5/E6).
 pub fn attach_all<'a>(
@@ -106,6 +122,7 @@ pub fn attach_all<'a>(
     attachments: &'a [MailAttachment],
 ) -> Result<mail_builder::MessageBuilder<'a>, String> {
     for a in attachments {
+        validate_attachment(a)?;
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(a.content_base64.trim())
             .map_err(|e| format!("attachment decode failed: {e}"))?;
@@ -117,6 +134,7 @@ pub fn attach_all<'a>(
 /// Builds the outgoing message MIME (From + To + Cc + text[/html] + attachments).
 /// Bcc is deliberately NOT a header — it only rides the SMTP envelope. Pure.
 fn build_send_mime(from: &str, to: &str, cc: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[MailAttachment]) -> Result<Vec<u8>, String> {
+    validate_headers(&[from, to, cc, subject])?;
     let mut builder = mail_builder::MessageBuilder::new()
         .from(from.to_string())
         .to(to.to_string())
@@ -151,6 +169,10 @@ fn build_invite_mime(
     method: &str,
     attachments: &[MailAttachment],
 ) -> Result<Vec<u8>, String> {
+    validate_headers(&[from, to, cc, subject, method])?;
+    if method.is_empty() || !method.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-') {
+        return Err("Invalid calendar method".into());
+    }
     let cal_ct = || {
         ContentType::new("text/calendar")
             .attribute("method", method.to_string())
@@ -170,6 +192,7 @@ fn build_invite_mime(
         MimePart::new(cal_ct(), ics.to_string()).attachment("invite.ics"),
     ];
     for a in attachments {
+        validate_attachment(a)?;
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(a.content_base64.trim())
             .map_err(|e| format!("attachment decode failed: {e}"))?;
@@ -219,6 +242,9 @@ fn read_reply(stream: &mut SmtpStream) -> Result<(u16, String), String> {
 }
 
 fn cmd(stream: &mut SmtpStream, line: &str, expect: u16) -> Result<String, String> {
+    if line.contains(['\r', '\n', '\0']) {
+        return Err("Invalid SMTP command".into());
+    }
     stream
         .write_all(format!("{line}\r\n").as_bytes())
         .map_err(|e| format!("smtp write failed: {e}"))?;
@@ -484,6 +510,51 @@ mod tests {
         // Subject is RFC 2047 encoded for the non-ASCII "Grüße".
         assert!(s.to_lowercase().contains("subject:"));
         assert!(mime.windows(2).any(|w| w == b"\r\n"));
+    }
+
+    #[test]
+    fn mime_preserves_unicode_filenames_and_binary_attachments() {
+        use mail_parser::MimeHeaders as _;
+        let name = format!("{}.pdf", "Grüße-日本語-".repeat(20));
+        let attachments = [MailAttachment { name: name.clone(), mime: "application/pdf".into(), content_base64: "AAECA//+".into() }];
+        let mime = build_send_mime("me@example.invalid", "you@example.invalid", "cc@example.invalid", "Grüße 日本語", "", Some("<p>Hallo</p>"), &attachments).unwrap();
+        let parsed = mail_parser::MessageParser::default().parse(&mime).unwrap();
+        assert_eq!(parsed.subject(), Some("Grüße 日本語"));
+        assert_eq!(parsed.body_html(0).as_deref(), Some("<p>Hallo</p>"));
+        assert!(parsed.bcc().is_none());
+        let attachment = parsed.attachments().next().unwrap();
+        assert_eq!(attachment.attachment_name(), Some(name.as_str()));
+        assert_eq!(attachment.contents(), &[0, 1, 2, 3, 255, 254]);
+        assert!(mime.split(|b| *b == b'\n').all(|line| line.len() < 998));
+    }
+
+    #[test]
+    fn refuses_outgoing_header_injections() {
+        for method in ["", "REQUEST; boundary=evil", "REQUEST\"", "REQUEST\r\nX-Evil: yes"] {
+            assert!(build_invite_mime("from@example.invalid", "to@example.invalid", "", "S", "", None, "", method, &[]).is_err());
+        }
+        for control in ['\r', '\n', '\0'] {
+            let value = format!("safe{control}Bcc: hidden@example.invalid");
+            assert!(build_send_mime(&value, "to@example.invalid", "", "S", "", None, &[]).is_err());
+            assert!(build_send_mime("from@example.invalid", &value, "", "S", "", None, &[]).is_err());
+            assert!(build_send_mime("from@example.invalid", "to@example.invalid", "", &value, "", None, &[]).is_err());
+            let attachments = [MailAttachment { name: value, mime: "text/plain".into(), content_base64: "".into() }];
+            assert!(build_send_mime("from@example.invalid", "to@example.invalid", "", "S", "", None, &attachments).is_err());
+        }
+    }
+
+    #[test]
+    fn command_injection_writes_no_bytes_to_a_local_transport() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (mut peer, _) = listener.accept().unwrap();
+        peer.set_nonblocking(true).unwrap();
+        let mut stream = SmtpStream::Plain(client);
+        for line in ["MAIL FROM:<x>\r\nDATA", "RCPT TO:<x>\nQUIT", "EHLO x\0"] {
+            assert_eq!(cmd(&mut stream, line, 250).unwrap_err(), "Invalid SMTP command");
+        }
+        let mut byte = [0];
+        assert_eq!(peer.read(&mut byte).unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
     }
 
     #[test]

@@ -46,12 +46,12 @@ export function splitSieve(script: string): SieveSplit | null {
 /** Joins a split back together, dropping the section entirely when it is empty. */
 function joinSieve(split: SieveSplit, section: string | null): string {
   const parts: string[] = [];
-  const before = split.before.replace(/\s+$/, "");
-  const after = split.after.replace(/^\s+/, "");
+  const before = split.before.trimEnd();
+  const after = split.after.trimStart();
   if (before) parts.push(before);
   if (section && section.trim()) parts.push(`${SIEVE_BEGIN}\n${section.trim()}\n${SIEVE_END}`);
   if (after) parts.push(after);
-  return parts.join("\n\n").replace(/\s*$/, "") + "\n";
+  return parts.join("\n\n").trimEnd() + "\n";
 }
 
 /**

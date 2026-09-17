@@ -573,7 +573,12 @@ export interface ParsedTable {
   cells: ParsedTableCell[];
 }
 
-const TABLE_SEPARATOR_LINE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+function isTableSeparator(line: string): boolean {
+  const cells = line.trim().split("|");
+  if (cells[0] === "") cells.shift();
+  if (cells[cells.length - 1] === "") cells.pop();
+  return cells.length > 0 && cells.every(cell => /^:?-+:?$/.test(cell.trim()));
+}
 
 /** The cells of one table row between unescaped pipes; the edge pipes delimit, they are no cells. */
 function splitTableRow(line: string): Array<{ text: string; from: number; to: number }> {
@@ -621,7 +626,7 @@ export function parseTablesIn(text: string): ParsedTable[] {
   const tables: ParsedTable[] = [];
   let index = 0;
   while (index < lines.length) {
-    const isHead = /^\s*\|/.test(lines[index]) && index + 1 < lines.length && lines[index + 1].includes("|") && TABLE_SEPARATOR_LINE.test(lines[index + 1]);
+    const isHead = /^\s*\|/.test(lines[index]) && index + 1 < lines.length && lines[index + 1].includes("|") && isTableSeparator(lines[index + 1]);
     if (!isHead) {
       index += 1;
       continue;

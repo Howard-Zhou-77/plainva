@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   ImapConnection,
   buildMimeMessage,
+  decodeWords,
   createSocketMailTransport,
   encodeImapUtf7,
   pageEnvelopes,
@@ -145,6 +146,30 @@ function imapServer(handler: (tag: string, cmd: string, args: string) => string 
 
 describe("IMAP over a raw socket", () => {
   beforeEach(() => setMailSocket(null));
+
+  it("quotes search terms once and refuses command terminators before SEARCH", async () => {
+    await releaseSocketSessions();
+    const searchSocket = () => new ScriptedSocket("* OK ready" + CRLF, imapServer((tag, cmd, args) => {
+      if (cmd === "EXAMINE") return `* 0 EXISTS${CRLF}* OK [UIDVALIDITY 1] epoch${CRLF}${tag} OK${CRLF}`;
+      if (cmd === "UID" && args.startsWith("SEARCH")) return `* SEARCH${CRLF}${tag} OK${CRLF}`;
+      return `${tag} OK${CRLF}`;
+    }));
+    const sock = searchSocket();
+    setMailSocket(sock);
+    const transport = createSocketMailTransport();
+    await transport.searchEnvelopes(creds, { mailbox: "INBOX", query: 'a\\"b', limit: 10 });
+    expect(sock.written.find(line => line.includes("UID SEARCH"))).toContain('UID SEARCH TEXT "a\\\\\\"b"\r\n');
+    for (const query of ["x\r\nA9 LOGOUT", "x\nUID STORE 1 +FLAGS (\\Deleted)", "x\0y"]) {
+      // A failed operation discards its session. Each synthetic connection
+      // therefore needs a fresh server greeting, just like a real socket.
+      await releaseSocketSessions();
+      const invalidSocket = searchSocket();
+      setMailSocket(invalidSocket);
+      await expect(transport.searchEnvelopes(creds, { mailbox: "INBOX", query, limit: 10 })).rejects.toThrow("Invalid IMAP argument");
+      expect(invalidSocket.written.some(line => line.includes("UID SEARCH"))).toBe(false);
+    }
+    await releaseSocketSessions();
+  });
 
   it("logs in, lists mailboxes and decodes a modified-UTF-7 folder name", async () => {
     const sock = new ScriptedSocket(
@@ -335,6 +360,28 @@ describe("IMAP over a raw socket", () => {
 });
 
 describe("MIME", () => {
+  it("roundtrips Unicode filenames, quoted parameters and exact attachment bytes", () => {
+    for (const name of ['quote"; slash\\.pdf', 'Grüße-日本語-'.repeat(20) + '.pdf']) {
+      const raw = buildMimeMessage({ from: "me@example.invalid", to: "you@example.invalid", cc: "cc@example.invalid", subject: "Grüße 日本語", text: "", html: "<p>Bild <img src=\"cid:pic\"></p>", attachments: [{ name, mime: "application/pdf", contentBase64: "AAECA//+" }] });
+      const parsed = parseMessage(raw);
+      expect(decodeWords(parsed.headers.get("subject")!)).toBe("Grüße 日本語");
+      expect(parsed.html).toContain('src="cid:pic"');
+      expect(parsed.attachments[0].name).toBe(name);
+      expect([...parsed.parts.find(part => part.index === parsed.attachments[0].index)!.bytes!]).toEqual([0, 1, 2, 3, 255, 254]);
+      expect(raw.split("\r\n").every(line => line.length < 998)).toBe(true);
+    }
+  });
+
+  it("rejects header and attachment injections before creating a message", () => {
+    const base = { from: "me@example.invalid", to: "you@example.invalid", subject: "Hi", text: "body\r\nBody lines are allowed" };
+    for (const field of ["from", "to", "cc", "bcc", "subject"] as const) {
+      for (const control of ["\r", "\n", "\0"]) expect(() => buildMimeMessage({ ...base, [field]: "safe" + control + "Bcc: hidden@example.invalid" })).toThrow("Invalid mail header");
+    }
+    expect(() => buildMimeMessage({ ...base, attachments: [{ name: "safe\r\nX-Evil: yes", mime: "text/plain", contentBase64: "" }] })).toThrow("Invalid attachment header");
+    expect(() => buildMimeMessage({ ...base, attachments: [{ name: "safe", mime: "text/plain; boundary=x", contentBase64: "" }] })).toThrow("Invalid attachment header");
+    for (const method of ["", "REQUEST; boundary=evil", 'REQUEST"']) expect(() => buildMimeMessage({ ...base, calendar: { ics: "", method } })).toThrow("Invalid calendar method");
+  });
+
   it("decodes a quoted-printable multipart message with an attachment", () => {
     const raw = [
       "Subject: =?utf-8?B?R3LDvMOfZQ==?=",
