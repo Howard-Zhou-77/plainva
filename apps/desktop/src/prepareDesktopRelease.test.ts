@@ -22,6 +22,24 @@ describe("coordinated desktop release allocation", () => {
     expect(api).toHaveBeenCalledTimes(1);
   });
 
+  it("recovers an existing draft only when its source and notes still match", async () => {
+    const api = vi.fn().mockResolvedValue([{ ...draft, body: options.notes }]);
+    expect(await prepareDesktopRelease({ ...options, requireExisting: true, api })).toBe(42);
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+
+  it("never allocates a new release when recovering missing platform artifacts", async () => {
+    const api = vi.fn().mockResolvedValue([]);
+    await expect(prepareDesktopRelease({ ...options, requireExisting: true, api })).rejects.toThrow("requires an existing unpublished draft");
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not overwrite changed notes during platform recovery", async () => {
+    const api = vi.fn().mockResolvedValue([{ ...draft, body: "Different notes" }]);
+    await expect(prepareDesktopRelease({ ...options, requireExisting: true, api })).rejects.toThrow("notes differ");
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+
   it("does not choose arbitrarily between platform-specific duplicate drafts", async () => {
     const api = vi.fn().mockResolvedValue([draft, { ...draft, id: 43 }]);
     await expect(prepareDesktopRelease({ ...options, api })).rejects.toThrow("Multiple releases");
@@ -51,12 +69,14 @@ describe("coordinated desktop release allocation", () => {
     expect(api).not.toHaveBeenCalled();
   });
 
-  it("passes the allocated ID to every platform and keeps manual runs build-only", () => {
+  it("pins platform builds to the prepared source and keeps ordinary manual runs build-only", () => {
     const workflow = readFileSync(new URL("../../../.github/workflows/release.yml", import.meta.url), "utf8");
     expect(workflow).toContain("needs: prepare");
     expect(workflow).toContain("releaseId: ${{ needs.prepare.outputs.release_id }}");
-    expect(workflow).toContain("group: desktop-release-${{ github.ref }}");
-    expect(workflow).toContain("github.event_name == 'workflow_dispatch' || needs.prepare.result == 'success'");
+    expect(workflow).toContain("group: desktop-release-${{ inputs.rebuild_windows_tag && format('refs/tags/{0}', inputs.rebuild_windows_tag) || github.ref }}");
+    expect(workflow).toContain("(github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag) || needs.prepare.result == 'success'");
+    expect(workflow).toContain("ref: ${{ needs.prepare.outputs.source_sha || github.sha }}");
+    expect(workflow).toContain("tagName: ${{ needs.prepare.outputs.release_tag }}");
     expect(workflow).toMatch(/prepare:\s+if: github\.event_name != 'workflow_dispatch'/);
   });
 });

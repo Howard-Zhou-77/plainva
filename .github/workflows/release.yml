@@ -7,7 +7,9 @@ on:
   # three platforms without cutting a release. The macOS leg of `pnpm test`
   # exercises the recursive fs.watch path (FSEvents), which the ubuntu-only CI
   # workflow never runs — this is the on-demand way to confirm that path stays
-  # green. The release-cutting steps below are gated off for manual runs.
+  # green. Ordinary manual runs do not create or upload release artifacts.
+  # An explicit rebuild_windows_tag recovers only Windows artifacts in an
+  # existing unpublished draft, using its original immutable source tag.
   #
   # `linux_appimage` additionally builds the Linux AppImage on the ubuntu leg and
   # attaches it as a workflow artifact — no draft release, nothing published.
@@ -21,22 +23,34 @@ on:
         description: 'Also build the Linux AppImage and attach it as an artifact (no release)'
         type: boolean
         default: false
+      rebuild_windows_tag:
+        description: 'Rebuild Windows for an existing unpublished draft (exact vX.Y.Z tag; empty means dry-run)'
+        type: string
+        default: ''
 
 # A rerun for the same tag must not race another draft allocation.
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: desktop-release-${{ inputs.rebuild_windows_tag && format('refs/tags/{0}', inputs.rebuild_windows_tag) || github.ref }}
   cancel-in-progress: false
 
 jobs:
   prepare:
-    if: github.event_name != 'workflow_dispatch'
+    if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
       release_id: ${{ steps.draft.outputs.release_id }}
+      release_tag: ${{ steps.draft.outputs.release_tag }}
+      source_sha: ${{ steps.draft.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v7
+      - name: Checkout the original release source for a Windows rebuild
+        if: inputs.rebuild_windows_tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.rebuild_windows_tag }}
+          path: release-source
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -44,18 +58,19 @@ jobs:
         id: draft
         env:
           GH_TOKEN: ${{ github.token }}
+          REBUILD_WINDOWS_TAG: ${{ inputs.rebuild_windows_tag }}
         run: node apps/desktop/scripts/prepare-release.mjs
 
   release:
     needs: prepare
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.prepare.result == 'success') }}
+    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag) || needs.prepare.result == 'success') }}
     # Every platform uploads to the same previously allocated draft ID.
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
+        platform: ${{ inputs.rebuild_windows_tag && fromJSON('["windows-latest"]') || fromJSON('["macos-latest", "ubuntu-22.04", "windows-latest"]') }}
     runs-on: ${{ matrix.platform }}
     # Guard against a hung notarization: notarytool --wait can block for hours,
     # so cap the job — a stuck macOS build fails in ~1h instead of the 6h ceiling.
@@ -63,6 +78,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
+
+      - name: Verify the exact build source
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_SOURCE_SHA" ]; then
+            echo "Checkout does not match the prepared source"
+            exit 1
+          fi
+          echo "Verified build source $actual"
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -94,9 +123,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build and Test Pre-flight
+        # Suite-level and per-suite workers otherwise compete on small runners.
+        # Keep all assertions and timeouts; use the existing worker limit.
+        env:
+          PLAINVA_TEST_WORKERS: 1
         run: |
           pnpm lint
-          pnpm test
+          pnpm exec turbo run test --concurrency=1
 
       # Production-build smoke before we cut installers (v0.3.0 shipped a
       # production-only white-screen). Run once on Linux: the web bundle under
@@ -118,17 +151,19 @@ jobs:
       # build below. If the wait ever grates, cache ~/.cargo/bin or pull a
       # prebuilt binary instead.
       - name: Install Azure signing tool (windows only)
-        if: matrix.platform == 'windows-latest' && github.event_name != 'workflow_dispatch'
+        if: matrix.platform == 'windows-latest' && (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag)
         run: cargo install artifact-signing-cli --locked
 
       - name: Load the versioned release notes
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
         id: notes
         shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync, appendFileSync } from 'node:fs';
-          const tag = process.env.GITHUB_REF_NAME;
+          const tag = process.env.RELEASE_TAG;
           if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Expected a coordinated desktop release tag');
           for (const path of ['apps/desktop/package.json', 'apps/mobile/package.json', 'apps/desktop/src-tauri/tauri.conf.json']) {
             if (JSON.parse(readFileSync(path, 'utf8')).version !== tag.slice(1)) throw new Error(`Version mismatch: ${path}`);
@@ -139,10 +174,9 @@ jobs:
           NODE
 
       - name: Build Tauri App
-        # Release-cutting step: only on a tag push. A manual workflow_dispatch
-        # stops after the pre-flight above, so it never builds installers or
-        # creates a draft release named after the branch ref.
-        if: github.event_name != 'workflow_dispatch'
+        # Tag pushes allocate a draft; explicit Windows recovery only reuses
+        # the draft and exact source validated by the prepare job.
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
         # tauri-action v1 (migrated from v0). The inputs we use (tagName,
         # releaseName, releaseBody, releaseDraft, prerelease, args) are unchanged;
         # v1 only drops includeRelease/includeDebug/auto-init and renames
@@ -156,7 +190,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS code-signing (Developer ID Application, team M3FGXPBLFZ): tauri-action
           # imports the base64 .p12 from APPLE_CERTIFICATE and signs the app. Only runs on
-          # a tag push (this Build step is gated off for workflow_dispatch above).
+          # a tag push; manual Windows recovery never runs the macOS leg.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -178,8 +212,8 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
           releaseId: ${{ needs.prepare.outputs.release_id }}
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Plainva ${{ github.ref_name }}'
+          tagName: ${{ needs.prepare.outputs.release_tag }}
+          releaseName: 'Plainva ${{ needs.prepare.outputs.release_tag }}'
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
@@ -242,7 +276,7 @@ jobs:
       # left in target/release is never signed; pointing at it failed the 0.6.8
       # cut on a file that is not shipped.
       - name: Verify Windows signatures carry a timestamp
-        if: matrix.platform == 'windows-latest' && github.event_name != 'workflow_dispatch'
+        if: matrix.platform == 'windows-latest' && (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag)
         shell: pwsh
         run: |
           $root = "apps/desktop/src-tauri/target/release"

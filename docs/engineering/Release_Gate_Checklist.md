@@ -1,10 +1,14 @@
 # Release Gate Checklist
 
-Last reviewed: 2026-09-11 (single draft allocation before the platform matrix; current reporting process clarified).
+Last reviewed: 2026-09-18 (bounded test concurrency and recovery of Windows artifacts from an existing draft).
 
 For every public release, record the actual automated test, native build, signature, artifact and publication results in the maintainer workspace's release protocol. Since 2026-09-07, the maintainer tests native scenarios freely and reports findings; new manual acceptance checklists are no longer required. The scenarios below remain historical reference material, rather than a blank checklist to copy.
 
 The desktop workflow allocates one draft before starting its platform matrix and passes the resulting `releaseId` to every Tauri build. Runs for the same ref are serialized. `apps/desktop/scripts/prepare-release.mjs` reuses only an unambiguous draft for the exact commit and refuses published releases or different sources; manual build checks create no release. This prevents the concurrent draft creation seen during 0.8.2. Before publication, verify the full platform asset set and every updater URL/signature against the chosen release; green build jobs alone do not establish that all artifacts ended up together.
+
+The release pre-flight runs every unit-test suite sequentially with one worker per suite. This bounds competition between the suites on hosted runners without changing their assertions or timeouts. Ordinary manual runs remain checks only; the existing optional AppImage test build remains separate.
+
+To recover Windows artifacts after a release-workflow correction, explicitly dispatch `release.yml` with `rebuild_windows_tag=vX.Y.Z` from the corrected workflow revision. The prepare job checks out that tag separately, resolves its exact commit and verifies all product versions. Recovery requires an existing unpublished desktop draft with the same commit and release notes; it cannot allocate a new draft or overwrite a published release. Only Windows runs, checks out the resolved source SHA, executes the full pre-flight and signs its artifacts in that existing draft. Record both the workflow revision and the actual build source in the release protocol; a recovery run's `head_sha` identifies its workflow revision. Tags and already delivered platform builds remain unchanged. The original failed run stays part of the evidence, alongside the successful platform jobs and recovery run.
 
 > Historical note: v0.1.0–v0.1.2 shipped before this process rule existed; their
 > gates were exercised ad hoc (install smokes on Windows/Linux, updater
