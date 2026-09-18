@@ -17,6 +17,7 @@ let current: { shell: "mobile" | "desktop"; count: number; embedded?: boolean };
 let rows: Record<string, unknown>[] = [];
 const requests: string[][] = [];
 let imageReads = 0;
+const imageRequests: string[] = [];
 let failure = false;
 let missing = "";
 let externalRows: Record<string, unknown>[] | null = null;
@@ -34,12 +35,12 @@ const source = {
     if (failure) throw new Error("Synthetic load failure");
     if (externalSource) return externalSource(paths);
     return Object.fromEntries(paths.filter((path) => path !== missing).map((path) => [path, {
-      content: `# ${path}\n\nCard body ${versions.get(path) ?? 0}. Hiddenneedle ${path.includes("99.") ? "needle-tail" : "ordinary"}\n\n- Item one\n- Item two\n\n![[pixel.png]]`,
+      content: `# ${path}\n\nCard body ${versions.get(path) ?? 0}. Hiddenneedle ${path.includes("99.") ? "needle-tail" : "ordinary"}\n\n- Item one\n- Item two\n\n![[${path.replace(/\.md$/, ".png")}]]`,
       tags: ["fixture", "group" + Number(path.match(/\d+/)?.[0]) % 2], ctime: 1,
     }]));
   },
 };
-const files = { async readBinaryFile(path: string) { imageReads++; if (externalImage) return externalImage(path); return Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), c => c.charCodeAt(0)); } };
+const files = { async readBinaryFile(path: string) { imageReads++; imageRequests.push(path); if (externalImage) return externalImage(path); return Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), c => c.charCodeAt(0)); } };
 const vault = { vaultId: "pinboard-probe", queryService: source, files, adapter: files } as unknown as MobileVault;
 const view = { type: "pinboard", name: "Notes" };
 const config = { views: [view], filters: {} };
@@ -54,7 +55,7 @@ function render() {
   app.render(child);
 }
 export const pinboardProbe = {
-  requests, versions,
+  requests, imageRequests, versions,
   mount(options: typeof current) {
     app?.unmount(); app = null; current = options;
     document.documentElement.dataset.density = options.shell === "mobile" ? "touch" : "compact";
@@ -62,7 +63,7 @@ export const pinboardProbe = {
     render();
   },
   unmount() { app?.unmount(); app = null; },
-  reset() { app?.unmount(); app = null; clearPinboardCache(source); requests.length = 0; imageReads = 0; failure = false; missing = ""; versions.clear(); },
+  reset() { app?.unmount(); app = null; clearPinboardCache(source); requests.length = 0; imageReads = 0; imageRequests.length = 0; failure = false; missing = ""; versions.clear(); },
   change(path: string) { versions.set(path, (versions.get(path) ?? 0) + 1); },
   fail(value: boolean) { failure = value; },
   missing(path: string) { missing = path; },

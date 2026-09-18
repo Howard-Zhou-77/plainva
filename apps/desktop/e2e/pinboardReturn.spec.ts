@@ -42,9 +42,25 @@ for (const shell of ["mobile", "desktop"] as const) {
     await loadPinboardProbe(page);
     await page.evaluate(shell => (window as PinboardProbeWindow).pinboardProbe.mount({ shell, count: 100 }), shell);
     await expect(page.locator('[data-card-status="ready"]').first()).toBeVisible();
-    await page.waitForTimeout(300);
-    const initial = await page.evaluate(() => ({ paths: new Set((window as PinboardProbeWindow).pinboardProbe.requests.flat()).size, images: (window as PinboardProbeWindow).pinboardProbe.imageReads() }));
-    expect(initial.paths).toBeLessThan(100); expect(initial.images).toBeLessThan(initial.paths);
+    await expect(page.locator('[data-pinboard-card] img').first()).toBeVisible();
+    const initial = await page.evaluate(() => ({ paths: new Set((window as PinboardProbeWindow).pinboardProbe.requests.flat()).size, images: (window as PinboardProbeWindow).pinboardProbe.imageRequests }));
+    expect(initial.paths).toBeLessThan(100);
+    // Card previews and images have independent observers. Read-operation
+    // counts need not be smaller than the number of distinct loaded notes.
+    // A distant image must stay unread until scrolling brings it into view.
+    const distantCard = page.locator('[data-pinboard-path="Inbox/Note-99.md"]');
+    await expect(distantCard).toHaveAttribute('data-card-status', 'loading');
+    expect(initial.images).not.toContain('Inbox/Note-99.png');
+    // Follow the scroll container while loaded heights settle. Masonry can
+    // move a card between columns and replace its DOM node during this step.
+    await expect.poll(() => page.evaluate(() => {
+      const container = document.querySelector<HTMLElement>('#host > div')!;
+      container.scrollTop = container.scrollHeight;
+      return (window as PinboardProbeWindow).pinboardProbe.imageRequests.includes('Inbox/Note-99.png');
+    })).toBe(true);
+    await expect(distantCard).toHaveAttribute('data-card-status', 'ready');
+    await expect(distantCard.locator('img')).toBeInViewport();
+    await page.evaluate(() => { document.querySelector<HTMLElement>('#host > div')!.scrollTop = 0; });
     await page.locator('[data-pinboard-chip="group1"]').click();
     await page.evaluate(() => { document.querySelector<HTMLElement>('#host > div')!.scrollTop = 850; });
     await page.waitForTimeout(400);
