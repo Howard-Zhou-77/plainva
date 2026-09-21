@@ -3,7 +3,7 @@ import { installRAFFallback } from "./services/rafFallback";
 // On Linux, WebKitGTK's rAF may stall when the AppImage bundles an older
 // libwayland-client against Mesa 25+ (see rafFallback.ts). macOS (WKWebView)
 // and Windows (WebView2) are unaffected — skip the probe entirely there.
-if (/Linux/.test(navigator.userAgent)) {
+if (/Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)) {
   installRAFFallback();
 }
 
